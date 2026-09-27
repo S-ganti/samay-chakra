@@ -86,7 +86,7 @@ async function boot() {
   const LINFO = { celVis: 0, celPos: V3(), portalI: 0, portalPos: V3(GEO.GATE.x, WHEEL_Y, GEO.GATE.z), portalCol: col('#ff8a2a') };
   let last = performance.now(), frames = 0, fpsT = 0, slow = 0;
   const G = ST.gate, gateBase = HP;
-  window.__samay = { S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
+  window.__samay = { S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
   const reportOnce = (key, e) => { console.error(e); if (!UI.errs[key]) { UI.errs[key] = 1; toast(`Something went wrong (${(e && e.message) || e}). The scene keeps running; reload the page if it looks wrong.`, 9000); } };
