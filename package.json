@@ -1,0 +1,25 @@
+{
+  "name": "samay-chakra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Ring · Samay Chakra: a living 3D world of eight prahars, with carved stone, a dancing crowd and generative raga music.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "bake:rig": "node tools/rig/bake.mjs"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "magic-string": "^0.30.21",
+    "meshoptimizer": "^0.21.0",
+    "vite": "^8.3.1"
+  }
+}
