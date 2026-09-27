@@ -667,7 +667,74 @@ function buildCarving(q) {
 function carvedMaterial(sh, { repeat = [1, 1], normalScale = 1, ...extra } = {}) {
   const set = (t) => { const c = t.clone(); c.repeat.set(repeat[0], repeat[1]); c.needsUpdate = true; sh.texs.push(c); return c; };
   const orm = set(sh.orm);
-  return new THREE.MeshStandardMaterial({ map: set(sh.map), normalMap: set(sh.normalMap), normalScale: new THREE.Vector2(normalScale, normalScale), roughnessMap: orm, metalnessMap: orm, aoMap: orm, aoMapIntensity: 1, roughness: 1, metalness: 1, ...extra });
+  const m = new THREE.MeshStandardMaterial({ map: set(sh.map), normalMap: set(sh.normalMap), normalScale: new THREE.Vector2(normalScale, normalScale), roughnessMap: orm, metalnessMap: orm, aoMap: orm, aoMapIntensity: 1, roughness: 1, metalness: 1, ...extra });
+  stoneDetail(m, sh.kind);
+  return m;
+}
+
+/* ---------- photoreal stone: the carving gives the form, a photographed stone surface gives the grain ----------
+   Every carved material also samples a Poly Haven scan (CC0) of the stone it stands for, triplanar in world
+   space: colour variation, pores and cracks, roughness and micro-normals. On top, weathering the way real
+   monuments carry it: grime settled in the recesses, rain streaks down the faces, lichen on the tops. */
+// monolithic surfaces only (masonry scans would print brick courses across carved stone)
+const STONE_TEX = { sandstone: 'stone/sandstone_cracks', buff: 'stone/sandstone_cracks', marble: 'stone/marble_rock_02', granite: 'tex/rock_boulder_dry', laterite: 'stone/rock_boulder_cracked', slate: 'tex/rock_boulder_dry' };
+const STONE = { sets: {}, U: { uStoneOn: { value: PARAM.stone === undefined ? 1 : PARAM.stone } } };
+const _flatARM = () => { const t = new THREE.DataTexture(new Uint8Array([255, 200, 0, 255]), 1, 1); t.needsUpdate = true; return t; };
+function stoneSet(kind) {
+  const id = STONE_TEX[kind]; if (!id) return null;
+  if (STONE.sets[id]) return STONE.sets[id];
+  const set = { tD: { value: null }, tN: { value: null }, tA: { value: null }, uOn: { value: 0 }, uMean: { value: new THREE.Vector3(.5, .5, .5) } };
+  STONE.sets[id] = set; const L = new THREE.TextureLoader(); let n = 0;
+  const done = () => { if (++n === 3) set.uOn.value = 1; };
+  const ld = (k, u, srgb) => L.load(`scans/${id}_${k}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) { t.colorSpace = THREE.SRGBColorSpace;
+    try { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); g.drawImage(t.image, 0, 0, 16, 16); const d = g.getImageData(0, 0, 16, 16).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } const k2 = 1 / (255 * 256); set.uMean.value.set(Math.pow(r * k2, 2.2), Math.pow(gg * k2, 2.2), Math.pow(b * k2, 2.2)); } catch (e) { } }
+    set[u].value = t; done(); }, undefined, () => { });
+  ld('Diffuse', 'tD', true); ld('nor_gl', 'tN', false); if (id.startsWith('tex/')) { set.tA.value = _flatARM(); done(); } else ld('arm', 'tA', false);
+  return set;
+}
+function stoneDetail(m, kind) {
+  const set = stoneSet(kind); if (!set) return m;
+  const marble = kind === 'marble', scale = marble ? .4 : .5;
+  chainHook(m, 'stone', (sh) => {
+    Object.assign(sh.uniforms, set, STONE.U); sh.uniforms.uSScale = { value: scale }; sh.uniforms.uLichen = { value: marble ? 0 : 1 };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSW; varying vec3 vSN;')
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+        { vec4 swp = vec4(transformed, 1.0); vec3 snn = objectNormal;
+        #ifdef USE_INSTANCING
+          swp = instanceMatrix * swp; snn = mat3(instanceMatrix) * snn;
+        #endif
+          vSW = (modelMatrix * swp).xyz; vSN = normalize(mat3(modelMatrix) * snn); }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      uniform sampler2D tD, tN, tA; uniform float uOn, uStoneOn, uSScale, uLichen; uniform vec3 uMean; varying vec3 vSW; varying vec3 vSN;
+      vec3 sBW() { vec3 b = pow(abs(normalize(vSN)), vec3(4.0)); return b / (b.x + b.y + b.z); }
+      vec4 tri(sampler2D t, float k) { vec3 b = sBW(); vec3 p = vSW * uSScale * k; return texture2D(t, p.zy) * b.x + texture2D(t, p.xz) * b.y + texture2D(t, p.xy) * b.z; }
+      float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); float a = fract(sin(dot(i, vec2(12.9898, 78.233))) * 43758.5453), b = fract(sin(dot(i + vec2(1, 0), vec2(12.9898, 78.233))) * 43758.5453), c = fract(sin(dot(i + vec2(0, 1), vec2(12.9898, 78.233))) * 43758.5453), d = fract(sin(dot(i + vec2(1, 1), vec2(12.9898, 78.233))) * 43758.5453); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      float sOn = uOn * uStoneOn;
+      if (sOn > 0.5) {
+        vec3 sd = tri(tD, 1.0).rgb, sd2 = tri(tD, .23).rgb;
+        vec3 grain = (sd * .65 + sd2 * .35) / max(uMean, vec3(.02));
+        diffuseColor.rgb *= mix(vec3(1.0), clamp(grain, 0.45, 1.7), .55);
+        #ifdef USE_AOMAP
+          float cav = texture2D(aoMap, vAoMapUv).r;
+          diffuseColor.rgb *= mix(.55, 1.0, smoothstep(.25, .95, cav));   // grime settles in the recesses
+        #endif
+        float streak = sN(vec2((vSW.x + vSW.z) * 2.3, vSW.y * .18)) * sN(vec2((vSW.x - vSW.z) * 5.1, vSW.y * .4));
+        diffuseColor.rgb *= 1.0 - .22 * smoothstep(.25, .6, streak) * (1.0 - abs(normalize(vSN).y));   // rain streaks down the faces
+        float up = smoothstep(.55, .95, normalize(vSN).y), pat = smoothstep(.55, .78, sN(vSW.xz * .9) * .6 + sN(vSW.xz * 3.7) * .4);
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(.72, .74, .5) + vec3(.03, .03, .0), up * pat * .55 * uLichen);   // lichen on the tops
+      }`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      if (uOn * uStoneOn > 0.5) { vec3 sa = tri(tA, 1.0).rgb; roughnessFactor = clamp(mix(roughnessFactor, sa.g, .55) + (1.0 - sa.r) * .08, .08, 1.0); }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      if (uOn * uStoneOn > 0.5) {
+        vec3 b = sBW(), p = vSW * uSScale, n = normalize(vSN);
+        vec3 tx = texture2D(tN, p.zy).xyz * 2. - 1., ty = texture2D(tN, p.xz).xyz * 2. - 1., tz = texture2D(tN, p.xy).xyz * 2. - 1.;
+        vec3 wn = normalize(vec3(0., tx.y, tx.x) * b.x + vec3(ty.x, 0., ty.y) * b.y + vec3(tz.x, tz.y, 0.) * b.z);
+        normal = normalize(normal + (mat3(viewMatrix) * wn) * .55);
+      }`);
+  });
+  return m;
 }
 
 /* ---------- geometry with UVs laid out for the sheets ---------- */

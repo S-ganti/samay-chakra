@@ -50,7 +50,7 @@ function buildStructures(scene, Q) {
     const a0 = k / 8 * TAU + (k % 2 === 0 ? .27 : .1), a1 = (k + 1) / 8 * TAU - ((k + 1) % 2 === 0 ? .27 : .1);
     const g = annularBlock(12.1, 13.9, a0, a1, 0, 1.35, 20, { tile: 5.4, capU: 7.2 }); g.rotateX(-Math.PI / 2); wallGeo.push(g);
   }
-  const wall = new THREE.Mesh(mergeGrouped(wallGeo), [C.strip, C.frieze, C.ashlar]); wall.castShadow = wall.receiveShadow = true; stage.add(wall);
+  const wall = new THREE.Mesh(mergeGrouped(wallGeo), [C.strip, C.frieze, C.ashlar]); wall.castShadow = wall.receiveShadow = true; stage.add(wall); out.stageWall = wall; out.stageGroup = stage;
   const towerG = boxUV(new THREE.BoxGeometry(2.5, 2.5, 2.5), 2.5 / .7 * .7, 2.5, { fitV: true }); towerG.translate(0, 1.25, 0);
   const towers = new THREE.InstancedMesh(towerG, C.wall, 4);
   const capG = new THREE.CylinderGeometry(1.15, 1.25, .38, 28); capG.translate(0, 2.7, 0);
@@ -161,12 +161,12 @@ function buildStructures(scene, Q) {
   const tier = (w, h, y) => { const bays = Math.max(1, Math.round(w / 1.8)), st = Math.max(1, Math.round(h / (w / bays * 1.4))); const g = boxUV(new THREE.BoxGeometry(w, h, w), w * 2 / bays, h / st, { off: [.5, .5] }); g.translate(0, y + h / 2, 0); twrG.push(g); return y + h; };
   let y = 0; y = tier(3.8, 5.5, y); y = tier(3.2, 4.6, y); y = tier(2.6, 3.8, y); y = tier(2.0, 2.4, y);
   const cap = new THREE.ConeGeometry(1.5, 2.4, 4); cap.rotateY(Math.PI / 4); cap.translate(0, y + 1.2, 0); twrG.push(cap);
-  const twrMerged = mergeGeometries(twrG);
+  const twrMerged = mergeGeometries(twrG); out.gateTowers = [];
   for (const sz of [-11, 11]) {
-    const t = new THREE.Mesh(twrMerged, C.wall); t.position.set(GEO.GATE.x, groundY(GEO.GATE.x, sz) - .3, sz); t.castShadow = t.receiveShadow = true; scene.add(t);
+    const t = new THREE.Mesh(twrMerged, C.wall); out.gateTowers.push(t); t.position.set(GEO.GATE.x, groundY(GEO.GATE.x, sz) - .3, sz); t.castShadow = t.receiveShadow = true; scene.add(t);
     const med = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, .35, 32), [C.band2, C.chakra, C.chakra]);
     med.rotation.z = Math.PI / 2; med.position.set(GEO.GATE.x - 1.95, t.position.y + 7.4, sz); scene.add(med);
-    const med2 = med.clone(); med2.position.x = GEO.GATE.x + 1.95; med2.rotation.z = -Math.PI / 2; scene.add(med2);
+    const med2 = med.clone(); med2.position.x = GEO.GATE.x + 1.95; med2.rotation.z = -Math.PI / 2; scene.add(med2); out.gateTowers.push(med, med2);
   }
   // scaffolding (Return: rebuilding)
   const scafN = 140, scaf = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: '#8a6a44', roughness: .9 }), scafN);
@@ -286,7 +286,7 @@ function buildStructures(scene, Q) {
   const sk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.025, .025, .04, 8), synthKnobMat, 24);
   for (let i = 0; i < 24; i++) { _p.set(GEO.SYNTH.x - .62 + (i % 12) * .112, sy + .84, GEO.SYNTH.z - .12 + Math.floor(i / 12) * .2); _q.identity(); setIM(sk, i, _p, _q, _s); }
   scene.add(sk);
-  out.ridge = { synthKnobMat, stoneTops };
+  out.ridge = { synthKnobMat, stoneTops, stones, ruinIM };
 
   /* ---------- celestial ring ---------- */
   const cel = new THREE.Group(); scene.add(cel);

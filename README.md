@@ -102,6 +102,12 @@ soft limit of 100 GB a month.
 - 3D engine: [three.js](https://threejs.org) (MIT).
 - Fonts: Cinzel, Jost, Big Shoulders Stencil and Noto scripts from Google Fonts (SIL Open Font License).
 - Photogrammetry scans and ground textures: [Poly Haven](https://polyhaven.com) (CC0): granite boulders and cliffs (Namaqualand, mountainside, rock faces), mossy rock beds, stumps and trunks, jacaranda, island tree, searsia, a stone fire pit; forest leaves, red laterite, dry granite, sparse grass and aerial rock textures. Optimised with [glTF-Transform](https://gltf-transform.dev) into `public/scans/`.
+- Temple photogrammetry by Akhanda Setu ([gputhige](https://sketchfab.com/gputhige) on Sketchfab), licensed CC BY 4.0, simplified and re-textured for the web:
+  - "Free - 3D Scan - 12th Century Bhumija Shikara" (https://sketchfab.com/3d-models/free-3d-scan-12th-century-bhumija-shikara-da50bd1451e24c5f80c9e48f8bd5ff29): the gate shikharas
+  - "Free 3DScan 9th Century Pillar" (https://sketchfab.com/3d-models/free-3dscan-9th-century-pillar-f16d9708a3d84c0d8c36376dc176a9af): the stone circle
+  - "Free - 3D Scan of 9th Century Temple Outer Wall" (https://sketchfab.com/3d-models/free-3d-scan-of-9th-century-temple-outer-wall-7ad2f66af45544deaa9465b678bc9f56): the ridge ruins
+  - "Free - 3D Scan of 6the Century carved platform" (https://sketchfab.com/3d-models/free-3d-scan-of-6the-century-carved-platform-8e5cac3a04ef4c6d8b975bf8c8796b9a): the ring stage frieze
+- Stone surfaces on the carved structures: Poly Haven scans (CC0) of sandstone, marble and granite.
 - Everything else (world, carving, music and sound) is generated in code.
 
 No license has been chosen for this project's own code yet, so by default all rights are reserved.

@@ -81,7 +81,7 @@ function routeAt(R, u) {
 }
 function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x + e, z), 2 * e, groundY(x, z - e) - groundY(x, z + e)).normalize(); return _nrm; }
 
-async function loadScans(scene, Q, renderer, FO) {
+async function loadScans(scene, Q, renderer, FO, ST) {
   const N = SCAN_Q[PARAM.quality] || SCAN_Q.med;
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
@@ -184,6 +184,7 @@ async function loadScans(scene, Q, renderer, FO) {
   }
   if (N.trees) { add('full', 'searsia_lucida', tS, { cast: PARAM.quality === 'high' }); add('full', 'island_tree_02', tI, { cast: PARAM.quality === 'high' }); }
 
+  try { if (ST) await loadHeritage(scene, ST); } catch (e) { diagNote && diagNote('scan', 'heritage failed: ' + (e.message || e)); }
   try { SCAN.imps = renderer ? impostorForest(scene, renderer, FO, A) : 0; } catch (e) { diagNote && diagNote('scan', 'impostors failed: ' + (e.message || e)); }
   for (const im of SCAN.groups) { const m = im.material; if (m.fog && !m.userData.hf) { m.userData.hf = 1; chainHook(m, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); } }
   SCAN.ready = true;
@@ -283,3 +284,60 @@ function scanFrame(SK, look) {
   const m = Math.max(IMP.light.r, IMP.light.g, IMP.light.b); if (m > 1.35) IMP.light.multiplyScalar(1.35 / m);
 }
 const _imc = new THREE.Color();
+
+/* ---------- heritage scans: real Karnataka temple stone as the signature structures ----------
+   Photogrammetry by Akhanda Setu (gputhige on Sketchfab), CC BY 4.0: a 12th-century Bhumija shikhara, a 9th-century
+   pillar and temple outer wall, a 6th-century carved platform. The scans carry their own photographed colour; they are
+   given a lit stone material (the originals are unlit) so they take the world's day and night. */
+const HERITAGE = { base: 'scans/heritage/', ready: false, parts: {} };
+function heritageMaterial(m) {
+  const s = new THREE.MeshStandardMaterial({ map: m.map || null, color: '#ffffff', roughness: .88, metalness: 0, normalMap: m.normalMap || null });
+  if (s.map) s.map.colorSpace = THREE.SRGBColorSpace;
+  if (s.fog) { s.userData.hf = 1; chainHook(s, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); }
+  return s;
+}
+function heritagePlace(scene, asset, list, { cast = true } = {}) {
+  // list: [x, y, z, height (m), yaw]; the scan is scaled uniformly so its height matches
+  const out = [];
+  for (const [g, m] of asset.parts) {
+    const im = new THREE.InstancedMesh(g, heritageMaterial(m), list.length);
+    list.forEach(([x, y, z, h, yaw], i) => { const k = h / asset.size.y; _p.set(x, y, z); _q.setFromAxisAngle(V3(0, 1, 0), yaw); _s.set(k, k, k); setIM(im, i, _p, _q, _s); });
+    _s.set(1, 1, 1); im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); out.push(im);
+    SCAN.tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * list.length;
+  }
+  return out;
+}
+async function loadHeritage(scene, ST) {
+  const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), A = {};
+  await Promise.all(['shikhara', 'pillar', 'wall', 'platform'].map(async (id) => { try { A[id] = scanParts(await L.loadAsync(HERITAGE.base + id + '.glb')); } catch (e) { diagNote && diagNote('scan', `heritage ${id} failed: ${e.message || e}`); } }));
+  HERITAGE.parts = A;
+  // Enter / Return: the portal wheel flanked by two real shikharas in place of the painted towers
+  if (A.shikhara && ST.gateTowers) {
+    for (const t of ST.gateTowers) t.visible = false;
+    const gx = GEO.GATE.x, list = [-1, 1].map(sd => { const z = sd * 14.2; return [gx, groundY(gx, z) - .45, z, 16.5, sd > 0 ? Math.PI : 0]; });
+    heritagePlace(scene, A.shikhara, list);
+  }
+  // Eclipse / Brahma Muhurta: the stone circle becomes a ring of carved temple pillars, each as tall as the stone it replaces
+  if (A.pillar && ST.ridge && ST.ridge.stones) {
+    const st = ST.ridge.stones, m4 = new THREE.Matrix4(), pp = V3(), qq = new THREE.Quaternion(), ss = V3(), list = [];
+    for (let i = 0; i < st.count; i++) { st.getMatrixAt(i, m4); m4.decompose(pp, qq, ss); const yaw = new THREE.Euler().setFromQuaternion(qq, 'YXZ').y; list.push([pp.x, pp.y + .1, pp.z, ss.y * 1.05, yaw]); }
+    st.visible = false; heritagePlace(scene, A.pillar, list);
+  }
+  // the ruins on the ridge: sections of a real temple wall standing in the mist, west of the circle (the east stays open for sunrise)
+  if (A.wall && ST.ridge && ST.ridge.ruinIM) {
+    ST.ridge.ruinIM.visible = false;
+    const R = GEO.R, list = [[-26, -8, 6.2, 1.2], [-20, 14, 5.4, 2.1], [-8, 22, 4.6, 2.8], [-24, -22, 5, .4]].map(([dx, dz, h, yaw]) => [R.x + dx, groundY(R.x + dx, R.z + dz) - .4, R.z + dz, h, yaw]);
+    heritagePlace(scene, A.wall, list);
+  }
+  // The Gathering: the ring stage's outer face is lined with the carved platform frieze, chord by chord
+  if (A.platform && ST.stageGroup) {
+    const h = 1.42, len = A.platform.size.x * h / A.platform.size.y, list = [];
+    for (let k = 0; k < 8; k++) {
+      const a0 = k / 8 * TAU + (k % 2 === 0 ? .27 : .1), a1 = (k + 1) / 8 * TAU - ((k + 1) % 2 === 0 ? .27 : .1);
+      const n = Math.max(1, Math.round((a1 - a0) * 13.9 / len)), da = (a1 - a0) / n;
+      for (let j = 0; j < n; j++) { const a = a0 + (j + .5) * da, r = 13.9 + A.platform.size.z * h / A.platform.size.y * .35; list.push([Math.cos(a) * r, HP - .06, -Math.sin(a) * r, h, a + Math.PI / 2]); }
+    }
+    heritagePlace(scene, A.platform, list);
+  }
+  HERITAGE.ready = true;
+}

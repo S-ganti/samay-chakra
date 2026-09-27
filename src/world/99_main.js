@@ -38,7 +38,7 @@ async function boot() {
   const PP = buildPost(renderer, scene, CAM.cam, Q);
   const NA = buildNature(scene, Q, SK);
   injectFog(scene);
-  const scans = loadScans(scene, Q, renderer, FO).catch((e) => { SCAN.failed = true; diagNote('scan', String(e && e.message || e)); });   // photogrammetry streams in while the loading screen is up
+  const scans = loadScans(scene, Q, renderer, FO, ST).catch((e) => { SCAN.failed = true; diagNote('scan', String(e && e.message || e)); });   // photogrammetry streams in while the loading screen is up
   const ctx = { canvas, renderer, CAM, resize: null, applyQuality: null };
   let vw = 1, vh = 1;
   const DR = { scale: 1, slowT: 0, fastT: 0, cool: 2, lowT: 0 };            // dynamic resolution
@@ -88,7 +88,7 @@ async function boot() {
   const LINFO = { celVis: 0, celPos: V3(), portalI: 0, portalPos: V3(GEO.GATE.x, WHEEL_Y, GEO.GATE.z), portalCol: col('#ff8a2a') };
   let last = performance.now(), frames = 0, fpsT = 0, slow = 0;
   const G = ST.gate, gateBase = HP;
-  window.__samay = { SCAN, IMP, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
+  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
   const reportOnce = (key, e) => {

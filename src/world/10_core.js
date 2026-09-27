@@ -189,7 +189,7 @@ const QPICK = (() => {
 })();
 const PARAM = {
   dayMinutes: 24, clock: false, playing: true,
-  population: isMobile ? 180 : 380, dream: .75, energy: 1, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
+  population: isMobile ? 180 : 380, dream: .75, stone: 1, energy: 1, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
   real: 1, shafts: 1, ao: 1, dof: true, palette: 'poster',
   quality: QPICK.q, qualityPinned: QPICK.pinned,
   camera: 'director', shotLen: 20, cut: false, titles: true, frame: 'fill', lbx: false,
