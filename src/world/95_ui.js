@@ -163,6 +163,9 @@ function setupDiag() {
     inp.addEventListener('change', () => diagNote('track', 'file dialog returned ' + (inp.files && inp.files.length ? `“${inp.files[0].name}”` : 'nothing')));
   });
   $('bDiag').onclick = () => diagShow('Diagnostics', 'Copy these details and send them over.');
+  // the world must never scroll: if a browser without overflow:clip lets focus slide it away, put it straight back
+  const app = $('app');
+  app.addEventListener('scroll', () => { if (app.scrollTop || app.scrollLeft) { diagNote('page', `the world was scrolled by ${app.scrollLeft},${app.scrollTop}; reset`); app.scrollTop = app.scrollLeft = 0; } });
   // watchdog: frames should arrive whenever the page is visible. A native file dialog can pause them, so only
   // a stall while the page has focus raises the card
   setInterval(() => {
