@@ -194,9 +194,12 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   dirFrom(rEl, 0, _rd);
   const Rp = RIDGE_P;
   const cel = ST.celestial;
-  cel.group.position.copy(Rp).addScaledVector(_rd, 460);
+  // in the Eclipse chapter the wheel comes down close, as on its poster: a carved ring filling the sky, its face caught in cold light
+  const eclW = w[2], celD = lerp(460, 235, eclW);
+  cel.group.position.copy(Rp).addScaledVector(_rd, celD);
   cel.group.lookAt(Rp); cel.group.rotateZ(rt * .004);
-  cel.angR = Math.atan(113 / 460);
+  cel.angR = Math.atan(113 / celD);
+  if (cel.celMat.emissive) { _pc3.set('#2a3a58').multiplyScalar(.32 * eclW + .08 * w[3]); cel.celMat.emissive.copy(_pc3); cel.celBlockMat.emissive.copy(_pc3); }
   const mAz = hdiff(t, 1.5) * 6;
   dirFrom(rEl + 1.5 * Math.cos(hdiff(t, 1.5) * .4), mAz, S.moonDir);
   const moonUp = smooth(-.06, .04, S.moonDir.y) * (1 - smooth(-.05, .1, S.sunDir.y));

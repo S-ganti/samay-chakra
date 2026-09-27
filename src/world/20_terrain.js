@@ -121,10 +121,42 @@ function distToRoute(x, z, r) {
   }
   return best;
 }
+/* ---------- scanned ground: four Poly Haven (CC0) surfaces blended per vertex, tiled in world space at two scales so no repeat shows ---------- */
+const GROUND = { names: ['forest_leaves_02', 'red_laterite_soil_stones', 'rock_boulder_dry', 'sparse_grass'], U: { uGT: { value: 0 }, tG0: { value: null }, tG1: { value: null }, tG2: { value: null }, tG3: { value: null }, tN0: { value: null }, tN1: { value: null }, tN2: { value: null }, tN3: { value: null } } };
+function groundLayers(m) {
+  const L = new THREE.TextureLoader(); let n = 0;
+  const load = (u, i, kind) => L.load(`scans/tex/${GROUND.names[i]}_${kind}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (kind === 'Diffuse') t.colorSpace = THREE.SRGBColorSpace; GROUND.U[u].value = t; if (++n === 8) GROUND.U.uGT.value = 1; }, undefined, () => { });
+  for (let i = 0; i < 4; i++) { load('tG' + i, i, 'Diffuse'); load('tN' + i, i, 'nor_gl'); }
+  const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); blank.needsUpdate = true;
+  for (const k in GROUND.U) if (k !== 'uGT') GROUND.U[k].value = blank;
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, GROUND.U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aW; attribute float aK; varying vec4 vW; varying float vK; varying vec3 vWP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = aW; vK = aK; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      uniform float uGT; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
+      vec3 gSamp(sampler2D t, vec2 p) { return mix(texture2D(t, p / 3.2).rgb, texture2D(t, p / 11.0 + .37).rgb, .38); }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      if (uGT > 0.5) {
+        vec2 p = vWP.xz;
+        vec3 alb = gSamp(tG0, p) * vW.x + gSamp(tG1, p * 1.3) * vW.y + gSamp(tG2, p * .7) * vW.z + gSamp(tG3, p) * vW.w;
+        diffuseColor.rgb = mix(alb * 0.95, diffuseColor.rgb, vK);
+      }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      if (uGT > 0.5) {
+        vec2 p = vWP.xz;
+        vec3 tn = (texture2D(tN0, p / 3.2).xyz * vW.x + texture2D(tN1, p * 1.3 / 3.2).xyz * vW.y + texture2D(tN2, p * .7 / 3.2).xyz * vW.z + texture2D(tN3, p / 3.2).xyz * vW.w) * 2.0 - 1.0;
+        tn.xy *= 1.1 * (1.0 - vK);
+        vec3 wn = normalize(vec3(tn.x, tn.z, -tn.y));
+        vec3 vn = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+        normal = normalize(normal + (vn - (viewMatrix * vec4(0., 1., 0., 0.)).xyz));
+      }`);
+  };
+}
 function buildTerrain(scene) {
   const g = new THREE.PlaneGeometry(TER.size, TER.size, TER.seg, TER.seg);
   g.rotateX(-Math.PI / 2);
-  const pos = g.attributes.position, cols = new Float32Array(pos.count * 3);
+  const pos = g.attributes.position, cols = new Float32Array(pos.count * 3), lw = new Float32Array(pos.count * 4), keep = new Float32Array(pos.count);
   for (let k = 0; k < pos.count; k++) {
     const x = pos.getX(k), z = pos.getZ(k);
     pos.setY(k, groundY(x, z));
@@ -148,9 +180,20 @@ function buildTerrain(scene) {
     const foreM = (1 - smooth(12, 15, Math.abs(z))) * smooth(-108, -104, x) * (1 - smooth(-80, -77, x));
     c.lerp(cStone, foreM);
     cols[k * 3] = c.r; cols[k * 3 + 1] = c.g; cols[k * 3 + 2] = c.b;
+    // scanned ground layers: leaf litter, laterite paths, granite, dry grass; city and forecourt keep their painted colour
+    const wRock = Math.max(smooth(.9, .74, ny), smooth(34, 70, y) * .8, (1 - smooth(18, 26, dR)) * .55);
+    const wPath = (1 - smooth(1.6, 3.6, dp)) * .95;
+    const wGrass = (1 - smooth(44, 60, Math.hypot(x, z))) * smooth(40, 44, Math.hypot(x, z)) * .8 + smooth(.55, .8, fbm(x * .03 + 5, z * .03 - 2, 3)) * .6;
+    let wa = 1, wb = wPath, wc = wRock, wd = wGrass * (1 - wRock);
+    wa = Math.max(0, 1 - wb - wc - wd * .6);
+    const sum = wa + wb + wc + wd + 1e-5;
+    lw[k * 4] = wa / sum; lw[k * 4 + 1] = wb / sum; lw[k * 4 + 2] = wc / sum; lw[k * 4 + 3] = wd / sum;
+    keep[k] = Math.max(cityM, foreM);
   }
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  g.setAttribute('aW', new THREE.BufferAttribute(lw, 4)); g.setAttribute('aK', new THREE.BufferAttribute(keep, 1));
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, metalness: 0 });
+  groundLayers(m);
   const mesh = new THREE.Mesh(g, m);
   mesh.receiveShadow = true;
   scene.add(mesh);
@@ -176,7 +219,15 @@ function buildTerrain(scene) {
   mg.setAttribute('position', new THREE.Float32BufferAttribute(mp, 3));
   mg.setAttribute('color', new THREE.Float32BufferAttribute(mc, 3));
   mg.setIndex(mi); mg.computeVertexNormals();
-  const mm = new THREE.Mesh(mg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }));
+  const mMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+  // the far ranges wear an aerial scan of rock and scrub, projected from above at the scale of a hillside
+  const aerU = { tAer: { value: null }, uAer: { value: 0 } };
+  new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; aerU.tAer.value = t; aerU.uAer.value = 1; }, undefined, () => { });
+  mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, aerU);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = (modelMatrix * vec4(position, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');
+  };
+  const mm = new THREE.Mesh(mg, mMat);
   scene.add(mm);
   return { mesh, mountains: mm };
 }

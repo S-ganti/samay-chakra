@@ -9,6 +9,8 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 /* =========================================================================
    CORE — maths, chapters, looks, parameters
@@ -70,7 +72,7 @@ const LOOKS = [
     stars: .45, trail: 0, milky: .1, celes: .1, corona: '#ffb070', coronaI: .25, void: 0,
     strip: '#ff6a2a', stripI: .55, fire: .9, petals: 0, dust: .1, mist: .12,
     pTint: '#7a6a5c', pEmis: '#ff7a30', pEmisI: .06, ghost: 1.0, banner: '#9c231b', after: .12,
-    streakG: 0, streakE: 0, streakCol: '#ff4a1a', practical: '#ff8a3a', practicalI: 1.0, archGlow: 0 },
+    streakG: 0, streakE: 0, streakCol: '#ff4a1a', practical: '#ff8a3a', practicalI: 1.0, archGlow: 0, dream: '#8a5a3c' },
   { // 2 GATHERING — crimson swirl
     skyZen: '#130a0c', skyHor: '#3d1713', skyGlow: '#7a1a12', cloud: '#3a1512', cloudAmt: .25, fog: '#2a100c', fogD: .009,
     sun: '#c06050', sunI: .6, hemiS: '#5a2a22', hemiG: '#2a1408', hemiI: .8, bloom: .6, bloomR: .6, bloomT: .66,
@@ -78,7 +80,7 @@ const LOOKS = [
     stars: .3, trail: 0, milky: .05, celes: .5, corona: '#ff6040', coronaI: .3, void: .2,
     strip: '#c8452a', stripI: .7, fire: 1.0, petals: 0, dust: .05, mist: .05,
     pTint: '#c88a68', pEmis: '#b84a2a', pEmisI: .04, ghost: 1.45, banner: '#9e2b25', after: .25,
-    streakG: .55, streakE: 0, streakCol: '#c8502e', practical: '#e08a52', practicalI: 1.3, archGlow: 0 },
+    streakG: .55, streakE: 0, streakCol: '#c8502e', practical: '#e08a52', practicalI: 1.3, archGlow: 0, dream: '#7a3222' },
   { // 3 ECLIPSE — black, ice-blue rim, magenta dancers
     skyZen: '#03040a', skyHor: '#0d182c', skyGlow: '#3a5a8a', cloud: '#0a1020', cloudAmt: .12, fog: '#0b1322', fogD: .008,
     sun: '#a8c8ff', sunI: .85, hemiS: '#3a5588', hemiG: '#05060a', hemiI: .7, bloom: .55, bloomR: .45, bloomT: .6,
@@ -86,7 +88,7 @@ const LOOKS = [
     stars: .75, trail: 0, milky: 0, celes: 1, corona: '#a8c8e8', coronaI: .6, void: .95,
     strip: '#9a5a78', stripI: .2, fire: .1, petals: 0, dust: 0, mist: .45,
     pTint: '#3a3e4c', pEmis: '#8a5a78', pEmisI: .07, ghost: .75, banner: '#3a2436', after: .2,
-    streakG: 0, streakE: .22, streakCol: '#8fa6c8', practical: '#c07a92', practicalI: .7, archGlow: 0 },
+    streakG: 0, streakE: .22, streakCol: '#8fa6c8', practical: '#c07a92', practicalI: .7, archGlow: 0, dream: '#3c4a66' },
   { // 4 BRAHMA MUHURTA — indigo cyanotype, star trails
     skyZen: '#0d1a34', skyHor: '#2b4068', skyGlow: '#3a5580', cloud: '#22345a', cloudAmt: .1, fog: '#1e2d4c', fogD: .0115,
     sun: '#9fb8e8', sunI: .5, hemiS: '#3b5585', hemiG: '#0a1224', hemiI: .6, bloom: .55, bloomR: .5, bloomT: .65,
@@ -94,7 +96,7 @@ const LOOKS = [
     stars: 1.0, trail: 1, milky: .85, celes: .85, corona: '#7a9ad0', coronaI: .45, void: .7,
     strip: '#5a7ad0', stripI: .1, fire: .05, petals: 0, dust: 0, mist: .85,
     pTint: '#3a4a6a', pEmis: '#6a8ad0', pEmisI: .05, ghost: .8, banner: '#2a3350', after: .2,
-    streakG: 0, streakE: 0, streakCol: '#6a8ad0', practical: '#8aa6e0', practicalI: .6, archGlow: 0 },
+    streakG: 0, streakE: 0, streakCol: '#6a8ad0', practical: '#8aa6e0', practicalI: .6, archGlow: 0, dream: '#40597a' },
   { // 5 DIAMOND RING — white marble, gold, sunburst, petals
     skyZen: '#3f7fd0', skyHor: '#ffb27a', skyGlow: '#ffe2b0', cloud: '#ffb89a', cloudAmt: .55, fog: '#d8b89a', fogD: .0032,
     sun: '#fff0d0', sunI: 3.0, hemiS: '#9fc4ff', hemiG: '#b08050', hemiI: .9, bloom: .5, bloomR: .6, bloomT: .92,
@@ -102,7 +104,7 @@ const LOOKS = [
     stars: 0, trail: 0, milky: 0, celes: .8, corona: '#fff4d0', coronaI: .6, void: 0,
     strip: '#ffc860', stripI: .4, fire: 0, petals: 1, dust: .3, mist: .1,
     pTint: '#f2e4d0', pEmis: '#ffb050', pEmisI: .08, ghost: 1.2, banner: '#e8791e', after: .25,
-    streakG: 0, streakE: 0, streakCol: '#ffd070', practical: '#ffd9a0', practicalI: .3, archGlow: 1 },
+    streakG: 0, streakE: 0, streakCol: '#ffd070', practical: '#ffd9a0', practicalI: .3, archGlow: 1, dream: '#d9a574' },
   { // 6 DISPERSAL — flat photographic daylight, concrete, red circle
     skyZen: '#7fa3c8', skyHor: '#dfe4e3', skyGlow: '#fff6e8', cloud: '#ffffff', cloudAmt: .15, fog: '#cfd3cf', fogD: .0028,
     sun: '#fff4e2', sunI: 3.2, hemiS: '#c9d8e8', hemiG: '#7a6f60', hemiI: .8, bloom: .35, bloomR: .4, bloomT: .9,
@@ -110,7 +112,7 @@ const LOOKS = [
     stars: 0, trail: 0, milky: 0, celes: .12, corona: '#ffffff', coronaI: 0, void: 0,
     strip: '#b3261e', stripI: 0, fire: 0, petals: 0, dust: .35, mist: 0,
     pTint: '#d8d0c4', pEmis: '#000000', pEmisI: 0, ghost: .9, banner: '#b3261e', after: .05,
-    streakG: 0, streakE: 0, streakCol: '#b3261e', practical: '#ffffff', practicalI: 0, archGlow: 0 },
+    streakG: 0, streakE: 0, streakCol: '#b3261e', practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#e6dccf' },
   { // 7 ZERO SHADOW — parchment, sandstone, pigment specks
     skyZen: '#cfd6d6', skyHor: '#f3ecdd', skyGlow: '#fffaf0', cloud: '#fffaf0', cloudAmt: .1, fog: '#efe6d3', fogD: .0048,
     sun: '#fff6e6', sunI: 2.1, hemiS: '#f5eee0', hemiG: '#d8c4a0', hemiI: 1.45, bloom: .3, bloomR: .5, bloomT: .92,
@@ -118,7 +120,7 @@ const LOOKS = [
     stars: 0, trail: 0, milky: 0, celes: .05, corona: '#ffffff', coronaI: 0, void: 0,
     strip: '#c0392b', stripI: 0, fire: 0, petals: 0, dust: .15, mist: 0,
     pTint: '#e8dcc8', pEmis: '#000000', pEmisI: 0, ghost: .7, banner: '#c0392b', after: .05,
-    streakG: 0, streakE: 0, streakCol: '#c0392b', practical: '#ffffff', practicalI: 0, archGlow: 0 },
+    streakG: 0, streakE: 0, streakCol: '#c0392b', practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#f6efe4' },
   { // 8 RETURN — golden haze, dusty amber
     skyZen: '#5a6c80', skyHor: '#f2b36a', skyGlow: '#ffc070', cloud: '#f0a060', cloudAmt: .45, fog: '#c98b52', fogD: .0092,
     sun: '#ffb060', sunI: 2.4, hemiS: '#d8a070', hemiG: '#3a2616', hemiI: .7, bloom: .6, bloomR: .6, bloomT: .75,
@@ -126,15 +128,15 @@ const LOOKS = [
     stars: 0, trail: 0, milky: 0, celes: .15, corona: '#ffd0a0', coronaI: .1, void: 0,
     strip: '#ff8a3a', stripI: .2, fire: .2, petals: .12, dust: .9, mist: .15,
     pTint: '#c8a888', pEmis: '#ffa050', pEmisI: .04, ghost: 1.2, banner: '#9e2b25', after: .2,
-    streakG: 0, streakE: 0, streakCol: '#ffa050', practical: '#ffa050', practicalI: .5, archGlow: 0 },
+    streakG: 0, streakE: 0, streakCol: '#ffa050', practical: '#ffa050', practicalI: .5, archGlow: 0, dream: '#e0b286' },
 ];
 // light + atmosphere per chapter: phys = weight of the physical sky/sun colour, mie = haze, fogG/fogH/fogS = ground fog
 // multiplier / scale height (m) / clear distance (m), scat = poster in-scatter, envI = sky ambient, ao, shaft, expo
 const LOOKX = [
-  { phys: .5, mie: 1.6, fogY: 8, fogH: 16, fogS: 6, scat: .55, envI: .4, ao: .7, shaft: 1.0, expo: 1.0 },     // enter
+  { phys: .5, mie: 1.6, fogY: 8, fogH: 16, fogS: 6, scat: .55, envI: .4, ao: .7, shaft: 1.0, expo: 1.3 },     // enter
   { phys: 0, mie: 1.2, fogY: 12, fogH: 16, fogS: 6, scat: .4, envI: .38, ao: .6, shaft: .8, expo: 1.28 },     // gathering
-  { phys: 0, mie: 1.0, fogY: 24, fogH: 14, fogS: 6, scat: .5, envI: .3, ao: .55, shaft: .8, expo: 1.0 },      // eclipse
-  { phys: .3, mie: 1.2, fogY: 24, fogH: 10, fogS: 4, scat: .45, envI: .4, ao: .5, shaft: .8, expo: 1.0 },     // brahma
+  { phys: 0, mie: 1.0, fogY: 24, fogH: 14, fogS: 6, scat: .5, envI: .3, ao: .55, shaft: .8, expo: 1.25 },      // eclipse
+  { phys: .3, mie: 1.2, fogY: 24, fogH: 10, fogS: 4, scat: .45, envI: .4, ao: .5, shaft: .8, expo: 1.2 },     // brahma
   { phys: .15, mie: 1.3, fogY: 12, fogH: 16, fogS: 8, scat: .5, envI: .32, ao: .85, shaft: 1.0, expo: 1.0 },  // diamond
   { phys: .5, mie: 1.3, fogY: 6, fogH: 30, fogS: 8, scat: .35, envI: .45, ao: .85, shaft: .6, expo: 1.0 },    // dispersal
   { phys: .3, mie: 1.5, fogY: 8, fogH: 30, fogS: 8, scat: .3, envI: .45, ao: .8, shaft: .4, expo: 1.0 },      // zero shadow
@@ -187,7 +189,7 @@ const QPICK = (() => {
 })();
 const PARAM = {
   dayMinutes: 24, clock: false, playing: true,
-  population: isMobile ? 180 : 380, energy: 1, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
+  population: isMobile ? 180 : 380, dream: .75, energy: 1, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
   real: 1, shafts: 1, ao: 1, dof: true, palette: 'poster',
   quality: QPICK.q, qualityPinned: QPICK.pinned,
   camera: 'director', shotLen: 20, cut: false, titles: true, frame: 'fill', lbx: false,

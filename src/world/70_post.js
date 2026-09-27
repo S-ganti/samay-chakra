@@ -237,10 +237,10 @@ const OutputGradeShader = {
   uniforms: {
     tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uExpo: { value: 1 }, uTM: { value: 1 }, uAgxPow: { value: 1.2 }, uAgxSat: { value: 1.2 },
     uLift: { value: col('#000') }, uGain: { value: col('#fff') }, uSat: { value: 1 }, uCon: { value: 1 }, uVig: { value: .5 }, uGrain: { value: .05 }, uPaper: { value: 0 }, uAmt: { value: 1 }, uAberr: { value: .004 }, uBars: { value: 0 },
-    tLutA: { value: null }, tLutB: { value: null }, uLutW: { value: 0 }, uPal: { value: 0 },
+    tLutA: { value: null }, tLutB: { value: null }, uLutW: { value: 0 }, uPal: { value: 0 }, uDream: { value: 0 }, uDreamTint: { value: col('#e8dccb') },
   },
   vertexShader: FSQ_VS,
-  fragmentShader: `precision highp sampler3D; uniform sampler3D tLutA, tLutB; uniform float uLutW, uPal;
+  fragmentShader: `precision highp sampler3D; uniform sampler3D tLutA, tLutB; uniform float uLutW, uPal, uDream; uniform vec3 uDreamTint;
     uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime,uExpo,uTM,uAgxPow,uAgxSat,uSat,uCon,uVig,uGrain,uPaper,uAmt,uAberr,uBars; uniform vec3 uLift,uGain; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
     float n2(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y); }
@@ -284,6 +284,13 @@ const OutputGradeShader = {
       c = mix(c, g, uAmt);
       // repaint with the chapter's pigments (value from the render, hue and chroma from the palette)
       if (uPal > 0.001) { vec3 lc = clamp(c, 0.0, 1.0) * 0.96875 + 0.015625; c = mix(c, mix(texture(tLutA, lc).rgb, texture(tLutB, lc).rgb, uLutW), uPal); }
+      // dream: shadows lifted into the chapter's own haze colour, contrast softened, highlights bloomed to milk (a pro-mist look)
+      if (uDream > 0.001) {
+        vec3 t = uDreamTint; float l = dot(c, vec3(0.2126,0.7152,0.0722));
+        c += t * (1.0 - c) * (1.0 - c) * 0.24 * uDream;
+        c = mix(c, c * (0.86 + 0.14 * t) + 0.07 * t * smoothstep(0.55, 1.0, l), uDream * 0.6);
+        c = mix(c, vec3(l) + (c - vec3(l)) * 0.92, uDream * 0.5);
+      }
       float asp = uRes.x/uRes.y;
       float v = smoothstep(0.95, 0.25, length(cc*vec2(asp,1.0)/max(asp,1.0)*1.35));
       c *= mix(1.0, v, uVig);
@@ -323,7 +330,8 @@ function updatePost(PP, look, rt, w, h, cam, lightInfo) {
   g.uRes.value.set(w, h); g.uBars.value = PARAM.lbx ? .1 : 0;
   g.uExpo.value = look.expo; g.uTM.value = TONE.agx; g.uAgxPow.value = TONE.pow; g.uAgxSat.value = TONE.sat;
   PP.bloom.strength = (look.bloom * PARAM.glow * (1 + S.pulse * .25) + S.flash * .45) * TONE.bloom;
-  PP.bloom.radius = look.bloomR; PP.bloom.threshold = look.bloomT;
+  const dr = PARAM.dream; g.uDream.value = dr * PARAM.grade; g.uDreamTint.value.copy(look.dream).convertLinearToSRGB();
+  PP.bloom.strength += dr * .22; PP.bloom.radius = lerp(look.bloomR, .9, dr * .8); PP.bloom.threshold = lerp(look.bloomT, .38, dr * .7);
   const a = clamp(look.after * PARAM.exposure, 0, .93);
   PP.after.uniforms.damp.value = a; PP.after.enabled = a > .07;
   // ambient occlusion

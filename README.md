@@ -101,6 +101,7 @@ soft limit of 100 GB a month.
 - Motion capture: [Universal Animation Library](https://quaternius.com) by Quaternius (CC0).
 - 3D engine: [three.js](https://threejs.org) (MIT).
 - Fonts: Cinzel, Jost, Big Shoulders Stencil and Noto scripts from Google Fonts (SIL Open Font License).
+- Photogrammetry scans and ground textures: [Poly Haven](https://polyhaven.com) (CC0): granite boulders and cliffs (Namaqualand, mountainside, rock faces), mossy rock beds, stumps and trunks, jacaranda, island tree, searsia, a stone fire pit; forest leaves, red laterite, dry granite, sparse grass and aerial rock textures. Optimised with [glTF-Transform](https://gltf-transform.dev) into `public/scans/`.
 - Everything else (world, carving, music and sound) is generated in code.
 
 No license has been chosen for this project's own code yet, so by default all rights are reserved.

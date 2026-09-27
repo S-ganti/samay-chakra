@@ -209,11 +209,33 @@ function buildCity(scene, Q) {
   // autos (green body, yellow top)
   const autoParts = [];
   const vc = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), cc = col(c); for (let i = 0; i < n; i++) { a[i * 3] = cc.r; a[i * 3 + 1] = cc.g; a[i * 3 + 2] = cc.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
-  autoParts.push(vc(new THREE.BoxGeometry(1.35, .75, 2.5).translate(0, .75, 0), '#1f6a47'));
-  autoParts.push(vc(new THREE.BoxGeometry(1.3, .95, 1.5).translate(0, 1.55, -.35), '#1c1c1a'));
-  autoParts.push(vc(new THREE.BoxGeometry(1.42, .14, 2.0).translate(0, 2.07, -.25), '#e8b21b'));
-  autoParts.push(vc(new THREE.BoxGeometry(1.38, .5, .4).translate(0, 1.35, 1.05), '#e8b21b'));
-  for (const [x, z] of [[0, 1.05], [-.6, -.8], [.6, -.8]]) autoParts.push(vc(new THREE.CylinderGeometry(.27, .27, .18, 12).rotateZ(Math.PI / 2).translate(x, .27, z), '#111111'));
+  // a Bengaluru auto: a rounded green tub tapering to the single front wheel, a yellow cowl, a black canvas hood on two pillars
+  const ni = (g) => { g = g.index ? g.toNonIndexed() : g; if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); return g; };
+  const side = new THREE.Shape();      // side profile in (z, y): tail at z = -1.25, nose at z = 1.3
+  side.moveTo(-1.25, .38); side.lineTo(-1.25, 1.02); side.quadraticCurveTo(-1.2, 1.12, -1.05, 1.12); side.lineTo(.5, 1.05);
+  side.quadraticCurveTo(1.0, 1.02, 1.28, .78); side.quadraticCurveTo(1.36, .55, 1.2, .42); side.lineTo(-1.25, .38);
+  const tub = new THREE.ExtrudeGeometry(side, { depth: 1.22, bevelEnabled: true, bevelThickness: .07, bevelSize: .06, bevelSegments: 3, curveSegments: 10 });
+  tub.rotateY(-Math.PI / 2); tub.translate(.61, 0, 0);
+  { const P_ = tub.attributes.position; for (let i = 0; i < P_.count; i++) { const z = P_.getZ(i), k = lerp(1, .5, smooth(.1, 1.3, z)); P_.setX(i, P_.getX(i) * k); } tub.computeVertexNormals(); }
+  const cy = tub.attributes.position.count, tc = new Float32Array(cy * 3), cG = col('#23643f'), cY = col('#e6b420');
+  for (let i = 0; i < cy; i++) { const y = tub.attributes.position.getY(i), z = tub.attributes.position.getZ(i), c = (y > .86 || z > .75) ? cY : cG; tc[i * 3] = c.r; tc[i * 3 + 1] = c.g; tc[i * 3 + 2] = c.b; }
+  tub.setAttribute('color', new THREE.BufferAttribute(tc, 3)); autoParts.push(ni(tub));
+  const hoodS = new THREE.Shape();     // the hood: a thin arched shell from the windscreen over the roof and down the back
+  const arc = [[.62, 1.12], [.62, 1.78], [.4, 1.98], [-.3, 2.02], [-1.0, 1.95], [-1.28, 1.7], [-1.3, 1.1]];
+  hoodS.moveTo(arc[0][0], arc[0][1]); for (let i = 1; i < arc.length; i++) hoodS.lineTo(arc[i][0], arc[i][1]);
+  for (let i = arc.length - 1; i >= 0; i--) hoodS.lineTo(arc[i][0] + (i === 0 ? 0 : i === arc.length - 1 ? .05 : .0), arc[i][1] - .05);
+  const hood = new THREE.ExtrudeGeometry(hoodS, { depth: 1.34, bevelEnabled: false, curveSegments: 4 }); hood.rotateY(-Math.PI / 2); hood.translate(.67, 0, 0);
+  autoParts.push(ni(vc(hood, '#171614')));
+  autoParts.push(ni(vc(new THREE.BoxGeometry(1.3, .05, 1.8).translate(0, 1.99, -.3), '#1b1a18')));
+  for (const x of [-.6, .6]) autoParts.push(ni(vc(new THREE.CylinderGeometry(.03, .03, .9, 6).translate(x * .82, 1.53, .6), '#2a2a28')));
+  autoParts.push(ni(vc(new THREE.BoxGeometry(1.0, .6, .03).translate(0, 1.5, .64), '#3b4450')));          // windscreen
+  autoParts.push(ni(vc(new THREE.BoxGeometry(1.2, .45, .9).translate(0, 1.3, -.75), '#221c16')));          // rear bench
+  autoParts.push(ni(vc(new THREE.CylinderGeometry(.09, .09, .06, 12).rotateX(Math.PI / 2).translate(0, .95, 1.36), '#f4efe0')));   // headlamp
+  autoParts.push(ni(vc(new THREE.TorusGeometry(.32, .06, 6, 16, Math.PI).rotateY(Math.PI / 2).translate(0, .3, 1.05), '#e6b420')));  // front mudguard
+  for (const [x, z] of [[0, 1.05], [-.62, -.78], [.62, -.78]]) {
+    autoParts.push(ni(vc(new THREE.TorusGeometry(.2, .075, 8, 16).rotateY(Math.PI / 2).translate(x, .27, z), '#111111')));
+    autoParts.push(ni(vc(new THREE.CylinderGeometry(.12, .12, .1, 10).rotateZ(Math.PI / 2).translate(x, .27, z), '#8a8a86')));
+  }
   const autoG = mergeGeometries(autoParts);
   const NA = 9, autoIM = new THREE.InstancedMesh(autoG, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .6 }), NA);
   autoIM.castShadow = true; autoIM.frustumCulled = false; scene.add(autoIM);
@@ -312,11 +334,12 @@ function buildForest(scene, Q) {
     _s.set(1, 1, 1);
     return ims;
   };
-  mk(bPts, [[K.broad.trunk, M.bark, null, 0, true], [K.broad.core, M.core, null, 0], [K.broad.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#d8cba0', Q.treeShadows);
-  mk(cPts, [[K.conifer.trunk, M.bark, null, 0, true], [K.conifer.cones, M.cone, null, 0]], '#ffffff', '#c4c0a8', Q.treeShadows);
+  out.broadIM = mk(bPts, [[K.broad.trunk, M.bark, null, 0, true], [K.broad.core, M.core, null, 0], [K.broad.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#d8cba0', Q.treeShadows);
+  out.coniferIM = mk(cPts, [[K.conifer.trunk, M.bark, null, 0, true], [K.conifer.cones, M.cone, null, 0]], '#ffffff', '#c4c0a8', Q.treeShadows);
   mk(rPts, [[K.rain.trunk, M.bark, null, 0, true], [K.rain.core, M.core, null, 0], [K.rain.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#e0d6a8', true);
   mk(kPts, [[K.bush.core, M.core, null, 0], [K.bush.cards, M.cards, null, 1]], '#ffffff', '#c0b890', false);
   out.windU = TREE_U; out.mats = M;
+  out.pts = { broad: bPts, conifer: cPts };
   out.counts = { broad: bPts.length, conifer: cPts.length, rain: rPts.length, bush: kPts.length };
   return out;
 }
