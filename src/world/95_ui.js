@@ -42,7 +42,6 @@ function bindRange(id, oid, key, fmt = (v) => v.toFixed(2), onChange) {
   r.addEventListener('input', () => { PARAM[key] = +r.value; o.textContent = fmt(+r.value); if (onChange) onChange(+r.value); });
 }
 function setupControls(ctx) {
-  setupDiag();
   bindRange('rPop', 'oPop', 'population', (v) => String(v | 0));
   bindRange('rEnergy', 'oEnergy', 'energy'); bindRange('rTrails', 'oTrails', 'trails'); bindRange('rExpo', 'oExpo', 'exposure');
   bindRange('rFog', 'oFog', 'fog'); bindRange('rGlow', 'oGlow', 'glow'); bindRange('rGrain', 'oGrain', 'grain'); bindRange('rGrade', 'oGrade', 'grade');
@@ -122,6 +121,7 @@ function setupControls(ctx) {
   });
   // downloads capability (optional)
   try { if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { UI.DL = d; }).catch(() => { }); } catch (e) { }
+  setupDiag();
 }
 /* ---------- diagnostics: when something breaks, say what, instead of leaving a black or frozen screen ---------- */
 const DIAG = { log: [], shown: false, lastFrameAt: 0, blackN: 0 };
@@ -147,13 +147,32 @@ function setupDiag() {
   $('diagCopy').onclick = () => { const t = $('diagText').textContent; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Details copied', 1600)).catch(() => { const r = document.createRange(); r.selectNodeContents($('diagText')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('Press Ctrl+C to copy the selected details', 3000); }); };
   $('diagReload').onclick = () => location.reload();
   $('diagClose').onclick = () => { $('diag').hidden = true; DIAG.shown = false; DIAG.stallShown = false; };
-  // watchdog: the frame loop should tick whenever the page is visible
+  // a timeline of what the page went through, so a black or frozen screen can be traced afterwards
+  const fmtWin = () => `${innerWidth}x${innerHeight}${document.fullscreenElement ? ' fullscreen' : ''}`;
+  document.addEventListener('visibilitychange', () => diagNote('page', document.visibilityState));
+  window.addEventListener('focus', () => { DIAG.focusAt = performance.now(); diagNote('page', 'focus'); }); window.addEventListener('blur', () => diagNote('page', 'blur (another window or a dialog took focus)'));
+  window.addEventListener('pagehide', () => diagNote('page', 'pagehide')); window.addEventListener('pageshow', () => diagNote('page', 'pageshow'));
+  document.addEventListener('freeze', () => diagNote('page', 'frozen by the browser')); document.addEventListener('resume', () => diagNote('page', 'resumed by the browser'));
+  document.addEventListener('fullscreenchange', () => diagNote('page', 'fullscreen ' + (document.fullscreenElement ? 'on' : 'off')));
+  let rzT = 0; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => diagNote('page', 'resized to ' + fmtWin()), 300); });
+  window.addEventListener('dragenter', (e) => { if (!DIAG.dragging) { DIAG.dragging = true; diagNote('drag', 'enter · ' + [...((e.dataTransfer && e.dataTransfer.types) || [])].join(',')); } });
+  window.addEventListener('drop', (e) => { DIAG.dragging = false; diagNote('drag', `drop · ${(e.dataTransfer && e.dataTransfer.files.length) || 0} file(s)`); }, true);
+  document.querySelectorAll('#tracks input[type=file]').forEach((inp) => {
+    inp.addEventListener('click', () => diagNote('track', 'Load clicked (file dialog opening)'));
+    inp.addEventListener('cancel', () => diagNote('track', 'file dialog cancelled'));
+    inp.addEventListener('change', () => diagNote('track', 'file dialog returned ' + (inp.files && inp.files.length ? `“${inp.files[0].name}”` : 'nothing')));
+  });
+  $('bDiag').onclick = () => diagShow('Diagnostics', 'Copy these details and send them over.');
+  // watchdog: frames should arrive whenever the page is visible. A native file dialog can pause them, so only
+  // a stall while the page has focus raises the card
   setInterval(() => {
-    if (!UI.started || document.visibilityState !== 'visible' || LISTEN.asleep || DIAG.shown) return;
+    if (!UI.started || document.visibilityState !== 'visible' || LISTEN.asleep) return;
     const gap = performance.now() - DIAG.lastFrameAt;
-    if (gap > 5000 && !DIAG.stallShown) { DIAG.stallShown = true; diagNote('stall', `no frame for ${(gap / 1000).toFixed(1)} s`); diagShow('The scene stopped updating', 'Something is blocking the page. Copy the details below and send them over, then reload.'); }
-  }, 1000);
+    if (gap > 5000 && !DIAG.stallShown && !DIAG.shown && document.hasFocus() && performance.now() - (DIAG.focusAt || 0) > 1500) { DIAG.stallShown = true; diagNote('stall', `no frame for ${(gap / 1000).toFixed(1)} s with the page in focus`); diagShow('The scene stopped updating', 'Something is blocking the page. Copy the details below and send them over, then reload.'); }
+  }, 500);
 }
+// called by the frame loop (pauses and their end are noted by the loop itself)
+function diagFrame() { DIAG.lastFrameAt = performance.now(); }
 const fmtDur = (d) => { const m = Math.floor(d / 60), s2 = Math.floor(d % 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m}:${String(s2).padStart(2, '0')}`; };
 function loadTrack(k, f) {
   const c = CHAPTERS[k];

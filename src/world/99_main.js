@@ -122,10 +122,22 @@ async function boot() {
     UI.glLost = false; LI.lastY = -9; try { LI.env.update(true); ctx.resize(); } catch (e) { }
     toast('Scene restored', 1600);
   }, false);
+  let lastRaf = performance.now(), rafId = 0;
   function frame(nowMs) {
-    requestAnimationFrame(frame);
+    lastRaf = performance.now();
+    if (DIAG.rafPausedAt) { diagNote('stall', `animation frames resumed after ${((lastRaf - DIAG.rafPausedAt) / 1000).toFixed(1)} s (focus ${document.hasFocus() ? 'yes' : 'no'})`); DIAG.rafPausedAt = 0; }
+    rafId = requestAnimationFrame(frame);
     try { step(nowMs); } catch (e) { reportOnce('frame', e); }
   }
+  // if the browser stops sending animation frames while the page is on screen, note it and keep re-arming the frame
+  // loop so a dropped request can never freeze the scene. (Drawing from a timer instead was tried: on a slow GPU it
+  // competes with the real frame loop and makes frames rarer, so the timer only re-arms.)
+  setInterval(() => {
+    const tNow = performance.now();
+    if (!UI.started || document.visibilityState !== 'visible' || tNow - lastRaf < 800) return;
+    if (!DIAG.rafPausedAt) { DIAG.rafPausedAt = lastRaf; diagNote('stall', `the browser paused animation frames (focus ${document.hasFocus() ? 'yes' : 'no'})`); }
+    if (tNow - (DIAG.rearmAt || 0) > 1500) { DIAG.rearmAt = tNow; cancelAnimationFrame(rafId); rafId = requestAnimationFrame(frame); }
+  }, 250);
   function step(nowMs) {
     const rawMs = nowMs - last;
     if (LISTEN.asleep) { last = nowMs; return; }            // the sleep timer ran out: rest until someone moves
@@ -219,13 +231,13 @@ async function boot() {
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
     health();
     PP.composer.render(dt);
-    DIAG.lastFrameAt = performance.now();
+    diagFrame();
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
     if (!UI.started) { UI.started = true; $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
     updateHUD(ch);
   }
-  requestAnimationFrame((ms) => { last = ms; frame(ms); });
+  rafId = requestAnimationFrame((ms) => { last = ms; frame(ms); });
 }
 boot();
