@@ -42,6 +42,7 @@ function bindRange(id, oid, key, fmt = (v) => v.toFixed(2), onChange) {
   r.addEventListener('input', () => { PARAM[key] = +r.value; o.textContent = fmt(+r.value); if (onChange) onChange(+r.value); });
 }
 function setupControls(ctx) {
+  setupDiag();
   bindRange('rPop', 'oPop', 'population', (v) => String(v | 0));
   bindRange('rEnergy', 'oEnergy', 'energy'); bindRange('rTrails', 'oTrails', 'trails'); bindRange('rExpo', 'oExpo', 'exposure');
   bindRange('rFog', 'oFog', 'fog'); bindRange('rGlow', 'oGlow', 'glow'); bindRange('rGrain', 'oGrain', 'grain'); bindRange('rGrade', 'oGrade', 'grade');
@@ -89,10 +90,15 @@ function setupControls(ctx) {
     row.addEventListener('dragleave', () => row.classList.remove('drop'));
     row.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); row.classList.remove('drop'); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) loadTrack(k, f); });
   });
-  // drop an audio file anywhere else: it plays in the chapter on screen
+  // drop an audio file anywhere else: it plays in the chapter on screen. Every drag is caught here, so the browser
+  // never navigates away to the dropped file (that would replace the whole world with a bare audio player)
   const app = $('app');
-  app.addEventListener('dragover', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
-  app.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (!f) return; e.preventDefault(); loadTrack(S.dom, f); });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); const dt = e.dataTransfer; const f = dt && dt.files && dt.files[0];
+    if (f) { loadTrack(S.dom, f); return; }
+    if (dt && [...dt.types].some(t => t === 'text/uri-list' || t === 'text/plain')) toast('That drop carried a link, not the file itself. Drag the file from File Explorer or Finder, or use Load under Controls → Music.', 7000);
+  });
   // keys
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -117,14 +123,46 @@ function setupControls(ctx) {
   // downloads capability (optional)
   try { if (window.claude && window.claude.use) window.claude.use('downloads').then((d) => { UI.DL = d; }).catch(() => { }); } catch (e) { }
 }
+/* ---------- diagnostics: when something breaks, say what, instead of leaving a black or frozen screen ---------- */
+const DIAG = { log: [], shown: false, lastFrameAt: 0, blackN: 0 };
+function diagNote(kind, msg) {
+  const line = `${new Date().toISOString().slice(11, 19)} ${kind}: ${msg}`;
+  DIAG.log.push(line); if (DIAG.log.length > 40) DIAG.log.shift();
+  try { console.info('[samay]', line); } catch (e) { }
+}
+function diagShow(title, hint) {
+  const el = $('diag'); if (!el) return;
+  $('diagTitle').textContent = title; $('diagHint').textContent = hint || '';
+  const u = AUD.users && AUD.users[S.dom];
+  const state = [
+    `page: ${location.href}`, `browser: ${navigator.userAgent}`,
+    `quality ${PARAM.quality} · chapter ${S.dom + 1} · time ${fmtH(S.t)} · sound ${AUD.on ? 'on' : 'off'}${AUD.ctx ? ' (' + AUD.ctx.state + ')' : ''}`,
+    u ? `track: ${u.name} · ${u.mode || 'loading'} · ready ${u.ready} · playing ${u.playing}` : 'track: none on this chapter',
+    `graphics lost: ${!!UI.glLost}`, '', ...DIAG.log];
+  $('diagText').textContent = state.join('\n'); el.hidden = false; DIAG.shown = true;
+}
+function setupDiag() {
+  window.addEventListener('error', (e) => diagNote('error', (e.message || 'error') + (e.filename ? ` (${e.filename.split('/').pop()}:${e.lineno})` : '')));
+  window.addEventListener('unhandledrejection', (e) => diagNote('promise', String((e.reason && (e.reason.message || e.reason)) || 'rejected')));
+  $('diagCopy').onclick = () => { const t = $('diagText').textContent; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Details copied', 1600)).catch(() => { const r = document.createRange(); r.selectNodeContents($('diagText')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('Press Ctrl+C to copy the selected details', 3000); }); };
+  $('diagReload').onclick = () => location.reload();
+  $('diagClose').onclick = () => { $('diag').hidden = true; DIAG.shown = false; DIAG.stallShown = false; };
+  // watchdog: the frame loop should tick whenever the page is visible
+  setInterval(() => {
+    if (!UI.started || document.visibilityState !== 'visible' || LISTEN.asleep || DIAG.shown) return;
+    const gap = performance.now() - DIAG.lastFrameAt;
+    if (gap > 5000 && !DIAG.stallShown) { DIAG.stallShown = true; diagNote('stall', `no frame for ${(gap / 1000).toFixed(1)} s`); diagShow('The scene stopped updating', 'Something is blocking the page. Copy the details below and send them over, then reload.'); }
+  }, 1000);
+}
 const fmtDur = (d) => { const m = Math.floor(d / 60), s2 = Math.floor(d % 60); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m}:${String(s2).padStart(2, '0')}`; };
 function loadTrack(k, f) {
   const c = CHAPTERS[k];
   if (!/^audio\//.test(f.type) && !/\.(mp3|m4a|aac|wav|aiff?|flac|ogg|oga|opus|webm|mp4)$/i.test(f.name)) { toast(`“${f.name}” isn't an audio file.`, 3200); return; }
   if (!AUD.on) toggleSound(true);
   if (!AUD.ctx) return;
+  diagNote('track', `load “${f.name}” (${(f.size / 1048576).toFixed(1)} MB, ${f.type || 'no type'}) into chapter ${k + 1}`);
   audioSetUser(k, f, (state, msg, u) => {
-    const tn = $('tn' + k), tx = $('tx' + k);
+    const tn = $('tn' + k), tx = $('tx' + k); diagNote('track', `${state}${u && u.mode ? ' · ' + u.mode : ''}${msg ? ' · ' + msg : ''}`);
     if (state === 'loading') { tn.textContent = `Loading ${f.name}…`; tx.hidden = false; }
     else if (state === 'ready') { tn.textContent = f.name + (u.dur && isFinite(u.dur) ? ' · ' + fmtDur(u.dur) : ''); toast(`${c.title} now plays “${f.name}”`); }
     else if (state === 'error') { tn.textContent = `Raga ${c.raga} engine`; tx.hidden = true; $('tf' + k).value = ''; toast(msg, 6000); }

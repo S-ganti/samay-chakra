@@ -89,11 +89,34 @@ async function boot() {
   window.__samay = { S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
-  const reportOnce = (key, e) => { console.error(e); if (!UI.errs[key]) { UI.errs[key] = 1; toast(`Something went wrong (${(e && e.message) || e}). The scene keeps running; reload the page if it looks wrong.`, 9000); } };
+  const reportOnce = (key, e) => {
+    console.error(e); diagNote(key, ((e && e.stack) || String(e)).split('\n').slice(0, 3).join(' | '));
+    UI.errN = (UI.errN || 0) + 1;
+    if (!UI.errs[key]) { UI.errs[key] = 1; toast(`Something went wrong (${(e && e.message) || e}). The scene keeps running; reload the page if it looks wrong.`, 9000); }
+    if (UI.errN === 30) diagShow('The scene keeps hitting an error', 'Copy the details below and send them over, then reload.');
+  };
+  // numbers that must stay finite; a NaN in any of them turns the whole picture black
+  const _hp = new THREE.Vector3();
+  const health = () => {
+    const bad = [];
+    for (const k of ['t', 'rt', 'beatPos', 'beat', 'pulse', 'bass', 'level', 'bpm']) if (!Number.isFinite(S[k])) { bad.push('S.' + k + '=' + S[k]); S[k] = k === 'bpm' ? 100 : k === 't' ? 12 : 0; }
+    const cp = CAM.cam.position; if (!Number.isFinite(cp.x + cp.y + cp.z)) { bad.push('camera'); CAM.booted = false; cp.set(0, 20, 60); CAM.pos.copy(cp); CAM.look.set(0, 10, 0); }
+    const ex = PP.grade.uniforms.uExpo; if (!Number.isFinite(ex.value)) { bad.push('exposure'); ex.value = 1; }
+    if (bad.length) { UI.nanN = (UI.nanN || 0) + 1; if (UI.nanN < 6) diagNote('nan', bad.join(', ')); }
+  };
+  // a cheap look at the finished frame every few seconds: a sustained all-black picture gets reported
+  const probe = new Uint8Array(4 * 16);
+  const blackCheck = () => {
+    const gl = renderer.getContext(), c = renderer.domElement; let sum = 0;
+    for (let i = 0; i < 16; i++) { gl.readPixels(((i % 4) + .5) / 4 * c.width | 0, ((i >> 2) + .5) / 4 * c.height | 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, probe.subarray(i * 4, i * 4 + 4)); sum += probe[i * 4] + probe[i * 4 + 1] + probe[i * 4 + 2]; }
+    DIAG.blackN = sum < 6 && PP.grade.uniforms.uExpo.value > .2 ? DIAG.blackN + 1 : 0;
+    if (DIAG.blackN === 3 && !DIAG.shown) { diagNote('black', `frame black; expo ${PP.grade.uniforms.uExpo.value.toFixed(2)}, cam ${CAM.cam.position.toArray().map(v => v.toFixed(1)).join(',')}`); diagShow('The picture went black', 'Copy the details below and send them over. Reloading usually brings the scene back.'); }
+  };
   // the browser can drop the WebGL context (driver reset, memory pressure, a device sleeping): restore instead of going blank
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault(); UI.glLost = true; toast('The browser reset the graphics. Restoring the scene…', 4000);
-    setTimeout(() => { if (UI.glLost) toast('The graphics did not come back. Reload the page to restore the scene.', 12000); }, 6000);
+    diagNote('webgl', 'context lost');
+    setTimeout(() => { if (UI.glLost) diagShow('The graphics card dropped the scene', 'The browser reset the graphics and they did not come back. Reload the page; if it keeps happening, pick Medium or Low quality.'); }, 6000);
   }, false);
   canvas.addEventListener('webglcontextrestored', () => {
     UI.glLost = false; LI.lastY = -9; try { LI.env.update(true); ctx.resize(); } catch (e) { }
@@ -194,7 +217,10 @@ async function boot() {
     updatePost(PP, look, rt, vw * renderer.getPixelRatio(), vh * renderer.getPixelRatio(), CAM.cam, LINFO);
     updatePalette(PP, w);
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
+    health();
     PP.composer.render(dt);
+    DIAG.lastFrameAt = performance.now();
+    if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
     if (!UI.started) { UI.started = true; $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }

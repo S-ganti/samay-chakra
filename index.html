@@ -178,6 +178,10 @@ select.btn option{background:#181512;color:var(--bone);}
 @media (prefers-reduced-motion:reduce){
   #card,#hud,#dock,#panel,#toast{transition:none;}
 }
+#diag{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;width:min(560px,calc(100% - 32px));max-height:calc(100% - 48px);display:flex;flex-direction:column;gap:10px;padding:18px 18px 16px;background:rgba(15,13,11,.94);border:1px solid var(--hair-2);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.6);color:var(--bone);}
+#diag h2{margin:0;font:500 18px/1.3 var(--f-sans);letter-spacing:.02em;}
+#diag p{margin:0;font:400 14px/1.5 var(--f-sans);color:var(--bone-2);}
+#diag pre{margin:0;overflow:auto;max-height:40vh;padding:10px;background:rgba(0,0,0,.4);border-radius:6px;font:12px/1.5 'JetBrains Mono',ui-monospace,monospace;color:var(--bone-2);white-space:pre-wrap;word-break:break-word;}
 </style>
 </head>
 <body>
@@ -306,6 +310,12 @@ select.btn option{background:#181512;color:var(--bone);}
     </div>
   </aside>
 
+  <div id="diag" role="alertdialog" aria-labelledby="diagTitle" hidden>
+    <h2 id="diagTitle">Something went wrong</h2>
+    <p id="diagHint"></p>
+    <pre id="diagText"></pre>
+    <div class="btnrow"><button class="btn" id="diagCopy">Copy details</button><button class="btn" id="diagReload">Reload</button><button class="btn" id="diagClose">Dismiss</button></div>
+  </div>
   <div id="toast" role="status"></div>
   <div id="recDot">REC <span id="recT">00:00</span></div>
   <div id="listenChip" role="status"><span id="listenTxt">Listening</span><button id="bUnlisten">Leave</button></div>

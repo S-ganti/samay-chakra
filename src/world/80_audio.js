@@ -283,7 +283,9 @@ function audioFrame(w, bpms) {
    Stream through a media element (fine for hour-long mixes). If the page's security policy refuses blob
    media, decode the file into memory instead (size-capped). Nothing is retried every frame, and a track
    that can't play hands its chapter back to the raga engine. */
-const USER_MAX_DECODE_MB = 90;
+// Loading into memory is the fallback when the browser can't stream a file (or a page's security policy forbids it).
+// Decoded audio is large: about 23 MB per minute (48 kHz stereo float), so the fallback holds at most this much
+const USER_DECODE_BUDGET_MB = 420;
 const userActive = (k) => { const u = AUD.users[k]; return !!(u && u.ready && !u.failed); };
 function userDispose(u) {
   if (!u) return;
@@ -303,32 +305,70 @@ function audioSetUser(k, file, onState) {
   const say = (state, msg) => { if (AUD.users[k] !== u) return; if (state === 'error') { u.failed = true; userDispose(u); AUD.users[k] = null; } if (onState) onState(state, msg, u); };
   u.say = say;
   say('loading');
+  // stream the file from disk through an audio element: no size limit, almost no memory
   let done = false;
   const url = URL.createObjectURL(file); u.url = url;
   const el = new Audio(); el.preload = 'auto'; el.loop = true;
-  const fallback = () => {
-    if (done) return; done = true;
+  const fallback = (why) => {
+    if (done || AUD.users[k] !== u) return; done = true;
     try { el.removeAttribute('src'); el.load(); } catch (e) { }
     URL.revokeObjectURL(url); u.url = null;
+    if (typeof diagNote === 'function') diagNote('track', `streaming unavailable (${why}), loading into memory`);
     decodeUser(u, file, say);
   };
-  el.addEventListener('canplay', () => {
+  const ok = () => {
     if (done || AUD.users[k] !== u) return; done = true;
     try { u.src = AUD.ctx.createMediaElementSource(el); u.src.connect(g); }
-    catch (e) { done = false; fallback(); return; }
+    catch (e) { done = false; fallback('no media source'); return; }
     u.el = el; u.mode = 'stream'; u.dur = el.duration; u.ready = true; say('ready');
-  }, { once: true });
-  el.addEventListener('error', fallback, { once: true });
-  setTimeout(fallback, 7000);
+  };
+  el.addEventListener('loadeddata', ok, { once: true }); el.addEventListener('canplay', ok, { once: true });
+  el.addEventListener('error', () => fallback('media error ' + (el.error ? el.error.code : '')), { once: true });
+  // a large file can take a while; only give up on streaming if nothing at all has arrived
+  setTimeout(() => { if (!done && el.readyState === 0) fallback('timeout'); }, 25000);
   el.src = url;
 }
-async function decodeUser(u, file, say) {
-  if (file.size > USER_MAX_DECODE_MB * 1048576) { say('error', `“${file.name}” couldn't stream here, and at ${Math.round(file.size / 1048576)} MB it is too large to load into memory. Use a file under ${USER_MAX_DECODE_MB} MB (an MP3 or M4A of the mix works well).`); return; }
+// how long a file is, from its header when we can read it (WAV, FLAC, MP3), otherwise a cautious guess
+function audioProbe(bytes, size, name) {
+  const v = new DataView(bytes), str = (o, n) => String.fromCharCode(...new Uint8Array(bytes, o, Math.min(n, bytes.byteLength - o)));
   try {
-    const bytes = await file.arrayBuffer();
+    if (str(0, 4) === 'RIFF' && str(8, 4) === 'WAVE') {
+      let o = 12, sr = 44100, ch = 2, bits = 16, dataOff = 44, dataLen = size - 44;
+      while (o + 8 <= bytes.byteLength) { const id = str(o, 4), len = v.getUint32(o + 4, true); if (id === 'fmt ') { ch = v.getUint16(o + 10, true); sr = v.getUint32(o + 12, true); bits = v.getUint16(o + 22, true); } if (id === 'data') { dataOff = o + 8; dataLen = Math.min(len, size - dataOff); break; } o += 8 + len + (len & 1); }
+      return { kind: 'wav', dur: dataLen / (sr * ch * bits / 8), byteRate: sr * ch * bits / 8, dataOff, block: ch * bits / 8 };
+    }
+    if (str(0, 4) === 'fLaC') { const sr = (v.getUint32(18) >>> 12), tot = (v.getUint8(21) & 15) * 4294967296 + v.getUint32(22); if (sr && tot) return { kind: 'flac', dur: tot / sr }; }
+    let o = 0; if (str(0, 3) === 'ID3') o = 10 + (((v.getUint8(6) & 127) << 21) | ((v.getUint8(7) & 127) << 14) | ((v.getUint8(8) & 127) << 7) | (v.getUint8(9) & 127));
+    for (let i = o; i < Math.min(bytes.byteLength - 4, o + 65536); i++) {
+      if (v.getUint8(i) === 255 && (v.getUint8(i + 1) & 0xE0) === 0xE0) {
+        const b1 = v.getUint8(i + 1), b2 = v.getUint8(i + 2), ver = (b1 >> 3) & 3, layer = (b1 >> 1) & 3, bi = b2 >> 4;
+        if (layer !== 1 || bi === 0 || bi === 15) continue;
+        const kbps = (ver === 3 ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160])[bi];
+        return { kind: 'mp3', dur: (size - i) * 8 / (kbps * 1000), kbps, audioOff: i };
+      }
+    }
+  } catch (e) { }
+  return { kind: 'other', dur: size * 8 / 128000 };        // AAC/Ogg/Opus and anything unreadable: assume 128 kbps (errs long)
+}
+async function decodeUser(u, file, say) {
+  try {
+    const head = await file.slice(0, 262144).arrayBuffer(), info = audioProbe(head, file.size, file.name);
+    const perSec = AUD.ctx.sampleRate * 2 * 4, maxDur = USER_DECODE_BUDGET_MB * 1048576 / perSec;
+    let blob = file, part = false;
+    if (info.dur > maxDur) {
+      // too long to hold in memory: keep the opening of the mix (WAV and MP3 can be cut cleanly), or explain
+      if (info.kind === 'wav') {
+        const keep = Math.floor(maxDur * info.byteRate / info.block) * info.block, hdr = new Uint8Array(await file.slice(0, info.dataOff).arrayBuffer()), dv = new DataView(hdr.buffer);
+        dv.setUint32(4, info.dataOff - 8 + keep, true); dv.setUint32(info.dataOff - 4, keep, true);
+        blob = new Blob([hdr, file.slice(info.dataOff, info.dataOff + keep)]); part = true;
+      } else if (info.kind === 'mp3') { blob = file.slice(0, info.audioOff + Math.floor(maxDur * info.kbps * 125)); part = true; }
+      else { say('error', `“${file.name}” is too long to load into memory here (about ${Math.round(info.dur / 60)} min). Use an MP3 or WAV, or a shorter file.`); return; }
+    }
+    const bytes = await blob.arrayBuffer();
     const audio = await new Promise((res, rej) => { const p = AUD.ctx.decodeAudioData(bytes, res, rej); if (p && p.then) p.then(res, rej); });
     if (AUD.users[u.k] !== u) return;
     u.buffer = audio; u.mode = 'buffer'; u.dur = audio.duration; u.ready = true; say('ready');
+    if (part) toast(`“${file.name}” is long, so the first ${Math.round(audio.duration / 60)} minutes play on a loop here.`, 7000);
   } catch (e) { say('error', `“${file.name}” couldn't be decoded. Try an MP3, M4A, WAV or FLAC file.`); }
 }
 function userPlay(u) {
