@@ -4,6 +4,8 @@ A living 3D world of eight *prahars*: the day turns through eight chapters, each
 carved sandstone, granite and marble, a crowd that dances on the beat, a generative raga engine, the real moon
 phase, weather that follows Bengaluru's seasons, and the sounds of each hour.
 
+**Live:** <https://s-ganti.github.io/samay-chakra/> (add `?q=high` on a strong GPU, `?q=low` on older machines)
+
 It is a static web app (three.js + Vite). No server, no build secrets: anything that serves files can host it.
 
 ---
