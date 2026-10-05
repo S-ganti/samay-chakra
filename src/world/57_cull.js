@@ -7,10 +7,13 @@
    the instances that are in the camera's view or inside the shadow box, and
    gives the ones that are far away a simplified copy of the mesh (same vertex
    buffers, shorter index list, so no extra memory and no texture change).
+   Shadow casters get a second, shadow-only set of those meshes on their own
+   layer: the shadow map can only show so much detail, so each piece's shadow
+   copy is chosen by the shadow map's resolution, not by the camera's distance.
    ========================================================================= */
 // shDens: square shadow-map texels each triangle may cover when a piece is only in the frame because its shadow falls there
 // errPx / errTexels: how far, in pixels (or shadow texels, for pieces only here for their shadow), a simplified mesh may sit from the real surface
-const CULL = { items: [], on: true, dens: 2.4, shDens: 6, errPx: 1.5, errTexels: 1.5, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
+const CULL = { items: [], on: true, layer: 1, hooked: false, dens: 2.4, shDens: 6, errPx: 1.5, errTexels: 1.5, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
 const _cf = new THREE.Frustum(), _cpv = new THREE.Matrix4();
 const SIMP = { ms: null, tried: false, cache: new WeakMap(), ms_: 0, levels: 0 };
 
@@ -86,14 +89,30 @@ function cullAdopt(im, { lod = true } = {}) {
     if (im.parent) im.parent.add(lm);
     levels.push(lm); tris.push(triCount(lg)); errs.push(lg.userData.err || 0);
   }
+  // casters: the colour meshes stop casting, and a shadow-only copy of each level (same geometry and material, own layer, own
+  // instance list) does it instead. The camera sees that layer only while the shadow map is being drawn (cullHooks)
+  const cast = im.castShadow, shLevels = [];
+  if (cast) levels.forEach((L, l) => {
+    L.castShadow = false;
+    const sl = new THREE.InstancedMesh(L.geometry, im.material, N);
+    sl.castShadow = true; sl.receiveShadow = false; sl.frustumCulled = false; sl.visible = false; sl.layers.set(CULL.layer);
+    sl.name = (im.name || 'scan') + '-sh' + l; sl.userData.sys = im.userData.sys;
+    sl.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    if (im.parent) im.parent.add(sl);
+    shLevels.push(sl);
+  });
   for (const L of levels) { L.frustumCulled = false; L.instanceMatrix.setUsage(THREE.DynamicDrawUsage); if (L.instanceColor) L.instanceColor.setUsage(THREE.DynamicDrawUsage); }
-  const it = { N, all, colors, px, py, pz, rr, sm, levels, tris, errs, counts: new Int32Array(levels.length), cast: im.castShadow };
+  const it = { N, all, colors, px, py, pz, rr, sm, levels, tris, errs, counts: new Int32Array(levels.length), cast, shLevels, shCounts: new Int32Array(levels.length) };
   CULL.items.push(it); CULL.dirty = true; return it;
 }
 function cullWrite(it, lvl, k, i) {
   const L = it.levels[lvl], a = L.instanceMatrix.array, o = i * 16, d = k * 16;
   for (let j = 0; j < 16; j++) a[d + j] = it.all[o + j];
   if (it.colors) { const c = L.instanceColor.array; c[k * 3] = it.colors[i * 3]; c[k * 3 + 1] = it.colors[i * 3 + 1]; c[k * 3 + 2] = it.colors[i * 3 + 2]; }
+}
+function cullWriteSh(it, lvl, k, i) {
+  const a = it.shLevels[lvl].instanceMatrix.array, o = i * 16, d = k * 16;
+  for (let j = 0; j < 16; j++) a[d + j] = it.all[o + j];
 }
 function cullPublish(it) {
   for (let l = 0; l < it.levels.length; l++) {
@@ -104,15 +123,37 @@ function cullPublish(it) {
       if (L.instanceColor) { const C = L.instanceColor; C.clearUpdateRanges(); C.addUpdateRange(0, c * 3); C.needsUpdate = true; }
     }
   }
+  for (let l = 0; l < it.shLevels.length; l++) {
+    const L = it.shLevels[l], c = it.shCounts[l];
+    L.count = c; L.visible = c > 0;
+    if (c > 0) { const A = L.instanceMatrix; A.clearUpdateRanges(); A.addUpdateRange(0, c * 16); A.needsUpdate = true; }
+  }
 }
+// the shadow-only layer is switched on for the camera only for the shadow pass: three builds the colour pass's list of objects first
+// (the layer is off, so the shadow copies are left out), then draws the shadow map (updateMatrices is the last call before it:
+// the layer goes on), and calls scene.onAfterRender when the frame is done (the layer goes off again)
+function cullHooks(cam, key) {
+  if (CULL.hooked || !key.parent) return;
+  CULL.hooked = true;
+  const sh = key.shadow, upd = sh.updateMatrices.bind(sh);
+  sh.updateMatrices = (...a) => { upd(...a); cam.layers.enable(CULL.layer); };
+  key.parent.onAfterRender = () => { cam.layers.disable(CULL.layer); };
+}
+// the coarsest level that has at least `need` triangles and moves the surface by at most the limit (ek scales the error to it)
+function pickLevel(lt, errs, nl, s, need, ek) { let l = nl - 1; while (l > 0 && (lt[l] < need || errs[l] * s * ek > 1)) l--; return l; }
 // once per frame, after the shadow box has been fitted and before the render. pxH: height of the picture being drawn, in pixels.
 // A piece is drawn at the coarsest level that still gives each triangle at least CULL.dens square pixels on screen, so a boulder
 // that fills 60 pixels gets a few thousand triangles however many its scan holds; pieces under minPx square pixels are skipped.
 function cullFrame(cam, key, pxH = 1080) {
   if (!CULL.items.length) return;
+  cullHooks(cam, key);
   if (!CULL.on) {
     if (!CULL.dirty) return; CULL.dirty = false;
-    for (const it of CULL.items) { it.counts.fill(0); for (let i = 0; i < it.N; i++) cullWrite(it, 0, i, i); it.counts[0] = it.N; cullPublish(it); }
+    for (const it of CULL.items) {
+      it.counts.fill(0); it.shCounts.fill(0);
+      for (let i = 0; i < it.N; i++) { cullWrite(it, 0, i, i); if (it.cast) cullWriteSh(it, 0, i, i); }
+      it.counts[0] = it.N; if (it.cast) it.shCounts[0] = it.N; cullPublish(it);
+    }
     return;
   }
   CULL.dirty = true;
@@ -121,12 +162,13 @@ function cullFrame(cam, key, pxH = 1080) {
   const pl = _cf.planes, cx = cam.position.x, cy = cam.position.y, cz = cam.position.z;
   const shOn = key.castShadow, tg = key.target.position, half = key.shadow.camera.right;
   const kPx = pxH * .5 / Math.tan(cam.fov * Math.PI / 360), needK = Math.PI * kPx * kPx / CULL.dens, minA = CULL.minPx;
-  // a piece that is only here for its shadow needs no more triangles than the shadow map can show: one per shDens texels of its footprint
-  const texel = shOn ? 2 * half / key.shadow.mapSize.x : 1, needShK = Math.PI / (texel * texel * CULL.shDens);
+  // the shadow copy of a piece needs no more triangles than the shadow map can show: one per shDens texels of its footprint,
+  // and may move the surface by at most errTexels texels
+  const texel = shOn ? 2 * half / key.shadow.mapSize.x : 1, needShK = Math.PI / (texel * texel * CULL.shDens), ekSh = 1 / (texel * CULL.errTexels);
   const sxx = _sx.x, sxy = _sx.y, sxz = _sx.z, syx = _sy.x, syy = _sy.y, syz = _sy.z;
   let tris = 0, shTris = 0, seen = 0, drawn = 0;
   for (const it of CULL.items) {
-    const { px, py, pz, rr, sm, errs, counts, tris: lt } = it, nl = it.levels.length, doSh = shOn && it.cast; counts.fill(0);
+    const { px, py, pz, rr, sm, errs, counts, shCounts, tris: lt } = it, nl = it.levels.length, doSh = shOn && it.cast; counts.fill(0); shCounts.fill(0);
     for (let i = 0; i < it.N; i++) {
       const x = px[i], y = py[i], z = pz[i], r = rr[i];
       const dx0 = x - cx, dy0 = y - cy, dz0 = z - cz, d2 = dx0 * dx0 + dy0 * dy0 + dz0 * dz0, rk = r * kPx;
@@ -136,11 +178,15 @@ function cullFrame(cam, key, pxH = 1080) {
       if (doSh) { const dx = x - tg.x, dy = y - tg.y, dz = z - tg.z; inShadow = Math.abs(dx * sxx + dy * sxy + dz * sxz) < half + r && Math.abs(dx * syx + dy * syy + dz * syz) < half + r; }
       seen++;
       if (!inView && !inShadow) continue;
-      const need = inView ? needK * r * r / Math.max(d2, 1) : needShK * r * r;   // triangles this piece can use: at its screen size, or at its shadow's size when it is out of view
-      // ...and no level may move the surface by more than errPx pixels on screen (errTexels shadow texels when out of view)
-      const ek = inView ? kPx / (Math.max(Math.sqrt(d2) - r, .5) * CULL.errPx) : 1 / (texel * CULL.errTexels);
-      let l = nl - 1; while (l > 0 && (lt[l] < need || errs[l] * sm[i] * ek > 1)) l--;
-      cullWrite(it, l, counts[l]++, i); drawn++; tris += lt[l]; if (doSh) shTris += lt[l];
+      drawn++;
+      if (inView) {   // the colour pass: triangles by screen size, and no level may move the surface by more than errPx pixels
+        const l = pickLevel(lt, errs, nl, sm[i], needK * r * r / Math.max(d2, 1), kPx / (Math.max(Math.sqrt(d2) - r, .5) * CULL.errPx));
+        cullWrite(it, l, counts[l]++, i); tris += lt[l];
+      }
+      if (inShadow) { // the shadow pass: by what the shadow map can resolve, whatever the camera sees
+        const l = pickLevel(lt, errs, nl, sm[i], needShK * r * r, ekSh);
+        cullWriteSh(it, l, shCounts[l]++, i); shTris += lt[l];
+      }
     }
     cullPublish(it);
   }
