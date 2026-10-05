@@ -84,7 +84,7 @@ function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x +
 /* ---------- texture memory: a decoded map costs width x height x 4 bytes (+1/3 for mips) of GPU memory ----------
    The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
    which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
-const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024 }, med: { stone: 1024, scan: 1024, hero: 1536 }, high: { stone: 2048, scan: 2048, hero: 2048 } };
+const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
 function capTexture(t, cap) {
   const im = t.image;
   if (!im || !im.width || Math.max(im.width, im.height) <= cap || typeof createImageBitmap !== 'function') return Promise.resolve(t);
@@ -210,9 +210,19 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   try { if (ST) await loadHeritage(scene, ST); } catch (e) { diagNote && diagNote('scan', 'heritage failed: ' + (e.message || e)); }
   try { SCAN.imps = renderer ? impostorForest(scene, renderer, FO, A) : 0; } catch (e) { diagNote && diagNote('scan', 'impostors failed: ' + (e.message || e)); }
   for (const im of SCAN.groups) { const m = im.material; if (m.fog && !m.userData.hf) { m.userData.hf = 1; chainHook(m, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); } }
+  scanRelease(A);
   SCAN.ready = true;
-  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles`);
+  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles, ${SIMP.levels} LOD levels in ${SIMP.ms_.toFixed(0)} ms`);
   return SCAN;
+}
+// assets that were only loaded to bake the impostors (or that nothing ended up standing on) give their GPU memory back
+function scanRelease(A) {
+  const usedM = new Set(SCAN.groups.map(g => g.material)), usedG = new Set(SCAN.groups.map(g => g.geometry)), seen = new Set(); let n = 0;
+  for (const kind in A) for (const id in A[kind]) for (const [g, m] of A[kind][id].parts) {
+    if (!usedM.has(m)) { for (const k in m) { const v = m[k]; if (v && v.isTexture && !seen.has(v.source)) { seen.add(v.source); v.dispose(); n++; } } m.dispose(); }
+    if (!usedG.has(g)) g.dispose();
+  }
+  SCAN.released = n;
 }
 
 /* ---------- impostors: the scanned trees baked from 12 directions into an atlas, so the whole forest can wear them ---------- */

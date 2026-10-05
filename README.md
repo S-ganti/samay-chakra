@@ -61,8 +61,10 @@ A custom domain (for example `samaychakra.art`) can be added later under **Setti
 
 - The page opens on **Medium**, a day in **8 minutes**, population **180**, realism **2**, film grain **0**, the **raw render** (no pigment palette), sounds of the hour **30%**, shot length **8 s** and crowd energy **1.6**. All of them are in the Controls panel (and in `PARAM` in `src/world/10_core.js`).
 - Each quality draws the picture at a fixed pixel budget (`mp` in `QUAL`, `src/world/99_main.js`) and upscales it to the canvas with a Catmull-Rom filter and contrast-adaptive sharpening, so the canvas stays at the screen's own resolution (up to 2x) while the cost stays flat. A frame-time controller trims the budget further if the display's refresh interval is being missed, and raises it again when there is room.
-- Scanned meshes are culled per instance (camera view and shadow box) and drawn at a level of detail that matches their size on screen (`src/world/57_cull.js`). Medium uses FXAA, High uses SMAA. The 2048 px stone and temple textures are resampled on Medium and Low to halve texture memory (`TEXCAP` in `src/world/43_scans.js`).
+- Scanned meshes are culled per instance (camera view and shadow box) and drawn at a level of detail that matches their size on screen (`src/world/57_cull.js`). Each simplified level is built once at load with [meshoptimizer](https://github.com/zeux/meshoptimizer) (down to about 3% of a scan's triangles, sharing the full mesh's vertex buffers) and is used only while it meets both limits in `QUAL`: `dens` (square pixels per triangle) and `errPx` (how far, in pixels, it may sit from the real surface). Shadow casters are drawn into the shadow map from their own copies, chosen by what the shadow map can resolve (`errTexels` in `CULL`) rather than by the camera, which is where most of the triangles used to go. Medium uses FXAA, High uses SMAA.
+- The 2048 px stone, cliff and temple textures, and the ground textures, are resampled on Medium and Low to cut texture memory (`TEXCAP` in `src/world/43_scans.js`); High keeps them at full size.
 - If the browser drops the graphics context and does not restore it, the page restarts once, one quality step lower.
+- To see the numbers, in the browser console: `__samay.CULL` (pieces and triangles drawn), `__samay.renderer.info` (draw calls, texture count) and `__samay.DR.rs` (the current render scale).
 
 ## How the code is organised
 
@@ -80,6 +82,7 @@ Anything declared in a lower number is visible to the higher ones.
 | `30_structures.js` | The ring stage, the portal wheel, towers, steps, Diamond Ring arches, the eclipse ring |
 | `40_city.js`, `42_trees.js`, `44_temple.js`, `45_decor.js`, `46_grass.js` | City and plaza, trees, the Sun Temple, garlands and lamps, grass |
 | `47_rigdata.js`, `48_crowd.js`, `50_people.js` | The crowd: baked motion-capture rig, GPU skinning, behaviour and dance |
+| `57_cull.js` | Per-frame culling and distance LOD for the scanned rocks and temple pieces (and the shadow map's share of them) |
 | `58_light.js`, `60_sky.js`, `70_post.js`, `72_palette.js` | Lighting, sky and atmosphere, post-processing, the pigment palettes |
 | `74_nature.js` | Moon phase, Bengaluru weather, rain, birds, fireflies |
 | `80_audio.js`, `82_ambience.js` | Generative raga engine, the sounds of each hour |

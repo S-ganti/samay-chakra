@@ -42,6 +42,6 @@ export default defineConfig({
   base: './',                       // relative paths: works at user.github.io/<repo>/, on a custom domain, or any static host
   plugins: [samayWorld()],
   build: { chunkSizeWarningLimit: 2500 },
-  optimizeDeps: { include: ['meshoptimizer/meshopt_simplifier.module.js'] },   // loaded on demand by the scan LOD; pre-bundled so the dev server doesn't reload mid-session
+  optimizeDeps: { include: ['meshoptimizer/simplifier'] },   // loaded on demand by the scan LOD; pre-bundled so the dev server doesn't reload mid-session
   server: { open: true },
 });
