@@ -7,9 +7,9 @@
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
 // fusion: the styled render looks (Fusion Series, Sumi & Shu, Chungking Neon, Painted Light) are allowed at this quality.
 const QUAL = {
-  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0, fusion: false },
-  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, fusion: true },
-  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, fusion: true },
+  low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0, fusion: false },
+  med: { taa: true, sharp: .8, pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, fusion: true },
+  high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, fusion: true },
 };
 async function boot() {
   const canvas = $('gl');
@@ -89,14 +89,14 @@ async function boot() {
     const key = `${w}x${h}@${o}`;                                            // the canvas is only touched when its own size changes
     if (key !== outKey) { outKey = key; renderer.setPixelRatio(o); renderer.setSize(w, h); }
     PP.composer.setPixelRatio(IPR); PP.composer.setSize(w, h);
-    PP.up.enabled = rs < .985;
+    PP.up.enabled = !PP.taa.enabled && rs < .985;            // with TAA the temporal pass upsamples
     DR.rs = rs; DR.cool = Math.max(DR.cool, .8);
     CAM.cam.aspect = w / h; CAM.cam.updateProjectionMatrix();
     const ps = h * IPR;
     NA.flies.U.uSize.value = ps; ST.diyas.flameU.uSize.value = ps; W.torch.U.uSize.value = ps; DE.bulbU.uSize.value = ps; SK.emberU.uSize.value = ps; SK.petalU.uSize.value = ps; SK.dustU.uSize.value = ps; CT.lamps.lampGlowU.uSize.value = ps;
   };
   ctx.applyQuality = () => {
-    const q = QUAL[PARAM.quality]; CULL.dens = q.dens; CULL.errPx = q.errPx; PP.smaa.enabled = q.smaa; PP.fxaa.enabled = q.fxaa; if (q.ao) PP.sp.setAOSamples(q.ao);
+    const q = QUAL[PARAM.quality]; CULL.dens = q.dens; CULL.errPx = q.errPx; PP.taa.enabled = !!q.taa && !SAFE.post; PP.smaa.enabled = q.smaa && !PP.taa.enabled; PP.fxaa.enabled = q.fxaa && !PP.taa.enabled; PP.taa.reset = true; if (q.ao) PP.sp.setAOSamples(q.ao);
     treeQuality(PARAM.quality);
     SK.key.castShadow = q.shadows > 0; if (q.shadows) { SK.key.shadow.mapSize.set(q.shadows, q.shadows); if (SK.key.shadow.map) { SK.key.shadow.map.dispose(); SK.key.shadow.map = null; } }
     ctx.resize();
@@ -241,9 +241,9 @@ async function boot() {
           if (DR.slowT > .7) {
             if (DR.scale > DR.min + .005) {
               // cost follows pixels, i.e. scale squared: step by the square root of the overload
-              DR.scale = Math.max(DR.min, Math.round(DR.scale * clamp(Math.sqrt(DR.vsync / DR.ft), .8, .95) * 50) / 50);
+              DR.scale = Math.max(DR.min, Math.round(DR.scale * clamp(Math.sqrt(DR.vsync / DR.ft), .88, .96) * 100) / 100);   // small steps: the temporal pass keeps full-resolution history, so they don't show
               DR.upWait = S.rt - DR.lastUp < 12 ? Math.min(40, DR.upWait * 1.8) : 4;   // an attempt to go back up failed: wait longer next time
-              ctx.resize(); DR.cool = 1.4;
+              ctx.resize(); DR.cool = 2.0;
             }
             DR.slowT = 0;
           }
@@ -255,7 +255,7 @@ async function boot() {
           DR.slowT = Math.max(0, DR.slowT - dt); DR.atMin = 0;
           if (DR.scale < 1 && DR.miss < .02 && DR.ft < DR.vsync * 1.1) {
             DR.upT += dt;
-            if (DR.upT > DR.upWait) { DR.scale = Math.min(1, DR.scale + .05); DR.upT = 0; DR.lastUp = S.rt; ctx.resize(); DR.cool = 1.2; }
+            if (DR.upT > DR.upWait) { DR.scale = Math.min(1, DR.scale + .03); DR.upT = 0; DR.lastUp = S.rt; ctx.resize(); DR.cool = 1.6; }
           } else DR.upT = 0;
         }
       }
@@ -318,7 +318,7 @@ async function boot() {
     DE.bulbU.uLit.value = night; DE.bulbU.uTime.value = rt;
     for (const m of CT.shopSigns) m.emissiveIntensity = night * .35;
     DE.uvU.value = night * (w[2] * 1.7 + w[1] * .7 + w[3] * .6 + w[0] * .35);
-    FO.windU.uTime.value = rt;
+    FO.windU.uTime.value = rt; FO.windU.uFrame.value = (FO.windU.uFrame.value + 1) % 4096;
     // population
     const N = Math.min(NMAX, PARAM.population);
     W.lit = dusk; W.torch.U.uTime.value = rt;
@@ -338,10 +338,20 @@ async function boot() {
     PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
     updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
     if (updateFusion(PP, w, CAM.cam, rt) | updateStyles(PP, look, w, CAM.cam, rt)) PP.sp.needDepth = true;   // the styled passes read the depth buffer
+    if (PP.taa.enabled) {
+      // temporal pass: it reads depth to reproject; grain moves after the accumulation (or it would be averaged away);
+      // clustering follows the style (painterly looks take more, the flat poster styles none); a camera cut starts afresh
+      const TQ = QUAL[PARAM.quality], st = PARAM.style;
+      PP.sp.needDepth = true;
+      PP.taa.O.uGrain.value = PP.grade.uniforms.uGrain.value + (st === 'neon' ? .05 : 0); PP.grade.uniforms.uGrain.value = 0;
+      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : 0;
+      PP.taa.O.uSharp.value = TQ.sharp || .5; PP.taa.O.uTime.value = rt;
+      if (CAM.snapped) PP.taa.reset = true;
+    }
     updatePalette(PP, w);
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
     health();
-    PP.composer.render(dt);
+    PP.taa.begin(CAM.cam); PP.composer.render(dt); PP.taa.end(CAM.cam);
     diagFrame();
     if ((UI.frameN || 0) < 3 && !window.__fixedDt) gpuSync('frame ' + ((UI.frameN || 0) + 1));
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }

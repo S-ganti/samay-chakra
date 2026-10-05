@@ -125,7 +125,7 @@ function distToRoute(x, z, r) {
 const GROUND = { names: ['forest_leaves_02', 'red_laterite_soil_stones', 'rock_boulder_dry', 'sparse_grass'], U: { uGT: { value: 0 }, tG0: { value: null }, tG1: { value: null }, tG2: { value: null }, tG3: { value: null }, tN0: { value: null }, tN1: { value: null }, tN2: { value: null }, tN3: { value: null } } };
 function groundLayers(m) {
   const L = new THREE.TextureLoader(); let n = 0;
-  const load = (u, i, kind) => L.load(`scans/tex/${GROUND.names[i]}_${kind}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; if (kind === 'Diffuse') t.colorSpace = THREE.SRGBColorSpace; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { GROUND.U[u].value = t; if (++n === 8) GROUND.U.uGT.value = 1; }); }, undefined, () => { });
+  const load = (u, i, kind) => L.load(`scans/tex/${GROUND.names[i]}_${kind}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; if (kind === 'Diffuse') t.colorSpace = THREE.SRGBColorSpace; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { GROUND.U[u].value = t; if (++n === 8) GROUND.U.uGT.value = 1; }); }, undefined, () => { });
   for (let i = 0; i < 4; i++) { load('tG' + i, i, 'Diffuse'); load('tN' + i, i, 'nor_gl'); }
   const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); blank.needsUpdate = true;
   for (const k in GROUND.U) if (k !== 'uGT') GROUND.U[k].value = blank;
@@ -222,7 +222,7 @@ function buildTerrain(scene) {
   const mMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   // the far ranges wear an aerial scan of rock and scrub, projected from above at the scale of a hillside
   const aerU = { tAer: { value: null }, uAer: { value: 0 } };
-  new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { aerU.tAer.value = t; aerU.uAer.value = 1; }); }, undefined, () => { });
+  new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { aerU.tAer.value = t; aerU.uAer.value = 1; }); }, undefined, () => { });
   mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, aerU);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');

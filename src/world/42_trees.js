@@ -56,25 +56,41 @@ function barkTexture() {
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.needsUpdate = true;
   return t;
 }
-const TREE_U = { uTime: { value: 0 }, uFade: { value: new THREE.Vector2(2.5, 7.5) }, uTransl: { value: .55 }, uCard: { value: new THREE.Vector3(.3, .45, .8) }, uCardFar: { value: new THREE.Vector2(70, 110) } };
+// wind: one gust field for the whole landscape (trees and grass read it alike), so a gust visibly rolls across the meadow
+// and on into the canopy. Broad fronts ~140 m apart travel downwind at ~12 m/s, varied across the front, with smaller ripples
+const WIND_DIR = [.8, .6];
+const WIND_GLSL = `
+float windGust(vec2 p, float t){
+  vec2 d = vec2(${WIND_DIR[0]}, ${WIND_DIR[1]}); float a = dot(p, d), b = dot(p, vec2(-d.y, d.x));
+  float g = (sin(a * .045 - t * .55) * .5 + .5) * (.55 + .45 * sin(b * .03 + t * .07 + sin(a * .02) * 2.0));
+  g += .25 * (sin(a * .13 - t * 1.6 + b * .05) * .5 + .5);
+  return g / 1.25;
+}`;
+const TREE_U = { uFrame: { value: 0 }, uHashA: { value: 0 }, uTime: { value: 0 }, uFade: { value: new THREE.Vector2(2.5, 7.5) }, uTransl: { value: .55 }, uCard: { value: new THREE.Vector3(.3, .45, .8) }, uCardFar: { value: new THREE.Vector2(70, 110) } };
 // kept share of camera-facing cards, silhouette band, card size, and the distance over which cards melt into the core
 const TREE_CARDS = { low: [.1, .3, .65, 40, 70], med: [.25, .42, .78, 65, 105], high: [.5, .55, 1, 120, 180] };
-function treeQuality(q) { const v = TREE_CARDS[q]; TREE_U.uCard.value.set(v[0], v[1], v[2]); TREE_U.uCardFar.value.set(v[3], v[4]); }
+function treeQuality(q) { const v = TREE_CARDS[q]; TREE_U.uCard.value.set(v[0], v[1], v[2]); TREE_U.uCardFar.value.set(v[3], v[4]); TREE_U.uHashA.value = QUAL[q] && QUAL[q].taa ? 1 : 0; }
 const TREE_GLSL_V = `
 uniform float uTime; uniform vec2 uFade, uCardFar; uniform vec3 uCard; varying float vCamD;
+${WIND_GLSL}
 #ifdef TREE_BLOOM
 attribute vec4 aBloom; varying vec4 vBloom; varying float vBH;
 #endif`;
 const TREE_WIND = `
 #ifdef USE_INSTANCING
- float wph = instanceMatrix[3].x * .13 + instanceMatrix[3].z * .07;
+ vec2 wpos = instanceMatrix[3].xz;
+ vec3 wdl = normalize(transpose(mat3(instanceMatrix)) * vec3(${WIND_DIR[0]}, 0.0, ${WIND_DIR[1]}));   // downwind, in this tree's own rotated frame
 #else
- float wph = 0.0;
+ vec2 wpos = vec2(0.0); vec3 wdl = vec3(${WIND_DIR[0]}, 0.0, ${WIND_DIR[1]});
 #endif
+ float wph = wpos.x * .13 + wpos.y * .07, wg = windGust(wpos, uTime);
  float wsw = max(position.y - 2.5, 0.0) * .03;
- transformed.x += sin(uTime * .9 + wph) * wsw; transformed.z += cos(uTime * .7 + wph * 1.3) * wsw * .7;`;
+ // a lean downwind with the gust, and the crown's own sway on top of it (stronger in a gust, never quite still)
+ transformed += wdl * wsw * wg * 1.1;
+ transformed.x += sin(uTime * .9 + wph) * wsw * (.3 + .7 * wg); transformed.z += cos(uTime * .7 + wph * 1.3) * wsw * .7 * (.3 + .7 * wg);`;
 const TREE_GLSL_F = `
-uniform vec2 uFade; uniform float uTransl; varying float vCamD;
+uniform vec2 uFade; uniform float uTransl, uFrame, uHashA; varying float vCamD;
+float treeIGN(vec2 p){ p += 5.588238 * mod(uFrame, 64.0); return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
 #ifdef TREE_BLOOM
 varying vec4 vBloom; varying float vBH;
 #endif
@@ -82,7 +98,15 @@ float treeBayer(vec2 p){ ivec2 q = ivec2(mod(p, 4.0)); int i = q.x + q.y * 4;
   float m[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.); return (m[i] + .5) / 16.; }`;
 // near the lens a tree dissolves in an ordered dither instead of filling the frame
 const TREE_FADE = `
- if (vCamD < uFade.y && smoothstep(uFade.x, uFade.y, vCamD) < treeBayer(gl_FragCoord.xy)) discard;`;
+ if (vCamD < uFade.y && smoothstep(uFade.x, uFade.y, vCamD) < mix(treeBayer(gl_FragCoord.xy), treeIGN(gl_FragCoord.xy), uHashA)) discard;`;
+// leaf edges: the alpha is first sharpened to a one-pixel ramp around the cut (so a soft-edged leaf texture never turns into
+// see-through haze); with the temporal pass on, that one-pixel ramp is dithered with a per-frame threshold, which the
+// accumulation resolves into a clean antialiased edge instead of a stair-stepped 50% cut
+const TREE_ALPHA = `
+#ifdef USE_ALPHATEST
+ { float ac = clamp((diffuseColor.a - alphaTest) / max(fwidth(diffuseColor.a), 1e-4) + .5, 0.0, 1.0);
+   if (ac < mix(.5, .02 + .96 * treeIGN(gl_FragCoord.xy + 17.0), uHashA)) discard; }
+#endif`;
 // sunlight coming through the leaves toward the camera
 const TREE_TRANSL = `
 #include <lights_fragment_end>
@@ -91,6 +115,7 @@ const TREE_TRANSL = `
    reflectedLight.indirectDiffuse += diffuseColor.rgb * directionalLights[0].color * tb * uTransl; }
 #endif`;
 function treeHook(sh, o) {
+  sh.uniforms.uFrame = TREE_U.uFrame; sh.uniforms.uHashA = TREE_U.uHashA;
   sh.uniforms.uTime = TREE_U.uTime; sh.uniforms.uFade = TREE_U.uFade; sh.uniforms.uTransl = TREE_U.uTransl; sh.uniforms.uCard = TREE_U.uCard; sh.uniforms.uCardFar = TREE_U.uCardFar;
   let v = sh.vertexShader.replace('#include <common>', '#include <common>\n' + TREE_GLSL_V + (o.cards ? '\nattribute vec3 aCorner; attribute vec3 aSN;' : ''));
   if (o.cards) v = v.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = aSN;\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3(tangent.xyz);\n#endif');
@@ -103,7 +128,7 @@ function treeHook(sh, o) {
     float cS = 1.0;
 #endif
     mvPosition = modelViewMatrix * mvPosition;
-    float cRu = sin(uTime * 2.3 + position.x * 3.1 + position.z * 1.7) * .05;
+    float cRu = sin(uTime * 2.3 + position.x * 3.1 + position.z * 1.7) * .05 * (.4 + 1.4 * wg);   // leaves flutter harder in a gust
     // fill budget: cards squarely in front of the core add little (the core is there) and cards behind it are hidden,
     // so keep the rim that makes the fluffy silhouette plus a third of the rest for texture
     vec3 cVN = normalize(mat3(modelViewMatrix) * mat3(instanceMatrix) * aSN);
@@ -118,7 +143,8 @@ function treeHook(sh, o) {
   sh.vertexShader = v;
   if (o.depth) { sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vCamD;'); return; }
   let f = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + TREE_GLSL_F)
-    .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + TREE_FADE);
+    .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + TREE_FADE)
+    .replace('#include <alphatest_fragment>', TREE_ALPHA);
   if (o.transl) f = f.replace('#include <lights_fragment_end>', TREE_TRANSL);
   if (o.bloom) {
     // in bloom, a share of the leaf cards become flower clusters (the crown keeps green between them); the core only takes a tint

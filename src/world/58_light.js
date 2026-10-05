@@ -231,10 +231,19 @@ function buildLight(renderer, scene, SK, ST, CT, TR, Q) {
   const specOnly = THREE.ShaderChunk.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', '');
   reflective.forEach(m => { m.envMapIntensity = .8; chainHook(m, 'envspec', (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>', specOnly); }); });
   const env = {
-    frame: 0,
+    frame: 0, lastF: -999, sig: new Float32Array(11), cur: new Float32Array(11), has: false,
     update(force) {
       // the sky only drifts: ~3 refreshes a second is plenty, and each one is a cube render plus a PMREM pass (a visible hitch if frequent)
-      if (!force && (this.frame++ % (S.travel ? 6 : 20)) !== 0) return;
+      // and only when the sky has actually changed: comparing a few of its uniforms is far cheaper than a refresh nobody can see
+      this.frame++;
+      if (!force && this.frame - this.lastF < (S.travel ? 6 : 20)) return;
+      const u = SK.U, c = this.cur, sd = u.uSunDir.value, zn = u.uZen.value, hz = u.uHor.value;
+      c[0] = sd.x; c[1] = sd.y; c[2] = sd.z; c[3] = zn.r; c[4] = zn.g; c[5] = zn.b; c[6] = hz.r; c[7] = hz.g; c[8] = hz.b; c[9] = u.uPhysW.value; c[10] = u.uCloudAmt.value;
+      if (!force && this.has && this.frame - this.lastF < 300) {
+        let dd = 0; for (let i = 0; i < 11; i++) dd = Math.max(dd, Math.abs(c[i] - this.sig[i]));
+        if (dd < .006) return;
+      }
+      this.sig.set(c); this.has = true; this.lastF = this.frame;
       cubeCam.update(renderer, envScene);
       envRT = envRT ? pmrem.fromCubemap(cubeRT.texture, envRT) : pmrem.fromCubemap(cubeRT.texture);
       reflective.forEach(m => { if (m.envMap !== envRT.texture) { m.envMap = envRT.texture; m.needsUpdate = true; } });

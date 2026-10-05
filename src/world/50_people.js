@@ -460,6 +460,34 @@ function chooseClip(D, i, act, sp, en, lit) {
   }
 }
 const _PV = new THREE.Matrix4(), _SPH = new THREE.Sphere();
+// personal space: a spatial hash of last frame's places; anyone standing, walking or dancing inside ~60 cm of another is eased
+// away from them. The push works against the glide toward each person's planned place, so people step round each other and
+// the choreography still holds (seated, lying, hidden and carrying people, and the DJ, are left alone)
+// (a fixed hash grid in typed arrays: nothing is allocated per frame, so it never feeds the garbage collector a hitch)
+const AV = { R: .62, head: new Int32Array(4096), next: new Int32Array(NMAX), on: new Uint8Array(NMAX), cx: new Int32Array(NMAX), cz: new Int32Array(NMAX), px: new Float32Array(NMAX), pz: new Float32Array(NMAX) };
+const avCell = (cx, cz) => (Math.imul(cx, 73856093) ^ Math.imul(cz, 19349663)) & 4095;
+function avoidance(D, N) {
+  const R = AV.R, H = AV.head, NX = AV.next, ON = AV.on, CX = AV.cx, CZ = AV.cz, PX = AV.px, PZ = AV.pz;
+  H.fill(-1); ON.fill(0); PX.fill(0); PZ.fill(0);
+  for (let i = 1; i < NMAX; i++) {
+    if ((i >= N && i > NCARRY) || !D.init[i] || D.hide[i] > .5 || D.sit[i] > .3 || D.lie[i] > .3 || D.carry[i] >= 0) continue;
+    const cx = Math.floor(D.x[i] / R), cz = Math.floor(D.z[i] / R), h = avCell(cx, cz);
+    CX[i] = cx; CZ[i] = cz; ON[i] = 1; NX[i] = H[h]; H[h] = i;
+  }
+  for (let i = 1; i < NMAX; i++) {
+    if (!ON[i]) continue;
+    for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) {
+      const ax = CX[i] + ox, az = CZ[i] + oz;
+      for (let j = H[avCell(ax, az)]; j >= 0; j = NX[j]) {
+        if (j <= i || CX[j] !== ax || CZ[j] !== az) continue;      // each pair once; skip other cells sharing the bucket
+        const dx = D.x[i] - D.x[j], dz = D.z[i] - D.z[j], d2 = dx * dx + dz * dz;
+        if (d2 >= R * R || d2 < 1e-8) continue;
+        const d = Math.sqrt(d2), f = (R - d) / R / d;
+        PX[i] += dx * f; PZ[i] += dz * f; PX[j] -= dx * f; PZ[j] -= dz * f;
+      }
+    }
+  }
+}
 function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
   const D = W.D, k = Math.min(1, dt * 7), cp = S.camPos;
   W.beatClock = S.beatPos; W.orb += dt * PARAM.energy;
@@ -467,6 +495,7 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
   if (cam) { cam.updateMatrixWorld(); _PV.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); W.frustum.setFromProjectionMatrix(_PV); useFr = true; }
   for (const row of W.crowd) for (const B of row) B.n = 0;
   const T = W.torch; T.n = 0;
+  avoidance(D, N); const ka = Math.min(.05, dt * 2.5);
   for (let i = 0; i < NMAX; i++) {
     if (i >= N && i > NCARRY) { D.init[i] = 0; D.hide[i] = 1; continue; }
     pose(W, i, t, rt, PO);
@@ -479,7 +508,7 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
     if (D.tp[i]) {
       D.hide[i] = Math.min(1, D.hide[i] + dt * 6);
       if (D.hide[i] >= .99) { D.x[i] = PO.x; D.z[i] = PO.z; D.yaw[i] = PO.face; D.lie[i] = PO.lie; D.sit[i] = PO.sit; D.tp[i] = 0; snapped = true; }
-    } else { D.x[i] += dx * k; D.z[i] += dz * k; }
+    } else { D.x[i] += dx * k + AV.px[i] * ka; D.z[i] += dz * k + AV.pz[i] * ka; }
     const moved = snapped ? 0 : Math.hypot(D.x[i] - ox, D.z[i] - oz);
     D.spd[i] = lerp(D.spd[i], moved / Math.max(dt, 1e-3), Math.min(1, dt * 6));
     let face = PO.face;

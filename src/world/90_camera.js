@@ -59,9 +59,15 @@ function buildCamera(renderer, Q) {
   cam.position.set(-103, FORE_H + 1.9, 6.5); cam.lookAt(-47, HP + 8, 0);
   const controls = new OrbitControls(cam, renderer.domElement);
   controls.enabled = false; controls.enableDamping = true; controls.dampingFactor = .08; controls.maxPolarAngle = Math.PI * .495; controls.minDistance = 3; controls.maxDistance = 420;
-  return { cam, controls, pos: cam.position.clone(), look: V3(-47, HP + 8, 0), fov: 50, desiredP: V3(), desiredL: V3(), chapter: -1, chapterRt: 0, shot: -1, cutKey: null, follow: 1 + NCARRY + 5, lastMode: 'director', dofK: 0, dofF: 10 };
+  return { cam, controls, vel: V3(), lvel: V3(), pos: cam.position.clone(), look: V3(-47, HP + 8, 0), fov: 50, desiredP: V3(), desiredL: V3(), chapter: -1, chapterRt: 0, shot: -1, cutKey: null, follow: 1 + NCARRY + 5, lastMode: 'director', dofK: 0, dofF: 10 };
 }
 const _cp = V3(), _cl = V3();
+// critically damped spring (exact for any dt): the camera eases out of rest and into its mark with no jolt in velocity, the way a
+// weighted head on a crane moves, instead of jumping to full speed the moment a shot's target changes
+function springTo(x, v, target, w, dt) {
+  const e = Math.exp(-w * dt);
+  for (const k of ['x', 'y', 'z']) { const d = x[k] - target[k], t = (v[k] + w * d) * dt; v[k] = (v[k] - w * t) * e; x[k] = target[k] + (d + t) * e; }
+}
 function followShot(W, i, rt) {
   const D = W.D, x = D.x[i], z = D.z[i], y = D.y[i], yaw = D.yaw[i];
   const bx = -Math.sin(yaw), bz = -Math.cos(yaw);
@@ -101,11 +107,12 @@ function updateCamera(CAM, W, dt, rt, t) {
   const gmin = groundY(CAM.desiredP.x, CAM.desiredP.z) + .9; if (CAM.desiredP.y < gmin) CAM.desiredP.y = gmin;
   const jump = CAM.pos.distanceTo(CAM.desiredP);
   CAM.snapped = snap;
-  if (snap) CAM.flight = null;
+  if (snap) { CAM.flight = null; CAM.vel.set(0, 0, 0); CAM.lvel.set(0, 0, 0); }
   else if (!CAM.flight && jump > 55) {
     // crane flight: arc up over the canopy instead of gliding through hills and trees
     let top = Math.max(CAM.pos.y, CAM.desiredP.y);
     for (let k = 1; k < 8; k++) { const f = k / 8; top = Math.max(top, groundY(lerp(CAM.pos.x, CAM.desiredP.x, f), lerp(CAM.pos.z, CAM.desiredP.z, f)) + 26); }
+    CAM.vel.set(0, 0, 0); CAM.lvel.set(0, 0, 0);
     CAM.flight = { p0: CAM.pos.clone(), l0: CAM.look.clone(), f0: CAM.fov, t0: rt, dur: clamp(2.6 + jump / 75, 3, 7.5), top: top + jump * .12 };
   }
   if (CAM.flight) {
@@ -117,7 +124,10 @@ function updateCamera(CAM, W, dt, rt, t) {
     if (f >= 1) CAM.flight = null;
   } else {
     const k = snap ? 1 : 1 - Math.exp(-dt * (mode === 'follow' ? 3 : .85));
-    CAM.pos.lerp(CAM.desiredP, k); CAM.look.lerp(CAM.desiredL, k); CAM.fov = lerp(CAM.fov, shot.fov, k);
+    // spring rates are 2x the old ease rates: the same steady lag behind a moving mark, so shots keep their framing
+    if (snap) { CAM.pos.copy(CAM.desiredP); CAM.look.copy(CAM.desiredL); }
+    else { const w = mode === 'follow' ? 6 : 1.7; springTo(CAM.pos, CAM.vel, CAM.desiredP, w, dt); springTo(CAM.look, CAM.lvel, CAM.desiredL, w * 1.2, dt); }
+    CAM.fov = lerp(CAM.fov, shot.fov, k);
   }
   const gnow = groundY(CAM.pos.x, CAM.pos.z) + .7; if (CAM.pos.y < gnow) CAM.pos.y = gnow;
   cam.position.copy(CAM.pos); cam.lookAt(CAM.look);

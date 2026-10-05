@@ -367,6 +367,157 @@ class FxaaPass extends ShaderPass {
   setSize(w, h) { this.uniforms.resolution.value.set(1 / w, 1 / h); }
 }
 
+/* ---------- temporal anti-aliased upscaling (TAAU) ----------
+   The camera is nudged by a different sub-pixel offset every frame (a Halton 2,3 sequence). This pass runs at the canvas's
+   own resolution: it rebuilds each screen pixel from the new, smaller frame's exact pixels, weighted by where their jittered
+   samples landed (no bilinear blur), reprojects last frame's full-resolution picture to where the camera now is (depth +
+   the previous view), keeps it only where it agrees with the new frame's neighbourhood (variance clipping in YCoCg) and
+   blends a little of the new frame in. Over a few frames each screen pixel collects many slightly different
+   samples: thin grass, leaf edges and wires stop crawling, and a 1.5 megapixel render resolves into a sharp picture.
+   "Pixel clustering": in flat, quiet areas the new sample is pulled toward its neighbourhood's mean before it is blended in
+   (edges, where the neighbourhood varies, are left alone), so surfaces settle into calm painted patches with a smooth
+   highlight roll-off. A contrast-adaptive sharpen then restores crisp edges for the screen. */
+const TAA_FS = `
+uniform sampler2D tCur, tFx, tDepth, tHist, tPrevZ; uniform vec2 uCurRes, uOutRes, uJit; uniform mat4 uInvVP, uPrevVP; uniform float uReset, uCluster, uAlpha, uZOk;
+vec3 toY(vec3 c){ return vec3(.25 * c.r + .5 * c.g + .25 * c.b, .5 * c.r - .5 * c.b, -.25 * c.r + .5 * c.g - .25 * c.b); }
+vec3 fromY(vec3 y){ return vec3(y.x + y.y - y.z, y.x + y.z, y.x - y.y - y.z); }
+// Catmull-Rom in five bilinear taps: used to resample history, and as the spatial upscale for pixels without usable history
+vec3 cubic(sampler2D t, vec2 uv, vec2 res){
+  vec2 pos = uv * res, c = floor(pos - 0.5) + 0.5, f = pos - c;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f), w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2, p12 = (c + w2 / w12) / res, p0 = (c - 1.0) / res, p3 = (c + 2.0) / res;
+  float k0 = w12.x * w0.y, k1 = w0.x * w12.y, k2 = w12.x * w12.y, k3 = w3.x * w12.y, k4 = w12.x * w3.y;
+  return max((texture2D(t, vec2(p12.x, p0.y)).rgb * k0 + texture2D(t, vec2(p0.x, p12.y)).rgb * k1 + texture2D(t, p12).rgb * k2
+            + texture2D(t, vec2(p3.x, p12.y)).rgb * k3 + texture2D(t, vec2(p12.x, p3.y)).rgb * k4) / (k0 + k1 + k2 + k3 + k4), 0.0);
+}
+void main(){
+  vec2 uv = gl_FragCoord.xy / uOutRes;
+  vec2 pc = uv * uCurRes, k0 = floor(pc) + .5;   // this screen pixel's centre in render pixels, and the render pixel it falls in
+  vec2 tx = 1.0 / uCurRes, sc = uOutRes / uCurRes;
+  vec3 m1 = vec3(0.0), m2 = vec3(0.0), cs = vec3(0.0), mn = vec3(1e4), mx = vec3(-1e4); float ws = 0.0, d = 1.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 tc = k0 + vec2(float(x), float(y));
+    vec3 s = toY(texture2D(tCur, tc * tx).rgb);     // exact render pixels: no bilinear blur of the new frame
+    // that render pixel saw the scene at tc - uJit; weight it by how close that lands to this screen pixel (a Blackman-Harris fit)
+    vec2 dd = (tc - uJit - pc) * sc;
+    float w = exp(-2.9 * dot(dd, dd));
+    cs += s * w; ws += w; m1 += s; m2 += s * s; mn = min(mn, s); mx = max(mx, s);
+    d = min(d, texture2D(tDepth, tc * tx).r);       // nearest depth around the pixel: edges reproject with the object in front
+  }
+  m1 /= 9.0; vec3 sig = sqrt(max(m2 / 9.0 - m1 * m1, 0.0));
+  // reproject: this pixel's world point, seen by last frame's camera
+  vec4 wp = uInvVP * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); wp /= wp.w;
+  vec4 pp = uPrevVP * wp; vec2 puv = pp.xy / pp.w * .5 + .5;
+  float off = uReset > .5 || pp.w <= 0.0 || any(lessThan(puv, vec2(0.0))) || any(greaterThan(puv, vec2(1.0))) ? 1.0 : 0.0;
+  vec3 hist = toY(cubic(tHist, puv, uOutRes));
+  // variance clipping: history may only stray a little from what the new frame says is here (and never outside the colours
+  // actually present around the pixel, which keeps a moving figure or vehicle from leaving a trail)
+  vec3 lo = max(m1 - sig * 1.25, mn), hi = min(m1 + sig * 1.25, mx);
+  vec3 hc = clamp(hist, lo, hi);
+  // the history's alpha holds how many frames' worth of samples it already carries (a running average, as in FSR2): a pixel fresh
+  // from a cut or a disocclusion takes the first few frames almost whole and converges in a handful of frames instead of
+  // drifting in slowly; settled pixels blend in about a tenth (less when upscaling, where each frame brings fewer samples)
+  float sc2 = sc.x * sc.y, wn = ws * sc2 / 1.08;   // this frame's samples for this pixel, in frames' worth (about 1 on average)
+  float vel = length((puv - uv) * uOutRes);
+  float clipK = clamp(length(hc - hist) * 6.0, 0.0, 1.0);          // how far the new frame contradicted the history
+  // what stood at that spot last frame should be the same surface at the same distance; if it isn't, something moved there or was
+  // uncovered (a dancer, a vehicle: there are no motion vectors), so that history is dropped instead of trailing behind it
+  float zMiss = uZOk * smoothstep(.05, .15, abs(pp.w - texture2D(tPrevZ, puv).r) / max(pp.w, 1e-3));
+  float hw = off > .5 ? 0.0 : texture2D(tHist, puv).a * (1.0 - min(clipK, .9)) * (1.0 - zMiss);   // history pulled far counts for less
+  // with little or contradicted history (a cut, a walker, a dancer, a branch in the wind) the narrow filter alone would show the
+  // render's own pixel steps, so there the new frame comes in through FXAA and a Catmull-Rom upscale instead (the spatial path,
+  // as good as the image without the temporal pass). The choice follows the history, never the per-row sample weight, so a moving
+  // surface can't break into bands; fresh pixels enter at a low weight so the sharp samples that follow quickly outweigh them
+  float fresh = 1.0 - smoothstep(.3, 1.5, hw), k = max(fresh, smoothstep(.05, .3, clipK));
+  float wc = mix(clamp(wn, .15, 2.0), 1.0, k) * mix(1.0, .35, fresh);
+  float a = max(wc / (wc + hw), clamp(vel * .004, 0.0, .5));     // fast motion leans on the new frame (less smear)
+  vec3 cur = mix(cs / ws, toY(cubic(tFx, uv + uJit / uCurRes, uCurRes)), k);
+  float nw = min(wc / a, clamp(sc2, 1.0, 2.5) / uAlpha);
+  // clustering: only near-flat neighbourhoods (gradients, sky, plaster) merge toward their mean; texture and edges keep the sample.
+  // Flatness is contrast relative to the local brightness, so texture in shadow (brick, bark, cloth) is never mistaken for flat
+  float flat_ = 1.0 - smoothstep(.015, .06, sig.x / max(m1.x, .04));
+  cur = mix(cur, m1, uCluster * flat_ * .85);
+  gl_FragColor = vec4(max(fromY(mix(hc, cur, a)), 0.0), nw);
+}`;
+const TAA_OUT_FS = `
+uniform sampler2D tHist; uniform vec2 uOutRes; uniform float uSharp, uGrain, uTime; varying vec2 vUv;
+float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void main(){
+  vec2 t = 1.0 / uOutRes;
+  vec3 e = texture2D(tHist, vUv).rgb, b = texture2D(tHist, vUv + vec2(0.0, -t.y)).rgb, d = texture2D(tHist, vUv + vec2(-t.x, 0.0)).rgb,
+       f = texture2D(tHist, vUv + vec2(t.x, 0.0)).rgb, hh = texture2D(tHist, vUv + vec2(0.0, t.y)).rgb;
+  // RCAS: sharpen each pixel only as far as its neighbourhood allows before it would ring
+  vec3 mn = min(min(min(b, d), min(f, hh)), e), mx = max(max(max(b, d), max(f, hh)), e);
+  vec3 amp = clamp(min(mn, 1.0 - mx) / max(mx, 1e-4), 0.0, 1.0);
+  float lobe = -sqrt(dot(amp, vec3(.3333))) * mix(.125, .2, uSharp);    // AMD CAS range: 1/8 (soft) .. 1/5 (crisp)
+  vec3 c = (lobe * (b + d + f + hh) + e) / (1.0 + 4.0 * lobe);
+  c += (h(gl_FragCoord.xy + fract(uTime * 37.0) * 113.0) - .5) * uGrain;     // film grain lives after the accumulation, so it stays alive
+  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+// this frame's view distance, dilated to the nearest surface around each pixel (as the resolve reads it), kept for the next frame
+const TAA_Z_FS = `${DEPTH_GLSL}
+uniform sampler2D tDepth; uniform vec2 uTx; varying vec2 vUv;
+void main(){
+  float d = 1.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) d = min(d, texture2D(tDepth, vUv + vec2(float(x), float(y)) * uTx).r);
+  gl_FragColor = vec4(-linZ(d), 0.0, 0.0, 1.0);
+}`;
+const HALTON = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+class TaaPass extends Pass {
+  constructor(depth) {
+    super(); this.needsSwap = false; this.enabled = false;
+    const ho = { type: THREE.HalfFloatType, depthBuffer: false, magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false };
+    this.h = [new THREE.WebGLRenderTarget(1, 1, ho), new THREE.WebGLRenderTarget(1, 1, ho)]; this.k = 0;
+    this.U = { tCur: { value: null }, tFx: { value: null }, tPrevZ: { value: null }, uZOk: { value: 0 }, tDepth: { value: depth }, tHist: { value: null }, uCurRes: { value: new THREE.Vector2(1, 1) }, uOutRes: { value: new THREE.Vector2(1, 1) },
+      uJit: { value: new THREE.Vector2() }, uInvVP: { value: new THREE.Matrix4() }, uPrevVP: { value: new THREE.Matrix4() }, uReset: { value: 1 }, uCluster: { value: .4 }, uAlpha: { value: .1 } };
+    this.O = { tHist: { value: null }, uOutRes: this.U.uOutRes, uSharp: { value: .6 }, uGrain: { value: 0 }, uTime: { value: 0 } };
+    this.q = fsq(this.U, TAA_FS); this.qo = fsq(this.O, TAA_OUT_FS);
+    // the current frame, FXAA'd at render resolution: only read where history is thin
+    this.fxU = THREE.UniformsUtils.clone(FXAAShader.uniforms); this.fxRT = new THREE.WebGLRenderTarget(1, 1, ho);
+    this.fxq = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: this.fxU, vertexShader: FXAAShader.vertexShader, fragmentShader: FXAAShader.fragmentShader, depthTest: false, depthWrite: false }));
+    // last frame's view distances (render resolution, ping-pong), for the moved-or-uncovered test
+    const zo = { type: THREE.HalfFloatType, depthBuffer: false, magFilter: THREE.NearestFilter, minFilter: THREE.NearestFilter, generateMipmaps: false };
+    this.z = [new THREE.WebGLRenderTarget(1, 1, zo), new THREE.WebGLRenderTarget(1, 1, zo)]; this.zk = 0; this.zOk = false;
+    this.zU = { ...camU(), tDepth: { value: depth }, uTx: { value: new THREE.Vector2(1, 1) } }; this.zq = fsq(this.zU, TAA_Z_FS);
+    this.out = new THREE.Vector2(); this.n = 0; this.vp = new THREE.Matrix4(); this.saved = new THREE.Matrix4(); this.reset = true; this.applied = false;
+  }
+  setSize(w, h) {
+    this.U.uCurRes.value.set(w, h); this.fxRT.setSize(w, h); this.fxU.resolution.value.set(1 / w, 1 / h);
+    this.z[0].setSize(w, h); this.z[1].setSize(w, h); this.zU.uTx.value.set(1 / w, 1 / h); this.zOk = false;   // a resize clears the stored distances
+  }
+  // before the frame: jitter the projection by a sub-pixel offset (in render pixels), remember the clean view for reprojection
+  begin(cam) {
+    if (!this.enabled) return;
+    const w = this.U.uCurRes.value.x, h = this.U.uCurRes.value.y;
+    cam.updateMatrixWorld(); this.zU.uNear.value = cam.near; this.zU.uFar.value = cam.far;
+    this.vp.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    this.U.uInvVP.value.copy(this.vp).invert();
+    if (this.n === 0) this.reset = true;                // the warm-up frames had no jitter and no previous view
+    const i = (this.n++ % 8) + 1, jx = HALTON(i, 2) - .5, jy = HALTON(i, 3) - .5;
+    this.U.uJit.value.set(jx, jy);
+    this.saved.copy(cam.projectionMatrix);
+    cam.projectionMatrix.elements[8] -= 2 * jx / w; cam.projectionMatrix.elements[9] -= 2 * jy / h; this.applied = true;
+  }
+  end(cam) {
+    if (this.applied) { cam.projectionMatrix.copy(this.saved); this.applied = false; }
+    if (this.enabled) this.U.uPrevVP.value.copy(this.vp);
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    renderer.getDrawingBufferSize(this.out);
+    const ow = this.out.x, oh = this.out.y;
+    if (this.h[0].width !== ow || this.h[0].height !== oh) { this.h[0].setSize(ow, oh); this.h[1].setSize(ow, oh); this.reset = true; }
+    this.U.uOutRes.value.set(ow, oh);
+    const src = this.h[this.k], dst = this.h[1 - this.k]; this.k = 1 - this.k;
+    this.fxU.tDiffuse.value = readBuffer.texture; renderer.setRenderTarget(this.fxRT); this.fxq.render(renderer);
+    this.U.tCur.value = readBuffer.texture; this.U.tFx.value = this.fxRT.texture; this.U.tHist.value = src.texture;
+    this.U.tPrevZ.value = this.z[this.zk].texture; this.U.uZOk.value = this.zOk && !this.reset ? 1 : 0; this.U.uReset.value = this.reset ? 1 : 0; this.reset = false;
+    renderer.setRenderTarget(dst); this.q.render(renderer);
+    renderer.setRenderTarget(this.z[1 - this.zk]); this.zq.render(renderer); this.zk = 1 - this.zk; this.zOk = true;
+    this.O.tHist.value = dst.texture;
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer); this.qo.render(renderer);
+  }
+}
+
 function buildPost(renderer, scene, camera, Q) {
   const composer = new EffectComposer(renderer);
   composer.setPixelRatio(renderer.getPixelRatio());
@@ -378,9 +529,10 @@ function buildPost(renderer, scene, camera, Q) {
   const smaa = new SMAAPass(256, 256); smaa.enabled = Q.smaa;
   const fxaa = new FxaaPass(); fxaa.enabled = !!Q.fxaa;
   const up = new UpscalePass();
-  const fusion = new FusionPass(sp.depth), styles = new StylePass(sp.depth);
-  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(fusion); composer.addPass(styles); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up);
-  return { composer, sp, dof, after, bloom, grade, fusion, styles, smaa, fxaa, up, dofF: 10, dofK: 0 };
+  const fusion = new FusionPass(sp.depth), styles = new StylePass(sp.depth), taa = new TaaPass(sp.depth); taa.enabled = !!Q.taa && !SAFE.post;
+  if (taa.enabled) { smaa.enabled = fxaa.enabled = false; }          // the temporal pass does the anti-aliasing and the upscale
+  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(fusion); composer.addPass(styles); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up); composer.addPass(taa);
+  return { composer, sp, dof, after, bloom, grade, fusion, styles, smaa, fxaa, up, taa, dofF: 10, dofK: 0 };
 }
 const _shv = V3();
 // screen position of a world point: returns a visibility weight (0 behind the camera, fading when far off-screen)
@@ -405,8 +557,10 @@ function updatePost(PP, look, rt, w, h, cam, lightInfo) {
   const dr = PARAM.dream; g.uDream.value = dr * PARAM.grade; g.uDreamTint.value.copy(look.dream).convertLinearToSRGB();
   // the dream's bloom lowers the threshold relative to the chapter's own: a fixed low threshold made every daylight pixel glow (a milky veil)
   PP.bloom.strength += dr * .2; PP.bloom.radius = lerp(look.bloomR, .85, dr * .8); PP.bloom.threshold = lerp(look.bloomT, look.bloomT * .72, dr * .7);
-  const a = clamp(look.after * PARAM.exposure, 0, .93);
-  PP.after.uniforms.damp.value = a; PP.after.enabled = a > .07;
+  // with the temporal pass on, the full-screen afterimage is kept light: the crowd has its own long-exposure smears, and a heavy
+  // afterimage on top of temporal accumulation only softened every moving figure
+  const a = clamp(look.after * PARAM.exposure * (PP.taa.enabled ? .5 : 1), 0, .93);
+  PP.after.uniforms.damp.value = a; PP.after.enabled = a > (PP.taa.enabled ? .095 : .07);
   // ambient occlusion
   const Q = QUAL[PARAM.quality], sp = PP.sp, C = sp.compU;
   sp.useAO = Q.ao > 0; if (Q.ao > 0) sp.setAOSamples(Q.ao);

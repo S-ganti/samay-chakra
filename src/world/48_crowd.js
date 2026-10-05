@@ -111,7 +111,7 @@ function buildFigure(variant, lod) {
   }
   const X = V3(1, 0, 0), Yv = V3(0, 1, 0), Yd = V3(0, -1, 0), Z = V3(0, 0, 1);
   const mix2 = (a, b, w) => w <= 0 ? [a, a, 1] : w >= 1 ? [b, b, 1] : [a, b, 1 - w];
-  const S = [12, 8, 5][lod], SL = [7, 5, 4][lod], SK = [16, 10, 6][lod];
+  const S = [16, 8, 5][lod], SL = [9, 5, 4][lod], SK = [22, 10, 6][lod];   // the nearest level is drawn round enough to read as a body, not a polygon
 
   /* torso + neck */
   const TP = fem ? [[.80, .130, .100, -.035], [.86, .165, .115, -.04], [.93, .180, .118, -.04], [1.00, .160, .105, -.03], [1.06, .125, .092, -.015], [1.13, .128, .095, -.005], [1.20, .140, .112, .005], [1.27, .150, .122, .012], [1.34, .155, .112, .008], [1.40, .165, .098, 0], [1.45, .156, .080, -.01], [1.485, .066, .055, -.01], [1.53, .046, .046, 0], [1.61, .043, .043, .012]]
@@ -343,7 +343,12 @@ function crowdHook(sh, withColor) {
           if (rg == 3) pc *= 1.0 + .25 * vPat.w;           // zari: the gold thread catches more light
         }
         diffuseColor.rgb *= pc;`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, .34, sheenK);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, .34, sheenK);')
+      // a soft rim of sky light round each figure (the probe's own colour, so cool at night and warm by day, never a glow of its own):
+      // the edge separation a painter gives a figure against the ground
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        { float rim = pow(1.0 - saturate(dot(geometryNormal, geometryViewDir)), 3.0);
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * getLightProbeIrradiance(lightProbe, geometryNormal) * rim * .55; }`);
   }
 }
 // woven and printed cloth: returns ink cover (0..1) and a value multiplier; every pattern fades to its average tone once its

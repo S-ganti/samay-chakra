@@ -36,6 +36,7 @@ function buildGrass(scene, Q) {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
       uniform sampler2D uGrass; uniform vec2 uOrigin, uCenter; uniform float uTime, uFadeR; varying vec3 vGC;
+      ${WIND_GLSL}
       float gh1(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float gvn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gh1(i), gh1(i + vec2(1, 0)), f.x), mix(gh1(i + vec2(0, 1)), gh1(i + vec2(1, 1)), f.x), f.y); }
       vec2 gTer(vec2 xz){ vec2 f = (xz + ${(TER.size / 2).toFixed(1)}) / ${TER.step.toFixed(4)}; vec2 i = floor(f), u = f - i; ivec2 c = ivec2(clamp(i, 0.0, ${(TER.seg - 1).toFixed(1)}));
@@ -58,14 +59,17 @@ function buildGrass(scene, Q) {
 #endif`)
       .replace('#include <begin_vertex>', `
       float gv = position.y, gBend = (.25 + .35 * gr3) * gv * gv;
-      float gWind = sin(uTime * 1.7 + gxz.x * .35 + gxz.y * .22) * .5 + sin(uTime * 3.1 + gxz.x * .9) * .2;
+      // the shared gust field: blades lean downwind as a gust passes, with a quick flutter of their own on top
+      float gG = windGust(gxz, uTime);
+      float gWind = gG * .85 + .18 * sin(uTime * 3.1 + gxz.x * .9 + gxz.y * .4 + gr1 * 6.0);
       vec3 transformed = vec3(gxz.x, gt.x - .04, gxz.y) + vec3(gR.x, 0.0, gR.y) * position.x * gW
-        + vec3(0.0, gv * gH, 0.0) + vec3(gF.x, 0.0, gF.y) * gBend * gH + vec3(.6, 0.0, .35) * gWind * gv * gv * gH * .35;
+        + vec3(0.0, gv * gH * (1.0 - .18 * gG * gv), 0.0) + vec3(gF.x, 0.0, gF.y) * gBend * gH + vec3(${WIND_DIR[0]}, 0.0, ${WIND_DIR[1]}) * gWind * gv * gv * gH * .55;
       // green where it holds water, straw where it doesn't (patches tens of metres across), dark at the root, sunlit at the tip
       float gDry = smoothstep(.38, .72, gvn(gxz * .045) * .7 + gvn(gxz * .17) * .3);
       vec3 gGreen = mix(vec3(.024, .032, .012), vec3(.07, .088, .028), gr2 * .5 + gv * .6);
       vec3 gStraw = mix(vec3(.04, .033, .016), vec3(.125, .1, .048), gr2 * .45 + gv * .6);
       vGC = mix(gGreen, gStraw, gDry * .9) * mix(.55, 1.0, gv) * (.78 + .44 * gh1(floor(gabs / 4.0)));
+      vGC *= 1.0 + .22 * gG * gv;                 // a bent blade shows its paler side: you see the gust travel across the meadow
       // seed heads in the dry grass; a few wildflowers (yellow, white, purple) standing a little taller
       float gTip = step(.9, gv), gFl = step(.986, gh1(gabs + 73.1));
       vGC = mix(vGC, vec3(.15, .125, .07), gTip * step(.72, gr3) * gDry);
