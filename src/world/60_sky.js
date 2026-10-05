@@ -12,7 +12,7 @@ float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
 float vn(vec3 p){vec3 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
   return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
              mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
-float fbm3(vec3 p){float s=0.0,a=0.5; for(int i=0;i<5;i++){s+=a*vn(p); p*=2.03; a*=0.5;} return s;}
+float fbm3(vec3 p){float s=0.0,a=0.5; for(int i=0;i<4;i++){s+=a*vn(p); p*=2.03; a*=0.5;} return s * 1.032;}   // four octaves: the fifth is 3% of the cloud's contrast, at a fifth of the cost of the noise
 vec3 rotA(vec3 v, vec3 k, float a){ return v*cos(a) + cross(k,v)*sin(a) + k*dot(k,v)*(1.0-cos(a)); }
 ${LUT_READ_GLSL}
 ${PHYS_MAP_GLSL}
@@ -95,7 +95,10 @@ function buildSky(scene, Q) {
     uPhysW: { value: 0 }, uPhysK: { value: 1 }, uFogScat: { value: 0 }, uLUT: { value: null },
   };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), new THREE.ShaderMaterial({ uniforms: U, vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, fog: false }));
-  sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
+  // The sky is drawn after the other opaque objects, not before: it sits at the far plane, so the depth test throws away every
+  // pixel the ground, buildings and trees already cover, and its cloud and atmosphere shader runs only where sky shows.
+  // (Sprites, mist and particles are transparent, so they still draw after it.)
+  sky.renderOrder = 1000; sky.frustumCulled = false; scene.add(sky);
 
   // moon + sun flare sprites
   const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: toTex(texMoon()), transparent: true, depthWrite: false, fog: false, color: '#eef2ff' }));

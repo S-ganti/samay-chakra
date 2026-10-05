@@ -55,7 +55,7 @@ function scanInstances(scene, asset, id, pts, { cast = false, receive = true, ti
     _s.set(1, 1, 1);
     im.castShadow = cast; im.receiveShadow = receive; im.frustumCulled = false;   // instances span the map; per-object culling would test one sphere
     im.computeBoundingSphere(); im.frustumCulled = true;
-    scene.add(im); out.push(im);
+    im.userData.sys = 'scans'; scene.add(im); out.push(im); cullAdopt(im);
     SCAN.tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * pts.length;
   }
   SCAN.groups.push(...out);
@@ -90,7 +90,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   SCAN.total = want.lod.length + want.full.length;
   const A = { lod: {}, full: {} };
   const get = async (kind, id) => { try { A[kind][id] = scanParts(await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb')); } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
-  await Promise.all([...want.lod.map(id => get('lod', id)), ...want.full.map(id => get('full', id))]);
+  await Promise.all([simplifierReady(), ...want.lod.map(id => get('lod', id)), ...want.full.map(id => get('full', id))]);
   if (!Object.keys(A.lod).length) { SCAN.failed = true; return SCAN; }
   const r = rng(4242), inLens = shotClearance();
   const GRANITE = ['#d8cabb', '#b9a898'], MOSSY = ['#ffffff', '#d8d0bc'];
@@ -302,7 +302,7 @@ function heritagePlace(scene, asset, list, { cast = true } = {}) {
   for (const [g, m] of asset.parts) {
     const im = new THREE.InstancedMesh(g, heritageMaterial(m), list.length);
     list.forEach(([x, y, z, h, yaw], i) => { const k = h / asset.size.y; _p.set(x, y, z); _q.setFromAxisAngle(V3(0, 1, 0), yaw); _s.set(k, k, k); setIM(im, i, _p, _q, _s); });
-    _s.set(1, 1, 1); im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; scene.add(im); out.push(im);
+    _s.set(1, 1, 1); im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; im.userData.sys = 'scans'; scene.add(im); out.push(im); cullAdopt(im);
     SCAN.tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * list.length;
   }
   return out;

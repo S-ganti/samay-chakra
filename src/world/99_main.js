@@ -1,17 +1,21 @@
 /* =========================================================================
    BOOT + LOOP
    ========================================================================= */
+// pr: the canvas's sharpest pixel ratio (native up to this). mp: the megapixels the picture is actually drawn at; it is
+// upscaled and sharpened to the canvas, so a big or high-density screen costs no more to draw than a small one.
+// dens: square pixels each triangle of a scanned mesh may cover before a simplified copy is used instead (higher = coarser, cheaper).
 const QUAL = {
-  low: { pr: 1, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { pr: 1.25, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: true, ao: 8, shafts: true, dof: true, grass: 124 },
-  high: { pr: 2, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, ao: 12, shafts: true, dof: true, grass: 190 },
+  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, ao: 0, shafts: false, dof: false, grass: 0 },
+  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, ao: 8, shafts: true, dof: true, grass: 124 },
+  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, ao: 12, shafts: true, dof: true, grass: 190 },
 };
 async function boot() {
   const canvas = $('gl');
+  const T0 = performance.now(), mark = (k) => diagNote('boot', `${k} +${Math.round(performance.now() - T0)} ms`);
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false }); }
   catch (e) { $('glerr').classList.add('on'); $('loading').classList.add('done'); return; }
-  const Q = { ...QUAL[PARAM.quality] };
+  const Q = { ...QUAL[PARAM.quality] }; CULL.dens = Q.dens;
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -22,39 +26,50 @@ async function boot() {
   const now = new Date(); S.t = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   // coming back from a quality change: pick up where the viewer was
   try { const r = JSON.parse(sessionStorage.getItem('samay.resume') || 'null'); sessionStorage.removeItem('samay.resume'); if (r && Date.now() - r.at < 60000) { S.t = r.t; PARAM.palette = r.palette || PARAM.palette; WX.mode = r.wx || WX.mode; } } catch (e) { }
-  const TR = buildTerrain(scene);
-  const ST = buildStructures(scene, Q);
-  const CT = buildCity(scene, Q);
-  const FO = buildForest(scene, Q);
-  const TE = buildTemple(scene, Q, ST);
-  const DE = buildDecor(scene, Q, ST, TE);
-  const GR = buildGrass(scene, Q);
-  const W = buildPeople(scene, Q);
+  // each subsystem's objects carry its name in userData.sys, so the cost of every part of the world can be measured on its own
+  const sys = (name, fn) => { const n0 = scene.children.length, r = fn(); for (let i = n0; i < scene.children.length; i++) scene.children[i].userData.sys = name; return r; };
+  const TR = sys('terrain', () => buildTerrain(scene));
+  const ST = sys('structures', () => buildStructures(scene, Q));
+  const CT = sys('city', () => buildCity(scene, Q));
+  const FO = sys('forest', () => buildForest(scene, Q));
+  const TE = sys('temple', () => buildTemple(scene, Q, ST));
+  const DE = sys('decor', () => buildDecor(scene, Q, ST, TE));
+  const GR = sys('grass', () => buildGrass(scene, Q));
+  const W = sys('crowd', () => buildPeople(scene, Q));
   const carving = carveStart();                          // the carved sheets are cut in background workers from here on
-  const SK = buildSky(scene, Q);
-  const LI = buildLight(renderer, scene, SK, ST, CT, TR, Q); SK.physK = LI.physK;
+  const SK = sys('sky', () => buildSky(scene, Q));
+  const LI = sys('light', () => buildLight(renderer, scene, SK, ST, CT, TR, Q)); SK.physK = LI.physK;
   SK.key.shadow.camera.up.set(0, 0, 1);                 // stable light-space basis through the noon zenith
   const CAM = buildCamera(renderer, Q); W.cam = CAM.cam;
   const PP = buildPost(renderer, scene, CAM.cam, Q);
-  const NA = buildNature(scene, Q, SK);
-  injectFog(scene);
+  const NA = sys('nature', () => buildNature(scene, Q, SK));
+  injectFog(scene); mark('world built');
   const scans = loadScans(scene, Q, renderer, FO, ST).catch((e) => { SCAN.failed = true; diagNote('scan', String(e && e.message || e)); });   // photogrammetry streams in while the loading screen is up
   const ctx = { canvas, renderer, CAM, resize: null, applyQuality: null };
   let vw = 1, vh = 1;
-  const DR = { scale: 1, slowT: 0, fastT: 0, cool: 2, lowT: 0 };            // dynamic resolution
-  const basePR = () => Math.min(devicePixelRatio || 1, QUAL[PARAM.quality].pr);
+  // dynamic resolution: scale multiplies the quality's pixel budget; the frame-time controller in step() moves it
+  const DR = { scale: .85, base: 1, cool: 2.5, ft: 1000 / 60, miss: 0, vsync: 1000 / 60, hist: [], n: 0, slowT: 0, upT: 0, upWait: 2, lastUp: -99, atMin: 0, min: .55, cap30: false, dts: 0 };
+  const outPR = () => Math.min(devicePixelRatio || 1, QUAL[PARAM.quality].pr);
+  let IPR = 1, outKey = '';                                                  // IPR: pixel ratio the picture is drawn at
   ctx.resize = () => {
     const W0 = innerWidth, H0 = innerHeight; let w = W0, h = H0;
     const fr = PARAM.frame; if (fr !== 'fill') { const [a, b] = fr.split(':').map(Number), asp = a / b; if (W0 / H0 > asp) { h = H0; w = Math.round(H0 * asp); } else { w = W0; h = Math.round(W0 / asp); } }
     vw = w; vh = h;
-    renderer.setPixelRatio(basePR() * DR.scale);
-    renderer.setSize(w, h); PP.composer.setPixelRatio(renderer.getPixelRatio()); PP.composer.setSize(w, h);
+    const o = outPR(), q = QUAL[PARAM.quality];
+    DR.base = Math.min(1, Math.sqrt(q.mp * 1e6 / (w * h * o * o)));
+    const rs = clamp(DR.base * DR.scale, .4, 1);
+    IPR = o * rs;
+    const key = `${w}x${h}@${o}`;                                            // the canvas is only touched when its own size changes
+    if (key !== outKey) { outKey = key; renderer.setPixelRatio(o); renderer.setSize(w, h); }
+    PP.composer.setPixelRatio(IPR); PP.composer.setSize(w, h);
+    PP.up.enabled = rs < .985;
+    DR.rs = rs; DR.cool = Math.max(DR.cool, .8);
     CAM.cam.aspect = w / h; CAM.cam.updateProjectionMatrix();
-    const ps = h * renderer.getPixelRatio();
+    const ps = h * IPR;
     NA.flies.U.uSize.value = ps; ST.diyas.flameU.uSize.value = ps; W.torch.U.uSize.value = ps; DE.bulbU.uSize.value = ps; SK.emberU.uSize.value = ps; SK.petalU.uSize.value = ps; SK.dustU.uSize.value = ps; CT.lamps.lampGlowU.uSize.value = ps;
   };
   ctx.applyQuality = () => {
-    const q = QUAL[PARAM.quality]; PP.smaa.enabled = q.smaa; if (q.ao) PP.sp.setAOSamples(q.ao);
+    const q = QUAL[PARAM.quality]; CULL.dens = q.dens; PP.smaa.enabled = q.smaa; PP.fxaa.enabled = q.fxaa; if (q.ao) PP.sp.setAOSamples(q.ao);
     treeQuality(PARAM.quality);
     SK.key.castShadow = q.shadows > 0; if (q.shadows) { SK.key.shadow.mapSize.set(q.shadows, q.shadows); if (SK.key.shadow.map) { SK.key.shadow.map.dispose(); SK.key.shadow.map = null; } }
     ctx.resize();
@@ -79,16 +94,29 @@ async function boot() {
     sp.useSh = wasSh; sp.needDepth = false; PP.dof.enabled = false;
     hidden.forEach(o => { o.visible = false; }); PP.after.enabled = wasAfter;
   }
+  mark('shaders warmed');
   // give the carving a moment to land before the curtain lifts (it keeps going in the background either way)
   try { await Promise.race([carving, new Promise(r => setTimeout(r, 2500))]); await Promise.race([scans, new Promise(r => setTimeout(r, 15000))]); } catch (e) { }
-  if (SCAN.ready) { try { await renderer.compileAsync(scene, CAM.cam); } catch (e) { } }
+  mark(SCAN.ready ? 'scans ready' : 'scans late');
+  if (SCAN.ready) {
+    try { await renderer.compileAsync(scene, CAM.cam); } catch (e) { }
+    // the scanned meshes' first draw (shadow programs, index buffers, textures) happens here, behind the loading screen and
+    // into a small frame, rather than in the first seconds of the show
+    try {
+      const wasOn = CULL.on; CULL.on = false;
+      fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows); cullFrame(CAM.cam, SK.key, vh * IPR);
+      PP.composer.setPixelRatio(.2); PP.composer.setSize(vw, vh); PP.composer.render(1 / 60);
+      CULL.on = wasOn; CULL.dirty = true; ctx.resize();
+    } catch (e) { CULL.on = true; diagNote('boot', 'scan warm-up: ' + (e.message || e)); }
+    mark('scans warmed');
+  }
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => { }); } catch (e) { }
 
   const scafM = new THREE.Matrix4(), scafP = V3(), scafS = V3(), AMBER = col('#ff8a2a'), DIYA = col('#ffae55'), LAMP = col('#ffb36a');
   const LINFO = { celVis: 0, celPos: V3(), portalI: 0, portalPos: V3(GEO.GATE.x, WHEEL_Y, GEO.GATE.z), portalCol: col('#ff8a2a') };
   let last = performance.now(), frames = 0, fpsT = 0, slow = 0;
   const G = ST.gate, gateBase = HP;
-  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
+  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, CULL, cull: () => cullFrame(CAM.cam, SK.key, vh * IPR), SK, SIMP, simplifyGeometry, triCount, ipr: () => IPR, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
   const reportOnce = (key, e) => {
@@ -118,7 +146,22 @@ async function boot() {
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault(); UI.glLost = true; toast('The browser reset the graphics. Restoring the scene…', 4000);
     diagNote('webgl', 'context lost');
-    setTimeout(() => { if (UI.glLost) diagShow('The graphics card dropped the scene', 'The browser reset the graphics and they did not come back. Reload the page; if it keeps happening, pick Medium or Low quality.'); }, 6000);
+    // if the browser doesn't give the graphics back, start again one quality step lower, once; after that, say what happened
+    setTimeout(() => {
+      if (!UI.glLost) return;
+      try {
+        const at = +sessionStorage.getItem('samay.recover') || 0;
+        if (Date.now() - at > 120000) {
+          sessionStorage.setItem('samay.recover', String(Date.now()));
+          const next = PARAM.quality === 'high' ? 'med' : 'low';
+          try { localStorage.setItem('samay.quality', next); sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, palette: PARAM.palette, wx: WX.mode })); } catch (x) { }
+          const u = new URL(location.href); u.searchParams.set('q', next); u.hash = '';
+          toast(`The browser reset the graphics. Starting again at ${next === 'low' ? 'Low' : 'Medium'} quality…`, 3000);
+          setTimeout(() => location.replace(u.toString()), 900); return;
+        }
+      } catch (x) { }
+      diagShow('The graphics card dropped the scene', 'The browser reset the graphics and they did not come back. Reload the page; if it keeps happening, pick Medium or Low quality.');
+    }, 5000);
   }, false);
   canvas.addEventListener('webglcontextrestored', () => {
     UI.glLost = false; LI.lastY = -9; try { LI.env.update(true); ctx.resize(); } catch (e) { }
@@ -143,17 +186,49 @@ async function boot() {
   function step(nowMs) {
     const rawMs = nowMs - last;
     if (LISTEN.asleep) { last = nowMs; return; }            // the sleep timer ran out: rest until someone moves
-    const dt = window.__fixedDt || Math.min(.1, Math.max(.001, rawMs / 1000)); last = nowMs;
-    // dynamic resolution: trade pixels for a steady frame rate
+    // frames land on the display's refresh ticks, so a steady 60 Hz can still arrive as 16/33/16/17 ms; time is advanced by a
+    // lightly smoothed step (long stalls pass straight through) so motion stays even instead of pulsing with the jitter
+    const dtRaw = Math.min(.1, Math.max(.001, rawMs / 1000)); last = nowMs;
+    DR.dts = DR.dts ? DR.dts + (dtRaw - DR.dts) * .3 : dtRaw;
+    const dt = window.__fixedDt || (dtRaw > DR.dts * 2.5 ? dtRaw : DR.dts);
+    // dynamic resolution: trade pixels for a steady frame rate. The target is the display's own refresh interval
     if (!window.__fixedDt && !window.__noAdapt && document.visibilityState === 'visible' && rawMs < 250) {
       DR.cool -= dt;
-      if (rawMs > 21) DR.slowT += dt; else DR.slowT = Math.max(0, DR.slowT - dt * .5);
-      if (rawMs < 18.5) DR.fastT += dt; else DR.fastT = 0;
-      if (DR.cool <= 0 && DR.slowT > 1.2) {
-        if (DR.scale > .56) { DR.scale = Math.max(.55, DR.scale - .12); ctx.resize(); }
-        else if (!PARAM.qualityPinned && PARAM.quality !== 'low' && (DR.lowT += 1) > 3) { PARAM.quality = PARAM.quality === 'high' ? 'med' : 'low'; $('sQual').value = PARAM.quality; ctx.applyQuality(); DR.lowT = 0; toast('Lowered render quality to keep things smooth (pick a quality in the panel to keep it)', 3200); }
-        DR.cool = 1.6; DR.slowT = 0;
-      } else if (DR.cool <= 0 && DR.fastT > 6 && DR.scale < 1) { DR.scale = Math.min(1, DR.scale + .08); ctx.resize(); DR.cool = 3; DR.fastT = 0; }
+      DR.hist.push(rawMs); if (DR.hist.length > 240) DR.hist.shift();
+      if (++DR.n % 30 === 0 && DR.hist.length >= 90) {
+        // refresh rate: the fastest steady cadence seen (frames can only arrive on a tick). 60 Hz is the floor unless a locked 30 fps is proven
+        const sorted = [...DR.hist].sort((a, b) => a - b), p10 = sorted[Math.floor(sorted.length * .1)], p90 = sorted[Math.floor(sorted.length * .9)];
+        const snap = [6.94, 8.33, 11.11, 13.89, 16.67].find((v) => Math.abs(p10 - v) / v < .09);
+        DR.vsync = DR.cap30 ? 33.33 : clamp(snap || p10, 6.5, 16.67);
+        if (!DR.cap30 && DR.scale <= DR.min + .01 && p10 > 30 && p90 - p10 < 4) { DR.cap30 = true; DR.vsync = 33.33; DR.scale = 1; DR.atMin = 0; ctx.resize(); }   // the browser hands out 30 fps frames: that is the pace, not a load problem
+      }
+      if (DR.cool > 0) { DR.ft = DR.vsync; DR.miss = 0; }
+      else {
+        DR.ft += (rawMs - DR.ft) * .08; DR.miss += ((rawMs > DR.vsync * 1.35 ? 1 : 0) - DR.miss) * .05;
+        const over = DR.ft > DR.vsync * 1.18 || DR.miss > .12;
+        if (over) {
+          DR.upT = 0; DR.slowT += dt;
+          if (DR.slowT > .7) {
+            if (DR.scale > DR.min + .005) {
+              // cost follows pixels, i.e. scale squared: step by the square root of the overload
+              DR.scale = Math.max(DR.min, Math.round(DR.scale * clamp(Math.sqrt(DR.vsync / DR.ft), .8, .95) * 50) / 50);
+              DR.upWait = S.rt - DR.lastUp < 12 ? Math.min(40, DR.upWait * 1.8) : 4;   // an attempt to go back up failed: wait longer next time
+              ctx.resize(); DR.cool = 1.4;
+            }
+            DR.slowT = 0;
+          }
+          if (DR.scale <= DR.min + .01) {
+            DR.atMin += dt;
+            if (DR.atMin > 8 && !PARAM.qualityPinned && PARAM.quality !== 'low') { PARAM.quality = PARAM.quality === 'high' ? 'med' : 'low'; $('sQual').value = PARAM.quality; ctx.applyQuality(); DR.atMin = 0; DR.scale = 1; ctx.resize(); toast('Lowered render quality to keep things smooth (pick a quality in the panel to keep it)', 3200); }
+          } else DR.atMin = 0;
+        } else {
+          DR.slowT = Math.max(0, DR.slowT - dt); DR.atMin = 0;
+          if (DR.scale < 1 && DR.miss < .02 && DR.ft < DR.vsync * 1.1) {
+            DR.upT += dt;
+            if (DR.upT > DR.upWait) { DR.scale = Math.min(1, DR.scale + .05); DR.upT = 0; DR.lastUp = S.rt; ctx.resize(); DR.cool = 1.2; }
+          } else DR.upT = 0;
+        }
+      }
     }
     S.dt = dt; S.rt += dt;
     // clock
@@ -179,6 +254,7 @@ async function boot() {
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;
     fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows);
+    cullFrame(CAM.cam, SK.key, vh * IPR);               // only the scanned pieces the camera or the shadow box can see, at the right detail
     // portal gate
     const comp = gateCompletion(W, t);
     const dusk = h > 12 ? smooth(17.2, 18.3, h) : 1 - smooth(5.6, 7.0, h);
@@ -228,8 +304,8 @@ async function boot() {
     // post + render
     const kd = 1 - Math.exp(-dt * 2.5);
     const kdk = CAM.snapped ? 1 : kd;
-    PP.dofK = lerp(PP.dofK, CAM.dofK * vh * renderer.getPixelRatio() / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
-    updatePost(PP, look, rt, vw * renderer.getPixelRatio(), vh * renderer.getPixelRatio(), CAM.cam, LINFO);
+    PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
+    updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
     updatePalette(PP, w);
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
     health();
@@ -238,7 +314,7 @@ async function boot() {
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
-    if (!UI.started) { UI.started = true; $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
+    if (!UI.started) { UI.started = true; mark('first frame'); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
     updateHUD(ch);
   }
   rafId = requestAnimationFrame((ms) => { last = ms; frame(ms); });

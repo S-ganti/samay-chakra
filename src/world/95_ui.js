@@ -68,6 +68,7 @@ function setupControls(ctx) {
   $('cTitles').onchange = (e) => { PARAM.titles = e.target.checked; if (!PARAM.titles) { $('card').classList.remove('show'); $('app').classList.remove('carding'); } };
   $('cLbx').onchange = (e) => { PARAM.lbx = e.target.checked; };
   $('cDof').checked = PARAM.dof; $('cDof').onchange = (e) => { PARAM.dof = e.target.checked; };
+  $('sSpeed').value = String(PARAM.dayMinutes);
   $('sSpeed').onchange = (e) => { const v = e.target.value; if (v === 'clock') setClock(true); else { PARAM.clock = false; PARAM.dayMinutes = +v; } };
   $('bPlay').onclick = togglePlay;
   $('bSound').onclick = toggleSound;
@@ -215,7 +216,7 @@ function toggleListen(force) {
     $('card').classList.remove('show'); a.classList.remove('carding'); togglePanel(false);
     a.classList.add('clean', 'listening'); UI.quiet = true; stir(true);
   } else {
-    const p = LISTEN.prev || {}; PARAM.titles = p.titles !== undefined ? p.titles : PARAM.titles; PARAM.shotLen = p.shotLen || 20; PARAM.cut = !!p.cut;
+    const p = LISTEN.prev || {}; PARAM.titles = p.titles !== undefined ? p.titles : PARAM.titles; PARAM.shotLen = p.shotLen || 8; PARAM.cut = !!p.cut;
     a.classList.remove('listening', 'stir'); if (!p.clean) a.classList.remove('clean');
     UI.quiet = false; $('listenChip').classList.remove('show'); wake();
   }

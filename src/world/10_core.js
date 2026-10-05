@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -185,15 +186,17 @@ const QUALS = ['low', 'med', 'high'];
 const QPICK = (() => {
   let q = null; try { q = new URLSearchParams(location.search).get('q') || location.hash.slice(1); } catch (e) { }
   if (!QUALS.includes(q)) try { q = localStorage.getItem('samay.quality'); } catch (e) { }
-  return QUALS.includes(q) ? { q, pinned: true } : { q: isMobile ? 'low' : 'med', pinned: false };
+  // Medium is the default everywhere; phones that report very little memory start on Low. Anyone who picks a quality keeps it
+  const frail = isMobile && navigator.deviceMemory && navigator.deviceMemory <= 3;
+  return QUALS.includes(q) ? { q, pinned: true } : { q: frail ? 'low' : 'med', pinned: false };
 })();
 const PARAM = {
-  dayMinutes: 24, clock: false, playing: true,
-  population: isMobile ? 180 : 380, dream: .75, stone: 1, energy: 1, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
-  real: 1, shafts: 1, ao: 1, dof: true, palette: 'poster',
+  dayMinutes: 8, clock: false, playing: true,
+  population: 180, dream: .75, stone: 1, energy: 1.6, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,
+  real: 2, shafts: 1, ao: 1, dof: true, palette: 'off',
   quality: QPICK.q, qualityPinned: QPICK.pinned,
-  camera: 'director', shotLen: 20, cut: false, titles: true, frame: 'fill', lbx: false,
-  volume: .8, gen: 1, amb: .7,
+  camera: 'director', shotLen: 8, cut: false, titles: true, frame: 'fill', lbx: false,
+  volume: .8, gen: 1, amb: .3,
 };
 const BPM = CHAPTERS.map(c => c.bpm);
 

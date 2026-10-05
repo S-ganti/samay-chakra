@@ -300,6 +300,51 @@ const OutputGradeShader = {
     }`,
 };
 
+/* ---------- upscale: the picture is drawn at a fixed pixel budget and shown at the canvas's own resolution ----------
+   A Catmull-Rom resample (5 bilinear taps, so no soft bilinear stretch) followed by contrast-adaptive sharpening, in the
+   spirit of FSR's EASU + RCAS. The canvas keeps its native size, so the page is crisp on high-density screens at the cost
+   of a fraction of the pixels. Off (and free) whenever the picture is drawn at full size. */
+const UPSCALE_FS = `
+uniform sampler2D tDiffuse; uniform vec2 uIn, uStep; uniform float uSharp; varying vec2 vUv;
+vec3 bil(vec2 p){ return texture2D(tDiffuse, p / uIn).rgb; }
+vec3 cubic(vec2 pos){
+  vec2 c = floor(pos - 0.5) + 0.5, f = pos - c;
+  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f)), w1 = 1.0 + f * f * (-2.5 + 1.5 * f), w2 = f * (0.5 + f * (2.0 - 1.5 * f)), w3 = f * f * (-0.5 + 0.5 * f);
+  vec2 w12 = w1 + w2, p12 = c + w2 / w12, p0 = c - 1.0, p3 = c + 2.0;
+  float k0 = w12.x * w0.y, k1 = w0.x * w12.y, k2 = w12.x * w12.y, k3 = w3.x * w12.y, k4 = w12.x * w3.y;
+  return (bil(vec2(p12.x, p0.y)) * k0 + bil(vec2(p0.x, p12.y)) * k1 + bil(p12) * k2 + bil(vec2(p3.x, p12.y)) * k3 + bil(vec2(p12.x, p3.y)) * k4) / (k0 + k1 + k2 + k3 + k4);
+}
+void main(){
+  vec2 pos = vUv * uIn;
+  vec3 e = max(cubic(pos), 0.0);
+  vec3 b = bil(pos + vec2(0.0, -uStep.y)), d = bil(pos + vec2(-uStep.x, 0.0)), f = bil(pos + vec2(uStep.x, 0.0)), h = bil(pos + vec2(0.0, uStep.y));
+  // RCAS: how hard each pixel can be sharpened before it rings, from its own neighbourhood
+  float mn = min(min(min(b.g, d.g), min(f.g, h.g)), e.g), mx = max(max(max(b.g, d.g), max(f.g, h.g)), e.g);
+  float lobe = clamp(max(-mn / (4.0 * mx + 1e-4), (1.0 - mx) / (4.0 * mn - 4.0 - 1e-4)), -0.1875, 0.0) * uSharp;
+  vec3 col = (lobe * (b + d + f + h) + e) / (1.0 + 4.0 * lobe);
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}`;
+class UpscalePass extends Pass {
+  constructor() {
+    super(); this.needsSwap = false; this.enabled = false;
+    this.u = { tDiffuse: { value: null }, uIn: { value: new THREE.Vector2(1, 1) }, uStep: { value: new THREE.Vector2(1, 1) }, uSharp: { value: 1 } };
+    this.q = fsq(this.u, UPSCALE_FS); this.out = new THREE.Vector2(1, 1);
+  }
+  setSize(w, h) { this.u.uIn.value.set(w, h); }
+  render(renderer, writeBuffer, readBuffer) {
+    renderer.getDrawingBufferSize(this.out);
+    this.u.tDiffuse.value = readBuffer.texture;
+    this.u.uStep.value.set(this.u.uIn.value.x / this.out.x, this.u.uIn.value.y / this.out.y);   // one canvas pixel, in picture pixels
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer); this.q.render(renderer);
+  }
+}
+
+// FXAA: a single cheap pass (about a tenth of SMAA's cost) for Medium; High keeps SMAA
+class FxaaPass extends ShaderPass {
+  constructor() { super(FXAAShader); this.enabled = false; }
+  setSize(w, h) { this.uniforms.resolution.value.set(1 / w, 1 / h); }
+}
+
 function buildPost(renderer, scene, camera, Q) {
   const composer = new EffectComposer(renderer);
   composer.setPixelRatio(renderer.getPixelRatio());
@@ -309,8 +354,10 @@ function buildPost(renderer, scene, camera, Q) {
   const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 1, .5, .6);
   const grade = new ShaderPass(OutputGradeShader);
   const smaa = new SMAAPass(256, 256); smaa.enabled = Q.smaa;
-  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(smaa);
-  return { composer, sp, dof, after, bloom, grade, smaa, dofF: 10, dofK: 0 };
+  const fxaa = new FxaaPass(); fxaa.enabled = !!Q.fxaa;
+  const up = new UpscalePass();
+  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up);
+  return { composer, sp, dof, after, bloom, grade, smaa, fxaa, up, dofF: 10, dofK: 0 };
 }
 const _shv = V3();
 // screen position of a world point: returns a visibility weight (0 behind the camera, fading when far off-screen)

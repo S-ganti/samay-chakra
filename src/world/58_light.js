@@ -233,7 +233,8 @@ function buildLight(renderer, scene, SK, ST, CT, TR, Q) {
   const env = {
     frame: 0,
     update(force) {
-      if (!force && (this.frame++ % (S.travel ? 3 : 8)) !== 0) return;
+      // the sky only drifts: ~3 refreshes a second is plenty, and each one is a cube render plus a PMREM pass (a visible hitch if frequent)
+      if (!force && (this.frame++ % (S.travel ? 6 : 20)) !== 0) return;
       cubeCam.update(renderer, envScene);
       envRT = envRT ? pmrem.fromCubemap(cubeRT.texture, envRT) : pmrem.fromCubemap(cubeRT.texture);
       reflective.forEach(m => { if (m.envMap !== envRT.texture) { m.envMap = envRT.texture; m.needsUpdate = true; } });
@@ -250,14 +251,18 @@ function buildLight(renderer, scene, SK, ST, CT, TR, Q) {
   return {
     lutRT, lutU, lutQ, physK, env, probe, probeFrame: 0,
     updateProbe(U, force) {
-      if (!force && (this.probeFrame++ % (S.travel ? 3 : 10)) !== 0) return;
+      if (!force && (this.probeFrame++ % (S.travel ? 4 : 14)) !== 0) return;
       skyToSH(U, physK, probe.sh);
     },
     lastY: -9, lastMie: -9,
+    lutAge: 0,
     updateLUT(sunDir, mie) {
-      // the LUT only depends on the sun's elevation and the haze: skip frames where neither moved
-      if (Math.abs(sunDir.y - this.lastY) < 2.5e-4 && Math.abs(mie - this.lastMie) < .004) return;
-      this.lastY = sunDir.y; this.lastMie = mie;
+      // the LUT only depends on the sun's elevation and the haze: skip frames where neither moved, and never redraw it more than
+      // every third frame unless the sun jumped (a chapter jump or the dial)
+      const dy = Math.abs(sunDir.y - this.lastY), dm = Math.abs(mie - this.lastMie);
+      if (dy < 2.5e-4 && dm < .004) return;
+      if (++this.lutAge < 3 && dy < .012 && dm < .05) return;
+      this.lutAge = 0; this.lastY = sunDir.y; this.lastMie = mie;
       lutU.uSun.value.copy(sunDir); lutU.uMie.value = mie;
       const prev = renderer.getRenderTarget();
       renderer.setRenderTarget(lutRT); lutQ.render(renderer); renderer.setRenderTarget(prev);
