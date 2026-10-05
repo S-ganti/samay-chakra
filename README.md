@@ -87,8 +87,8 @@ Anything declared in a lower number is visible to the higher ones.
 | `25_textures.js` | Canvas-painted textures (flagstones, banners, moon, signage) |
 | `26_carve.js` | **Carving**: sculpted figures and motifs turned into normal, albedo and roughness maps, in background workers |
 | `30_structures.js` | The ring stage, the portal wheel, towers, steps, Diamond Ring arches, the eclipse ring |
-| `40_city.js`, `42_trees.js`, `44_temple.js`, `45_decor.js`, `46_grass.js` | City and plaza, trees, the Sun Temple, garlands and lamps, grass |
-| `47_rigdata.js`, `48_crowd.js`, `50_people.js` | The crowd: baked motion-capture rig, GPU skinning, behaviour and dance |
+| `40_city.js`, `42_trees.js`, `44_temple.js`, `45_decor.js`, `46_grass.js` | City and plaza (weathered facades, asphalt, paving and shutters in `SURF_GLSL`), trees (leaf and bark textures; Bengaluru's flowering street trees bloom by today's month in `BLOOMS`), the Sun Temple, garlands and lamps, grass (green and straw patches, seed heads, wildflowers) |
+| `47_rigdata.js`, `48_crowd.js`, `50_people.js` | The crowd: baked motion-capture rig, GPU skinning, behaviour and dance. Seven outfits (saree, lehenga, salwar kameez, kurta, dhoti or lungi, and city shirts, tees, kurtis and jeans), dressed from whole combinations in `OUTFITS` with woven and printed cloth (`CROWD_FABRIC_FS`: stripes, checks, bandhani, block print, ikat, denim, heathered cotton, silk and zari sheen) |
 | `57_cull.js` | Per-frame culling and distance LOD for the scanned rocks and temple pieces (and the shadow map's share of them) |
 | `58_light.js`, `60_sky.js`, `70_post.js`, `72_palette.js` | Lighting, sky and atmosphere, post-processing, the pigment palettes |
 | `73_fusion.js` | The Fusion Series render style: per-chapter pigment ramps, ink, and poster textures (`FUSION`) |

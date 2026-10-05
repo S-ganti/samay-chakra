@@ -73,9 +73,12 @@ const RIG = (() => {
 
 /* ---------- procedural bodies + clothing (bind pose: T-pose, +z forward, +x = the figure's left) ---------- */
 // regions: 0 skin, 1 top, 2 bottom, 3 accent, 4 hair, 5 feet
-const VAR = { SAREE: 0, LEHENGA: 1, KURTA: 2, DHOTI: 3 };
+// SALWAR: kameez to the knee, loose salwar gathered at the ankle, dupatta. JEANS_M: a shirt or tee worn out over jeans or
+// trousers, shoes. JEANS_F: a kurti or top over jeans, sandals or shoes. (Most young city people dress like the last two.)
+const VAR = { SAREE: 0, LEHENGA: 1, KURTA: 2, DHOTI: 3, SALWAR: 4, JEANS_M: 5, JEANS_F: 6 }, VAR_N = 7;
+const varFem = (v) => v === VAR.SAREE || v === VAR.LEHENGA || v === VAR.SALWAR || v === VAR.JEANS_F;
 function buildFigure(variant, lod) {
-  const B = RIG.bone, fem = variant === VAR.SAREE || variant === VAR.LEHENGA;
+  const B = RIG.bone, fem = varFem(variant), jeans = variant === VAR.JEANS_M || variant === VAR.JEANS_F;
   const P = [], P2 = [], K = [], K2 = [], I = [];
   // second weight set (K2) used when seated/lying: skirts follow the legs instead of hanging from the hips
   const vtx = (x, y, z, bA, bB, wA, reg, alt, p2) => { P.push(x, y, z); K.push(bA, bB, wA, reg); if (alt) K2.push(alt[0], alt[1], alt[2]); else K2.push(bA, bB, wA); if (p2) P2.push(p2[0], p2[1], p2[2]); else P2.push(x, y, z); return P.length / 3 - 1; };
@@ -153,13 +156,18 @@ function buildFigure(variant, lod) {
     for (let k = 1; k < [5, 3, 3][lod]; k++) { const ph = k / [5, 3, 3][lod] * Math.PI, sp = Math.sin(ph); rings.push({ c: V3(0, bc.y, bc.z - Math.cos(ph) * .045), t: Z, u: X, ru: .055 * sp, rv: .05 * sp, capOut: .01, skin: () => [B.head, B.head, 1, 4] }); }
     tube(rings, [8, 6, 4][lod], true, true);
   }
-  if (variant === VAR.LEHENGA && lod < 2) { // braid
+  if ((variant === VAR.LEHENGA || variant === VAR.SALWAR) && lod < 2) { // braid
     const pts = [[1.66, -.085, .03], [1.52, -.115, .028], [1.36, -.13, .024], [1.18, -.13, .02], [1.04, -.125, .012]];
     tube(pts.map(([y, z, r], k) => ({ c: V3(0, y, z), t: Yd, u: X, ru: r, rv: r * .8, capOut: .01, min: k % 2 ? 0 : 2, skin: () => y > 1.55 ? [B.head, B.head, 1, 4] : y > 1.3 ? [B['spine.003'], B.head, .6, 4] : [B['spine.002'], B['spine.003'], .5, 4] })), [6, 4, 4][lod], false, true);
   }
 
+  if (variant === VAR.JEANS_F && lod < 2) { // loose hair to the shoulders
+    const pts = [[1.70, -.06, .085], [1.62, -.095, .09], [1.53, -.105, .085], [1.45, -.1, .07]];
+    tube(pts.map(([y, z, r]) => ({ c: V3(0, y, z), t: Yd, u: X, ru: r, rv: r * .55, capOut: .01, skin: () => y > 1.55 ? [B.head, B.head, 1, 4] : [B['spine.003'], B.head, .5, 4] })), [7, 5, 4][lod], false, true);
+  }
+
   /* arms */
-  const sleeve = variant === VAR.SAREE ? .31 : variant === VAR.DHOTI ? .5 : .64;
+  const sleeve = variant === VAR.SAREE ? .31 : variant === VAR.DHOTI ? .5 : variant === VAR.SALWAR ? .55 : jeans ? .4 : .64;   // elbow ≈ .47
   const af = fem ? 1.0 : 1.14;
   for (const sd of [1, -1]) {
     const L = sd > 0 ? '.L' : '.R', sh = B['shoulder' + L], ua = B['upper_arm' + L], fa = B['forearm' + L], hd = B['hand' + L];
@@ -180,12 +188,13 @@ function buildFigure(variant, lod) {
     const L = sd > 0 ? '.L' : '.R', th = B['thigh' + L], sn = B['shin' + L], ft = B['foot' + L], to = B['toe' + L];
     const LR = [[.97, .084, .088, 0, 2], [.90, .082, .085, 0, 1], [.80, .075, .078, 0, 0], [.68, .066, .070, 0, 1], [.58, .058, .062, 0, 0], [.532, .053, .057, 0, 2], [.46, .054, .062, -.012, 1], [.36, .050, .054, -.008, 0], [.26, .044, .046, 0, 1], [.15, .038, .040, 0, 0], [.10, .034, .037, -.005, 2]];
     const legSkin = (y) => y > .88 ? [B.hips, th, .35] : y > .60 ? [th, th, 1] : y > .47 ? mix2(th, sn, (.60 - y) / .13) : y > .14 ? [sn, sn, 1] : mix2(sn, ft, (.14 - y) / .04 * .5);
-    const under = (y) => variant === VAR.KURTA && y > .62 ? .86 : 1;         // hidden under the kurta: keep clear of its hem
-    tube(LR.map(([y, rx, rz, dz, mn]) => ({ c: V3(sd * (y > .93 ? .08 : .089), y, dz), t: Yd, u: X, ru: rx * lf * under(y), rv: rz * lf * under(y), min: mn,
+    const under = (y) => (variant === VAR.KURTA && y > .62) || ((variant === VAR.SALWAR || variant === VAR.JEANS_F) && y > .5) ? .86 : 1;   // under a tunic: keep clear of its hem
+    const baggy = (y) => variant === VAR.SALWAR ? 1 + .3 * smooth(.12, .3, y) * (1 - smooth(.62, .8, y)) : 1;            // salwar: full, gathered at the ankle
+    tube(LR.map(([y, rx, rz, dz, mn]) => ({ c: V3(sd * (y > .93 ? .08 : .089), y, dz), t: Yd, u: X, ru: rx * lf * under(y) * baggy(y), rv: rz * lf * under(y) * baggy(y), min: mn,
       skin: () => { const s = legSkin(y); return [s[0], s[1], s[2], legReg(y)]; } })), SL, false, false);
     const FR = [[-.07, .062, .040, .050, 2], [-.02, .048, .045, .045, 0], [.06, .036, .048, .030, 1], [.13, .026, .045, .020, 0], [.175, .02, .03, .012, 2]];
     tube(FR.map(([z, y, rx, ry, mn]) => ({ c: V3(sd * .089, y, z), t: Z, u: X, ru: rx * lf, rv: ry, min: mn, capOut: .006,
-      skin: () => z < .05 ? [ft, ft, 1, 5] : z < .13 ? [ft, to, .5, 5] : [to, to, 1, 5] })), [6, 4, 4][lod], true, true);
+      skin: () => { const fr = jeans ? 3 : 5; return z < .05 ? [ft, ft, 1, fr] : z < .13 ? [ft, to, .5, fr] : [to, to, 1, fr]; } })), [6, 4, 4][lod], true, true);
   }
 
   /* skirts: saree / lehenga / dhoti / kurta hem — hips-anchored, the sides following the thighs */
@@ -227,6 +236,9 @@ function buildFigure(variant, lod) {
   if (variant === VAR.LEHENGA) skirt(1.03, .035, [.14, .11], [.33, .3], .85, 2, 3, false, .012, true);
   if (variant === VAR.KURTA) skirt(1.0, .56, [.16, .12], [.205, .17], .75, 1, 1, false, .016);
   if (variant === VAR.DHOTI) { skirt(1.0, .80, [.16, .12], [.19, .15], .6, 1, 1, false, .02); skirt(.96, .30, [.15, .12], [.2, .17], .85, 2, 3, false, .006); }
+  if (variant === VAR.SALWAR) skirt(1.0, .44, [.15, .115], [.25, .21], .78, 1, 1, false, .014, true);     // kameez, slit at the sides
+  if (variant === VAR.JEANS_F) skirt(1.0, .74, [.15, .115], [.2, .17], .7, 1, 1, false, .014);            // kurti / long top
+  if (variant === VAR.JEANS_M) skirt(1.0, .87, [.16, .12], [.185, .14], .6, 1, 1, false, .016);           // shirt worn out
 
   /* ribbons: saree pallu over the left shoulder; lehenga dupatta around the neck */
   const ribbon = (pts, width, thick, reg, lastReg) => {
@@ -249,7 +261,7 @@ function buildFigure(variant, lod) {
       [.11, 1.08, -.118, [s1, s1, 1]], [.1, .9, -.15, [B.hips, B.hips, 1], 0], [.095, .66, -.172, [B.hips, B.hips, 1]],
     ], [.19, .25], .014, 2, 3);
   }
-  if (variant === VAR.LEHENGA && lod < 2) {
+  if ((variant === VAR.LEHENGA || variant === VAR.SALWAR) && lod < 2) {
     const s2 = B['spine.002'], s3 = B['spine.003'];
     ribbon([
       [.1, 1.0, .118, [B['spine.001'], s2, .5]], [.11, 1.2, .132, [s2, s2, 1], 0], [.125, 1.38, .112, [s3, s3, 1]], [.12, 1.47, .025, [s3, B['shoulder.L'], .6]],
@@ -277,7 +289,11 @@ attribute vec3 aPos2;              // collapsed skirt shape when sitting / lying
 attribute vec4 iAnim;              // row A, row B, weight of B, seated amount
 attribute vec4 iC0, iC1, iC2;      // top.rgb + skin.r, bottom.rgb + skin.g, accent.rgb + skin.b
 attribute vec4 iHair;              // hair.rgb, skirt collapse
+attribute vec4 iPat;               // pattern on the top, pattern on the bottom, pattern ink (0 accent, 1 dark, 2 light), silk / zari sheen
 flat varying vec3 vPCol;
+#ifdef CROWD_FABRIC
+flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP;
+#endif
 mat4 crowdBone(int row, int b){
   vec4 r0 = texelFetch(uBones, ivec2(b * 3, row), 0), r1 = texelFetch(uBones, ivec2(b * 3 + 1, row), 0), r2 = texelFetch(uBones, ivec2(b * 3 + 2, row), 0);
   return mat4(r0.x, r1.x, r2.x, 0.0, r0.y, r1.y, r2.y, 0.0, r0.z, r1.z, r2.z, 0.0, r0.w, r1.w, r2.w, 1.0);
@@ -304,9 +320,55 @@ function crowdHook(sh, withColor) {
     .replace('#include <beginnormal_vertex>', 'mat4 cSkinM = crowdSkin();\nvec3 objectNormal = normalize(mat3(cSkinM) * normal);\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3( tangent.xyz );\n#endif')
     .replace('#include <begin_vertex>', `vec3 transformed = (cSkinM * vec4(mix(position, aPos2, iHair.w), 1.0)).xyz;
       { int reg = int(aSkin.w + .5); vec3 skin = vec3(iC0.w, iC1.w, iC2.w);
-        vPCol = reg == 0 ? skin : reg == 1 ? iC0.rgb : reg == 2 ? iC1.rgb : reg == 3 ? iC2.rgb : reg == 4 ? iHair.rgb : skin * 0.62; }`);
-  if (withColor) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nflat varying vec3 vPCol;').replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= vPCol;');
+        vPCol = reg == 0 ? skin : reg == 1 ? iC0.rgb : reg == 2 ? iC1.rgb : reg == 3 ? iC2.rgb : reg == 4 ? iHair.rgb : skin * 0.62;
+#ifdef CROWD_FABRIC
+        vPat = iPat; vAcc = iC2.rgb; vReg = float(reg); vBP = position;
+#endif
+      }`);
+  if (withColor) {
+    sh.vertexShader = '#define CROWD_FABRIC\n' + sh.vertexShader;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nflat varying vec3 vPCol;\n' + CROWD_FABRIC_FS)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec3 pc = vPCol; float sheenK = 0.0;
+        { int rg = int(vReg + .5);
+          // the cloth's own coordinates: around the body (metres of arc) and up it, in the bind pose, so prints move with the cloth
+          vec2 fp = vec2(atan(vBP.x, vBP.z) * .16, vBP.y);
+          float pid = rg == 1 ? vPat.x : rg == 2 ? vPat.y : 0.0, val = 1.0;
+          if (pid > .5) {
+            float m = fabric(pid, fp, val);
+            vec3 ink = vPat.z < .5 ? vAcc : vPat.z < 1.5 ? pc * .42 : mix(pc, vec3(.95, .93, .88), .78);
+            pc = mix(pc, ink, m) * val;
+          }
+          sheenK = rg == 3 ? vPat.w : (rg == 1 || rg == 2) ? vPat.w * .55 : 0.0;
+          if (rg == 3) pc *= 1.0 + .25 * vPat.w;           // zari: the gold thread catches more light
+        }
+        diffuseColor.rgb *= pc;`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, .34, sheenK);');
+  }
 }
+// woven and printed cloth: returns ink cover (0..1) and a value multiplier; every pattern fades to its average tone once its
+// period shrinks below a few pixels, so distant crowds don't shimmer
+const CROWD_FABRIC_FS = `
+flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP;
+float fbH(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float fabric(float id, vec2 p, out float val){
+  val = 1.0; float per, avg, m;
+  if (id < 1.5) { per = .022; avg = .28; m = step(.72, fract(p.x / per)); }                                       // stripes (shirts, kurtas)
+  else if (id < 2.5) { per = .032; avg = .55; float a = step(.6, fract(p.x / per)), b = step(.6, fract(p.y / per)); m = max(a, b) * .6 + a * b * .4; }  // madras / gingham checks
+  else if (id < 3.5) { per = .028; avg = .14; vec2 q = p / per; q.x += .5 * mod(floor(q.y), 2.0); float r = length(fract(q) - .5);    // bandhani: tied dots
+                       m = 1.0 - smoothstep(.035, .075, abs(r - .14)); }
+  else if (id < 4.5) { per = .045; avg = .33; vec2 q = p / per; q.x += .5 * mod(floor(q.y), 2.0); vec2 f = fract(q) - .5;             // block print: a four-petal booti and dots
+                       float pe = length(f) - (.16 + .08 * cos(4.0 * atan(f.y, f.x))); m = max(1.0 - smoothstep(0.0, .035, pe), 1.0 - smoothstep(.03, .055, length(fract(q + .5) - .5))); }
+  else if (id < 5.5) { per = .07; avg = .3; vec2 q = p / vec2(per, per * 1.4); vec2 f = abs(fract(q) - .5); float d = f.x + f.y;          // ikat: diamonds with feathered, bleeding edges
+                       m = 1.0 - smoothstep(.05, .1, abs(d - .32) + .03 * sin(p.y * 520.0)); }
+  else if (id < 6.5) { per = .036; avg = .4; m = step(.6, fract(p.y / per)); }                                    // horizontal stripes (tees, lungis)
+  else if (id < 7.5) { per = .004; avg = 0.0; m = 0.0; float tw = fract((p.x * 1.3 + p.y) / per);                // denim: twill, worn paler on the thighs and knees
+                       val = .9 + .14 * step(.5, tw) + .12 * smoothstep(.2, .05, abs(p.y - .62)) * (1.0 - smoothstep(.06, .16, abs(p.x))); }
+  else { per = .003; avg = 0.0; m = 0.0; val = .9 + .2 * fbH(floor(p / per)); }                                 // heathered cotton
+  float w = max(fwidth(p.x), fwidth(p.y)), fade = 1.0 - smoothstep(per * .25, per * .6, w);
+  val = mix(1.0, val, fade);
+  return mix(avg, m, fade);
+}`;
 const CROWD_U = { uBones: { value: null } };
 function crowdMaterials() {
   const mat = new THREE.MeshStandardMaterial({ roughness: .82, metalness: 0 });

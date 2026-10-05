@@ -20,8 +20,16 @@ function facadeMaterial(base) {
         diffuseColor.rgb = mix(diffuseColor.rgb, wcol, win*0.92);
         float band = side * step(0.9, fract((vWP.y-0.4)/3.2)) ;
         diffuseColor.rgb *= 1.0 - band*0.25;
-        float stain = hh(floor(vWP.xz*0.3)+floor(vWP.y*0.5));
-        diffuseColor.rgb *= 0.9 + 0.1*stain;
+        // weathering, the way a Bengaluru wall ages: mottled limewash, monsoon runs from every sill, a lighter plaster frame round
+        // each window, and splash grime along the plinth
+        vec2 wq = vec2(u, vWP.y);
+        float mot = hh(floor(wq * 1.7)) * .5 + hh(floor(wq * 5.3)) * .3 + hh(floor(wq * 13.0)) * .2;
+        diffuseColor.rgb *= 0.88 + 0.16 * mot;
+        float frame = side * step(0.17, f.x) * step(f.x, 0.83) * step(0.23, f.y) * step(f.y, 0.83) * step(1.0, vWP.y) * (1.0 - win);
+        diffuseColor.rgb *= 1.0 + frame * 0.14;
+        float runs = side * step(0.2, f.x) * step(f.x, 0.8) * step(f.y, 0.25) * step(0.45, hh(vec2(floor(u * 9.0), cell.y + 7.0)));
+        diffuseColor.rgb *= 1.0 - runs * (0.08 + 0.16 * smoothstep(0.0, 0.25, f.y)) * (0.6 + 0.4 * hh(cell + 2.3));
+        diffuseColor.rgb *= 1.0 - side * (1.0 - smoothstep(0.0, 1.3, vWP.y)) * 0.28;
         vLitWin = win * step(0.55, hh(cell*1.7 + 3.1)) * uNight;`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(1.0,0.72,0.38) * vLitWin * 1.6;')
       .replace('void main() {', 'float vLitWin = 0.0;\nvoid main() {');
@@ -29,12 +37,54 @@ function facadeMaterial(base) {
   return { m, U };
 }
 
+// surface detail in world space, chained onto a material's own hooks (light pools stay): asphalt, paving slabs, concrete,
+// rolling shutters. Value only, so each keeps its colour
+const SURF_GLSL = `
+float sh1(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
+float sn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(sh1(i), sh1(i + vec2(1, 0)), f.x), mix(sh1(i + vec2(0, 1)), sh1(i + vec2(1, 1)), f.x), f.y); }
+float surfDetail(int kind, vec3 wp, vec3 wn){
+  vec2 q = abs(wn.y) > .5 ? wp.xz : vec2(abs(wn.x) > .5 ? wp.z : wp.x, wp.y);
+  float k = 1.0;
+  if (kind == 0) {                       // asphalt: aggregate, patched repairs, hairline cracks, oil
+    k *= .86 + .2 * sh1(floor(q * 60.0)) + .08 * sn2(q * 3.0);
+    k *= 1.0 - .12 * step(.78, sn2(floor(q / 2.5) * 1.7 + .3));
+    k *= 1.0 - .2 * (1.0 - smoothstep(.004, .012, abs(sn2(q * 2.6 + sn2(q * 9.0) * .35) - .5))) * step(.55, sn2(q * .21));   // fine, branching cracks in patches
+    k *= 1.0 - .22 * smoothstep(.72, .9, sn2(q * .9 + 7.0));
+  } else if (kind == 1) {                // paving slabs: 60 cm pavers, dark joints, each slab its own tone, stains
+    vec2 c = floor(q / .6), f = fract(q / .6);
+    float j = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
+    k *= (.9 + .14 * sh1(c)) * (1.0 - .38 * (1.0 - smoothstep(.0, .035, j)));
+    k *= .93 + .1 * sh1(floor(q * 40.0));
+    k *= 1.0 - .16 * smoothstep(.65, .88, sn2(q * .35 + 3.0));
+  } else if (kind == 2) {                // concrete: mottled pour, water marks
+    k *= .88 + .12 * sn2(q * 1.3) + .06 * sh1(floor(q * 30.0));
+    k *= 1.0 - .12 * smoothstep(.6, .9, sn2(vec2(q.x * 2.0, q.y * .25)));
+  } else {                               // rolling shutter: corrugation ribs, grime collecting toward the bottom
+    k *= .82 + .2 * smoothstep(.2, .5, abs(fract(wp.y * 14.0) - .5) * 2.0);
+    k *= 1.0 - .25 * (1.0 - smoothstep(.0, 1.2, wp.y)) * (.6 + .4 * sn2(q * vec2(3.0, .5)));
+  }
+  return k;
+}`;
+function surfaceDetail(m, kind) {
+  chainHook(m, 'surf' + kind, (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vSWP; varying vec3 vSWN;')
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+        { vec4 sp = vec4(transformed, 1.0); vec3 sn = objectNormal;
+        #ifdef USE_INSTANCING
+          sp = instanceMatrix * sp; sn = mat3(instanceMatrix) * sn;
+        #endif
+          vSWP = (modelMatrix * sp).xyz; vSWN = normalize(mat3(modelMatrix) * sn); }`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vSWP; varying vec3 vSWN;\n' + SURF_GLSL)
+      .replace('#include <color_fragment>', `#include <color_fragment>\n diffuseColor.rgb *= surfDetail(${kind}, vSWP, normalize(vSWN));`);
+  });
+  return m;
+}
 function buildCity(scene, Q) {
   const out = {};
   const P = GEO.P, Y = .02;
-  const asphalt = new THREE.MeshStandardMaterial({ color: '#3d3c3a', roughness: .95 });
-  const paving = new THREE.MeshStandardMaterial({ color: '#b5ad9f', roughness: .95 });
-  const concrete = new THREE.MeshStandardMaterial({ color: '#a8a296', roughness: .95 });
+  const asphalt = surfaceDetail(new THREE.MeshStandardMaterial({ color: '#403f3c', roughness: .95 }), 0);
+  const paving = surfaceDetail(new THREE.MeshStandardMaterial({ color: '#b8b0a2', roughness: .95 }), 1);
+  const concrete = surfaceDetail(new THREE.MeshStandardMaterial({ color: '#aca699', roughness: .95 }), 2);
   const flat = (geo, mat, x, z, y = Y) => { const m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; scene.add(m); return m; };
 
   // great wheel (Zero Shadow) + walkway + ring road
@@ -132,7 +182,7 @@ function buildCity(scene, Q) {
       if (r() < .85) signsAt[Math.floor(r() * SIGNS.length)].push([x, front + L.face * .09, ws - .25, L.face]);
     }
   });
-  const shopIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: .75, metalness: .2 }), Math.max(1, shops.length));
+  const shopIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), surfaceDetail(new THREE.MeshStandardMaterial({ roughness: .75, metalness: .2 }), 3), Math.max(1, shops.length));
   shops.forEach(([x, z, w, c, h], i) => { _p.set(x, h / 2 + .05, z); _q.identity(); _s.set(w, h, .1); setIM(shopIM, i, _p, _q, _s); shopIM.setColorAt(i, tint.set(c)); });
   _s.set(1, 1, 1); shopIM.receiveShadow = true; scene.add(shopIM);
   signsAt.forEach((list, j) => {
@@ -321,22 +371,42 @@ function buildForest(scene, Q) {
   let rk = 0; const rPts = place(rCand.length, 'rain', .9, 1.3, () => rk < rCand.length ? rCand[rk++] : null, true);   // street trees: planted, not wild
   const kPts = place(Math.floor(420 * dens), 'bush', .6, 1.4, () => { const a = r() * TAU, d = 38 + r() * 30; return [Math.cos(a) * d, Math.sin(a) * d]; });
   const c = new THREE.Color(), cb = new THREE.Color(), WHITE_ = col('#ffffff');
-  const mk = (pts, parts, tintA, tintB, cast) => {
+  // greens are not one green: yellow-green new flush, blue-green neem, dusty olive, deep mango shade
+  const GREENS = ['#ffffff', '#f2f7d8', '#e0ecd8', '#d8d8c0', '#c8d4b8', '#e8e8c8'].map(col);
+  // Bengaluru's flowering street trees, each on its own month (today's date, like the weather); a few stragglers out of season
+  const month = new Date().getMonth() + 1;
+  const BLOOMS = [
+    { w: .08, c: '#ef9cc4', m: [12, 1, 2, 3] },      // pink tabebuia (rosea / pallida): "Bengaluru's cherry blossom"
+    { w: .07, c: '#e5432a', m: [4, 5, 6, 7] },       // gulmohar: the city set alight in vermilion
+    { w: .06, c: '#ecb52a', m: [4, 5, 6] },          // copper pod: gold clusters at the branch tips
+    { w: .03, c: '#f2c53a', m: [2, 3] },             // tree of gold (Tabebuia argentea)
+    { w: .03, c: '#cc3f82', m: [11] },               // Tabebuia impetiginosa, deep pink on bare branches
+  ];
+  const RAIN_BLOOM = { c: '#f0a8c0', m: [3, 4, 5] }; // rain tree: pink powder puffs
+  const bloomFor = (B_) => B_.m.includes(month) ? .75 + r() * .25 : r() < .22 ? .25 + r() * .3 : 0;
+  const mk = (pts, parts, tintA, tintB, cast, flora) => {
     const ims = parts.filter(p => p[0]).map(([geo, mat, depth, order, isBark]) => {
       const im = new THREE.InstancedMesh(geo, mat, Math.max(1, pts.length)); im.count = pts.length;
       if (depth) im.customDepthMaterial = depth; im.castShadow = cast; im.receiveShadow = order === 0; im.renderOrder = order; im.userData.bark = isBark; scene.add(im); return im;   // leaf cards skip shadow lookups (fill budget)
     });
+    // flower colour and amount per tree, for the leaf materials (every leafy geometry needs it: a missing attribute reads as full bloom)
+    const bloom = new Float32Array(Math.max(1, pts.length) * 4);
+    pts.forEach((_, i) => { const f = flora ? flora() : null; if (f) { const fc = col(f.c); bloom.set([fc.r, fc.g, fc.b, f.a], i * 4); } });
+    for (const im of ims) if (!im.userData.bark && im.material !== M.cone) im.geometry.setAttribute('aBloom', new THREE.InstancedBufferAttribute(bloom, 4));
     pts.forEach(([x, z, s, sy], i) => {
       _p.set(x, groundY(x, z) - .2, z); _q.setFromAxisAngle(V3(0, 1, 0), r() * TAU); _s.set(s, sy, s);
-      c.set(tintA).lerp(col(tintB), r()); cb.copy(WHITE_).multiplyScalar(.85 + r() * .3);
+      c.copy(GREENS[Math.floor(r() * GREENS.length)]).lerp(col(tintB), r() * .6).multiplyScalar(.9 + r() * .18); cb.copy(WHITE_).multiplyScalar(.85 + r() * .3);
       for (const im of ims) { setIM(im, i, _p, _q, _s); im.setColorAt(i, im.userData.bark ? cb : c); }
     });
     _s.set(1, 1, 1);
     return ims;
   };
-  out.broadIM = mk(bPts, [[K.broad.trunk, M.bark, null, 0, true], [K.broad.core, M.core, null, 0], [K.broad.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#d8cba0', Q.treeShadows);
+  const broadFlora = () => { let u = r(); for (const B_ of BLOOMS) { if (u < B_.w) { const a = bloomFor(B_); return a ? { c: B_.c, a } : null; } u -= B_.w; } return null; };
+  out.broadIM = mk(bPts, [[K.broad.trunk, M.bark, null, 0, true], [K.broad.core, M.core, null, 0], [K.broad.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#d8cba0', Q.treeShadows, broadFlora);
   out.coniferIM = mk(cPts, [[K.conifer.trunk, M.bark, null, 0, true], [K.conifer.cones, M.cone, null, 0]], '#ffffff', '#c4c0a8', Q.treeShadows);
-  mk(rPts, [[K.rain.trunk, M.bark, null, 0, true], [K.rain.core, M.core, null, 0], [K.rain.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#e0d6a8', true);
+  // street trees: rain trees, with the avenue's planted tabebuias and gulmohars among them
+  const streetFlora = () => { const u = r(); const B_ = u < .3 ? RAIN_BLOOM : u < .5 ? BLOOMS[0] : u < .65 ? BLOOMS[1] : u < .75 ? BLOOMS[2] : null; if (!B_) return null; const a = bloomFor(B_); return a ? { c: B_.c, a } : null; };
+  mk(rPts, [[K.rain.trunk, M.bark, null, 0, true], [K.rain.core, M.core, null, 0], [K.rain.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#e0d6a8', true, streetFlora);
   mk(kPts, [[K.bush.core, M.core, null, 0], [K.bush.cards, M.cards, null, 1]], '#ffffff', '#c0b890', false);
   out.windU = TREE_U; out.mats = M;
   out.pts = { broad: bPts, conifer: cPts };

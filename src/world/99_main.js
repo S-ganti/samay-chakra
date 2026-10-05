@@ -329,7 +329,8 @@ async function boot() {
     updateTrails(W, N, trailSec, clamp(.34 * PARAM.trails * look.ghost, 0, .8));
     updateAutos(CT, t, rt);
     updateStreaks(SK, look, rt, S.pulse);
-    W.bodyMat.color.copy(look.pTint).multiplyScalar(1.35); W.bodyMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * (1 + S.pulse * .6));
+    // the chapter's mood only washes over the crowd (30%): the light does the rest, so everyone keeps their own clothes and skin
+    W.bodyMat.color.setRGB(1, 1, 1).lerp(_tmpC.copy(look.pTint).multiplyScalar(1.35), .3); W.bodyMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * (1 + S.pulse * .6));
     W.trailMat.color.copy(look.pTint).multiplyScalar(1.25); W.trailMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * .75);
     // post + render
     const kd = 1 - Math.exp(-dt * 2.5);

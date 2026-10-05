@@ -5,17 +5,74 @@
 const A_STAND = 0, A_WALK = 1, A_DG = 2, A_DE = 3, A_SLEEP = 4, A_DD = 5, A_SIT = 6, A_DJ = 7, A_CIRCLE = 8, A_WATCH = 9, A_CARRY = 10, A_CHAI = 11;
 const NMAX = 900, NCARRY = 24, HIST = 72, HIST_DT = 1 / 30;
 // palettes (poster-led: whites and creams, saffron, marigold, crimson, with jewel-tone accents)
-const PAL_SAREE = ['#f3ede2', '#efe6d4', '#d9772e', '#e6a04a', '#a8352b', '#9e3a4a', '#3f6f5a', '#4f7f7a', '#7a1f1c', '#d4ab4c', '#c4602e', '#4a3f66'];
-const PAL_SAREE_W = [7, 5, 8, 6, 8, 4, 3, 2, 3, 4, 3, 2];
-const PAL_BORDER = ['#e3b23c', '#b8322a', '#1f1b18', '#f2c14e', '#7a1f1c', '#1f7a5a'];
-const PAL_BLOUSE = ['#a8352b', '#7a1f1c', '#3f6f5a', '#d4ab4c', '#1f1b18', '#8e3a4a', '#2f4f6f', '#d9772e'];
-const PAL_DUPATTA = ['#e2b85a', '#d9772e', '#9e3a4a', '#f3ede2', '#a8352b', '#4f7f7a'];
-const PAL_KURTA = ['#f3ede2', '#efe6d4', '#f5f0e6', '#e9e1d0', '#e8792a', '#7a1f1c', '#2f4f6f', '#e3b23c', '#1f7a5a', '#d9c7a0', '#b8322a'];
-const PAL_KURTA_W = [9, 8, 8, 6, 5, 3, 2, 3, 2, 4, 3];
-const PAL_PYJAMA = ['#f5f0e6', '#efe6d4', '#e9e1d0', '#d9c7a0', '#f3ede2'];
-const PAL_TURBAN = ['#d9772e', '#e6a04a', '#a8352b', '#f5f0e6', '#9e3a4a', '#d4ab4c'];
-const PAL_HAIR = ['#1a1412', '#15110f', '#241a14', '#2b211a'];
-const SKIN = ['#8a5a3c', '#a06a46', '#6e4530', '#b57e56', '#5a3826', '#94603f'];
+// outfits as whole combinations, the way people actually dress: [weight, top, bottom, accent, top print, bottom print, print ink, sheen]
+// colours may be lists (one is picked); print: 0 plain, 1 stripes, 2 checks, 3 bandhani, 4 block print, 5 ikat, 6 bands, 7 denim,
+// 8 heathered, -1 denim if the bottom is denim; ink: 0 the accent, 1 a darker shade, 2 a pale one; sheen: silk and zari
+// (top/bottom/accent are, per outfit: saree blouse/body/border, lehenga choli/skirt/dupatta, salwar kameez/salwar/dupatta,
+//  kurta/pyjama/trim, dhoti shirt/dhoti or lungi/turban, jeans shirt/trousers/shoes)
+const DENIM = ['#2c3e5c', '#1f2a3d', '#3d5578', '#5d7a9c', '#1d1d1f', '#3a3d44'], CHINOS = ['#a8946a', '#5a5a3e', '#23283a', '#7a6a52'];
+const SHOES = ['#e8e6e0', '#1a1a1a', '#5a3a26', '#7a7d82', '#c8c0b0'], CHAPPAL = ['#c8a070', '#1a1a1a', '#e8e6e0', '#a0522d', '#d8a838'];
+const TEES = ['#1e1e20', '#ecebe6', '#8e8f92', '#1f2a44', '#6b1f2a', '#5b5f3a', '#c99a2e', '#1f4a3a', '#2f5a8a', '#b8b0a0'];
+const OUTFITS = [
+  [ // SAREE
+    [5, ['#1f6a4a', '#7a1f2a', '#d8a838'], ['#a3195b', '#1f6f6a', '#d29a2a', '#6a1a3a', '#c2306a'], ['#d8a838', '#c9a040'], 0, 0, 0, 1],   // Kanjeevaram silk, zari border
+    [3, ['#d0a748', '#efe6cf'], ['#efe6cf', '#f2ecdc'], ['#d0a748'], 0, 0, 0, .7],                                                        // Kerala kasavu
+    [3, ['#b3261e'], ['#f2efe6', '#efe9dc'], ['#b3261e'], 0, 0, 0, 0],                                                                    // Bengal tant: white, red border
+    [3, ['#efe6d4', '#283b66'], ['#283b66', '#1f3050'], ['#efe6d4'], 0, 4, 2, 0],                                                        // indigo dabu block print
+    [3, ['#2f7a3a', '#d8a838'], ['#b02020', '#c2306a', '#2a3f8a'], ['#2f7a3a', '#d8a838'], 0, 3, 2, 0],                                  // bandhani
+    [3, ['#c8c8cc', '#f2efe6'], ['#e9a985', '#b8a8d8', '#a8cbb0', '#f0c8c8'], ['#c8c8cc'], 0, 0, 0, .4],                                  // chiffon pastels
+    [2, ['#1f1b18', '#b3261e'], ['#7a1f2a', '#2a3f6e', '#d29a2a'], ['#1f1b18'], 0, 5, 2, 0],                                             // Pochampally ikat
+    [1, ['#d8a838'], ['#1c1a1c'], ['#d8a838'], 0, 0, 0, 1],                                                                             // black and gold
+    [2, ['#2f7a3a'], ['#e0662a', '#e8a020'], ['#2f7a3a', '#7a1f2a'], 0, 0, 0, .5],                                                       // saffron with a green border
+  ],
+  [ // LEHENGA
+    [3, ['#d8a838', '#7a1f2a'], ['#7a1f2a', '#8a1a3a'], ['#d8a838', '#c2306a'], 0, 4, 0, 1],
+    [3, ['#2f7a3a'], ['#d84a7a', '#c2306a'], ['#2f7a3a', '#e8b040'], 0, 0, 0, .8],
+    [2, ['#c8c8cc'], ['#1f2a5a', '#2a1f4a'], ['#c8c8cc', '#d8a838'], 0, 4, 2, .8],
+    [2, ['#c2306a'], ['#1d6a4a'], ['#e8a020'], 0, 3, 2, .6],
+    [2, ['#f0c8c8'], ['#e9d8b8', '#f2e4d0'], ['#e0a0a8'], 0, 4, 1, .4],
+  ],
+  [ // KURTA
+    [8, ['#f3ede2', '#efe6d4', '#f5f0e6', '#e9e1d0'], ['#f5f0e6', '#efe6d4'], ['#d8a838'], 0, 0, 0, 0],                                   // white and cream
+    [3, ['#b5c9dc', '#a8cbb0', '#e3c0bc', '#d8c8a8', '#c8c0d8'], ['#f5f0e6', '#2c3e5c', '#1f2a3d'], ['#d8a838'], 0, -1, 0, 0],             // pastels, pyjama or jeans
+    [2, ['#e3792a', '#c9662a'], ['#f5f0e6'], ['#d8a838'], 0, 0, 0, 0],                                                                    // saffron
+    [2, ['#7a1f2a', '#1f2a44', '#2f4a3a'], ['#efe6d4', '#d8c8a8'], ['#d8a838'], 0, 0, 0, .35],                                            // festive raw silk
+    [2, ['#2a3f6e'], ['#efe6d4'], ['#d8a838'], 4, 0, 2, 0],                                                                               // indigo block print
+    [2, ['#efe6d4'], ['#2c3e5c', '#1f2a3d', '#1d1d1f'], ['#d8a838'], 1, -1, 1, 0],                                                       // striped kurta over jeans
+  ],
+  [ // DHOTI / LUNGI
+    [4, ['#f3ede2', '#efe6d4'], ['#f5f0e6', '#efe9dc'], ['#d0a748', '#e3792a'], 0, 0, 0, .5],                                             // white mundu with a kasavu edge
+    [4, ['#efe6d4', '#9db8d4', '#d8c8a8'], ['#2a4a7a', '#1f5a4a', '#6a1f2a', '#3a3a6a'], ['#e3792a', '#efe6d4'], 0, 2, 2, 0],            // checked lungi
+    [2, ['#e3792a', '#d9772e'], ['#e3792a', '#c9662a'], ['#e3792a'], 0, 0, 0, 0],                                                         // saffron
+    [2, ['#2f4a3a', '#5a3a26', '#7a6a4a'], ['#efe6d4'], ['#b3261e', '#d8a838'], 2, 0, 1, 0],                                              // checked shirt, white dhoti
+  ],
+  [ // SALWAR
+    [3, ['#efe9dc'], ['#efe9dc', '#e8e1d0'], ['#c2306a', '#2a3f6e', '#e8a020'], 0, 0, 0, 0],                                              // white chikankari, a coloured dupatta
+    [3, ['#2a3f6e', '#1f3050'], ['#efe6d4'], ['#c2306a', '#e8a020'], 4, 0, 2, 0],                                                        // indigo block print
+    [3, ['#d2a03a', '#e3c040'], ['#2a5a5a', '#7a1f2a'], ['#7a1f2a', '#2a5a5a'], 4, 0, 1, 0],                                              // mustard
+    [3, ['#2c7a7a', '#1f6a6a'], ['#efe6d4', '#e9d8b8'], ['#e8a020', '#c2306a'], 0, 0, 0, 0],                                              // teal
+    [3, ['#c2306a', '#d84a7a'], ['#efe6d4', '#f0c8c8'], ['#2a3f8a', '#e8a020'], 3, 0, 2, 0],                                              // Rani bandhani
+    [2, ['#e9a985', '#a8cbb0', '#a690c0', '#e3d36a'], ['#efe6d4', '#f2efe6'], ['#c8c8cc', '#e9a985'], 0, 0, 0, 0],                        // pastels
+    [2, ['#7a1f2c'], ['#d8a838', '#efe6d4'], ['#d8a838'], 5, 0, 2, 0],                                                                   // maroon ikat
+    [2, ['#1c1a1c'], ['#1c1a1c', '#efe6d4'], ['#e8a020', '#c2306a'], 4, 0, 0, 0],                                                        // black with a printed dupatta's colour
+  ],
+  [ // JEANS_M
+    [5, TEES, [...DENIM, ...DENIM, ...CHINOS], SHOES, 8, -1, 0, 0],                                                                       // tee and jeans
+    [3, ['#9db8d4', '#eef0f2', '#d8d4e8', '#e8e0d0'], [...DENIM, ...CHINOS], SHOES, 0, -1, 0, 0],                                         // plain shirt
+    [3, ['#2f4f8a', '#9b2a2a', '#2f5a3a', '#4a4a5a'], [...DENIM, ...CHINOS], SHOES, 2, -1, 2, 0],                                         // checked shirt
+    [2, ['#eef0f2', '#c8d8e8'], ['#23283a', '#1d1d1f', '#55585e'], SHOES, 1, 0, 1, 0],                                                    // striped office shirt
+    [2, TEES, DENIM, SHOES, 6, 7, 2, 0],                                                                                                  // striped tee
+  ],
+  [ // JEANS_F
+    [4, ['#2a3f6e', '#efe6d4', '#d2a03a', '#c2306a', '#2c7a7a', '#e9a985', '#7a1f2c'], DENIM, CHAPPAL, 4, 7, 2, 0],                        // block-print kurti over jeans
+    [3, ['#1e1e20', '#ecebe6', '#e8c8d0', '#c8d8c8', '#b8a8cc', '#d84a5a'], DENIM, SHOES, 0, 7, 0, 0],                                    // a top and jeans
+    [2, ['#c2306a', '#e3792a', '#2a3f8a'], ['#efe6d4', '#1d1d1f'], CHAPPAL, 5, 0, 2, 0],                                                  // ikat kurti over leggings
+    [2, ['#efe6d4', '#f2efe6'], ['#1d1d1f', '#2c3e5c'], CHAPPAL, 1, -1, 1, 0],                                                            // white striped kurti
+  ],
+];
+// skin from wheat-fair to deep brown, weighted toward the middle of the range
+const SKIN = ['#e0b08a', '#d4a07a', '#c48f68', '#b07a52', '#9c6844', '#8a5a3a', '#764a30', '#623c27', '#4e301f'], SKIN_W = [1, 2, 3, 4, 4, 4, 3, 2, 1];
+const PAL_HAIR = ['#1a1412', '#15110f', '#241a14', '#2b211a', '#1f1814'];
 
 function buildPeople(scene, Q) {
   const r = rng(1729);
@@ -60,34 +117,39 @@ function buildPeople(scene, Q) {
   const gateToCity = [-1, 1].map(sg => new Route([[-43, sg * LANE_Z], [-47, sg * LANE_Z], [-51, sg * LANE_Z], [-80, sg * LANE_Z], [-88, sg * LANE_Z], ...ROUTES.hillR.x.map((x, k) => [x, ROUTES.hillR.z[k]])]));
   const gateDown = new Route([[-60, 0], [-80, 0], [-85, 0]]);
 
-  /* ---------- mocap crowd: 4 outfits × 3 levels of detail, each an instanced, GPU-skinned mesh ---------- */
+  /* ---------- mocap crowd: 7 outfits × 3 levels of detail, each an instanced, GPU-skinned mesh ---------- */
   CROWD_U.uBones.value = RIG.build();
   const { mat: bodyMat, depth: bodyDepth } = crowdMaterials();
-  D.vari = new Uint8Array(NMAX); D.pal = new Float32Array(NMAX * 15); D.lod = new Uint8Array(NMAX);
+  D.vari = new Uint8Array(NMAX); D.pal = new Float32Array(NMAX * 15); D.pat = new Float32Array(NMAX * 4); D.lod = new Uint8Array(NMAX);
   D.clipA = new Uint8Array(NMAX); D.tA = F(); D.clipB = new Uint8Array(NMAX); D.tB = F(); D.fadeB = F(); D.seat = F();
   const c = new THREE.Color(), pc = (hexes, w) => c.set(w ? pick(hexes, w) : hexes[Math.floor(r() * hexes.length)]);
-  const capV = [0, 0, 0, 0];
+  const capV = new Array(VAR_N).fill(0);
   for (let i = 0; i < NMAX; i++) {
     const k = D.kind[i], u = r();
-    const v = i === 0 ? VAR.KURTA : k === 1 ? (u < .6 ? VAR.DHOTI : VAR.KURTA) : u < .36 ? VAR.SAREE : u < .5 ? VAR.LEHENGA : u < .82 ? VAR.KURTA : VAR.DHOTI;
+    // who wears what: carriers mostly in work clothes; the crowd half women, half men, mixing everyday city wear with festival dress
+    const v = i === 0 ? VAR.KURTA : k === 1 ? (u < .4 ? VAR.DHOTI : u < .6 ? VAR.KURTA : VAR.JEANS_M)
+      : r() < .5 ? (u < .34 ? VAR.SAREE : u < .64 ? VAR.SALWAR : u < .88 ? VAR.JEANS_F : VAR.LEHENGA)
+      : (u < .52 ? VAR.JEANS_M : u < .85 ? VAR.KURTA : VAR.DHOTI);
     D.vari[i] = v; capV[v]++;
     const o = i * 15, put = (j) => { D.pal[o + j] = c.r; D.pal[o + j + 1] = c.g; D.pal[o + j + 2] = c.b; };
-    // top, bottom, accent, skin, hair
-    if (v === VAR.SAREE) { pc(PAL_BLOUSE); put(0); pc(PAL_SAREE, PAL_SAREE_W); put(3); pc(PAL_BORDER); put(6); }
-    else if (v === VAR.LEHENGA) { pc(PAL_BLOUSE); put(0); pc(PAL_SAREE, PAL_SAREE_W); put(3); pc(PAL_DUPATTA); put(6); }
-    else if (v === VAR.KURTA) { pc(PAL_KURTA, PAL_KURTA_W); put(0); pc(PAL_PYJAMA); put(3); pc(PAL_BORDER); put(6); }
-    else { pc(PAL_KURTA, PAL_KURTA_W); put(0); pc(PAL_PYJAMA); put(3); pc(PAL_TURBAN); put(6); }
-    if (i === 0) { c.set('#1d1a18'); put(0); c.set('#26211d'); put(3); c.set('#e8792a'); put(6); }
-    pc(SKIN); put(9); if (r() < .06) c.set('#8a8580'); else pc(PAL_HAIR); put(12);
+    const fade = () => c.multiplyScalar(.9 + r() * .14);          // dye lots, washing and sun: no two garments quite the same
+    const one = (x) => Array.isArray(x) ? x[Math.floor(r() * x.length)] : x;
+    const fits = OUTFITS[v], F_ = pick(fits, fits.map(f => f[0]));
+    const bot = one(F_[2]);
+    c.set(one(F_[1])); fade(); put(0); c.set(bot); fade(); put(3); c.set(one(F_[3])); fade(); put(6);
+    D.pat[i * 4] = F_[4]; D.pat[i * 4 + 1] = F_[5] === -1 ? (DENIM.includes(bot) ? 7 : 0) : F_[5]; D.pat[i * 4 + 2] = F_[6]; D.pat[i * 4 + 3] = F_[7];
+    if (i === 0) { c.set('#1d1a18'); put(0); c.set('#26211d'); put(3); c.set('#e8792a'); put(6); D.pat[0] = D.pat[1] = D.pat[3] = 0; }
+    c.set(pick(SKIN, SKIN_W)).multiplyScalar(.96 + r() * .08); put(9);
+    { const hr = r(); if (hr < .05) c.set('#8a8580'); else if (hr < .1) c.set('#5d5a57'); else if (hr < .12) c.set('#5a2414'); else c.set(PAL_HAIR[Math.floor(r() * PAL_HAIR.length)]); put(12); }
   }
   const crowd = [];
-  for (let v = 0; v < 4; v++) {
+  for (let v = 0; v < VAR_N; v++) {
     crowd.push([]);
     const cap = Math.max(1, capV[v]);
     for (let l = 0; l < 3; l++) {
       const g = buildFigure(v, l);
       const at = (n) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(cap * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
-      const A = { iAnim: at(4), iC0: at(4), iC1: at(4), iC2: at(4), iHair: at(4) };
+      const A = { iAnim: at(4), iC0: at(4), iC1: at(4), iC2: at(4), iHair: at(4), iPat: at(4) };
       for (const key in A) g.setAttribute(key, A[key]);
       const im = new THREE.InstancedMesh(g, bodyMat, cap);
       im.customDepthMaterial = bodyDepth; im.frustumCulled = false; im.castShadow = l < 2; im.receiveShadow = l < 2; im.count = 0;
@@ -445,7 +507,7 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
     D.y[i] = y;
     const cd = Math.hypot(D.x[i] - cp.x, y + 1 - cp.y, D.z[i] - cp.z);
     D.cfade[i] = smooth(1.1, 2.4, cd);
-    const v = D.vari[i], hs = D.h[i] * (1 - D.hide[i]) * D.cfade[i] * (v <= VAR.LEHENGA ? .95 : 1);
+    const v = D.vari[i], hs = D.h[i] * (1 - D.hide[i]) * D.cfade[i] * (varFem(v) ? .95 : 1);
     if (hs < .002) continue;
     if (useFr && !W.frustum.intersectsSphere(_SPH.set(_P.set(D.x[i], y + .9, D.z[i]), 3))) continue;
     // level of detail with a little hysteresis
@@ -470,6 +532,7 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
     const o = i * 15, P_ = D.pal;
     A.iC0.setXYZW(s, P_[o], P_[o + 1], P_[o + 2], P_[o + 9]); A.iC1.setXYZW(s, P_[o + 3], P_[o + 4], P_[o + 5], P_[o + 10]);
     A.iC2.setXYZW(s, P_[o + 6], P_[o + 7], P_[o + 8], P_[o + 11]); A.iHair.setXYZW(s, P_[o + 12], P_[o + 13], P_[o + 14], D.seat[i] * COLLAPSE[D.clipA[i]]);
+    { const q = i * 4; A.iPat.setXYZW(s, D.pat[q], D.pat[q + 1], D.pat[q + 2], D.pat[q + 3]); }
   }
   for (const row of W.crowd) for (const B of row) {
     B.im.count = B.n;
