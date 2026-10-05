@@ -225,9 +225,10 @@ const QPICK = (() => {
   } catch (e) { }
   return r;
 })();
-// render style: 'real' (the lit, graded render) or 'fusion' (each chapter in its Fusion Series poster style). ?style=fusion in the
-// link, else the viewer's last choice. Fusion needs Medium or High quality
-const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return v === 'fusion' ? 'fusion' : 'real'; })();
+// render style: 'real' (the lit, graded render), 'fusion' (each chapter in its Fusion Series poster style), or one of the styles in
+// 75_styles.js ('sumi', 'neon', 'paint'). ?style=… in the link, else the viewer's last choice. The styled looks need Medium or High
+const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint'];
+const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return STYLE_KEYS.includes(v) ? v : 'real'; })();
 const PARAM = {
   dayMinutes: 8, clock: false, playing: true,
   population: 180, dream: .75, stone: 1, energy: 1.6, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,

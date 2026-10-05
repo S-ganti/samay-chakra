@@ -115,7 +115,7 @@ function setupControls(ctx) {
     else if (k === 't' || k === 'T') { PARAM.titles = !PARAM.titles; $('cTitles').checked = PARAM.titles; toast(PARAM.titles ? 'Title cards on' : 'Title cards off', 1200); }
     else if (k === 'h' || k === 'H') { if (LISTEN.on) toggleListen(false); else toggleClean(); }
     else if (k === 'l' || k === 'L') toggleListen();
-    else if (k === 'y' || k === 'Y') setStyle(PARAM.style === 'fusion' ? 'real' : 'fusion', true);
+    else if (k === 'y' || k === 'Y') setStyle(STYLE_KEYS[(STYLE_KEYS.indexOf(PARAM.style) + 1) % STYLE_KEYS.length], true);
     else if (k === 'v' || k === 'V') { const i = PAL_KEYS.indexOf(PARAM.palette); setPalette(PAL_KEYS[(i + 1) % PAL_KEYS.length], true); }
     else if (k === 'f' || k === 'F') toggleFull();
     else if (k === 'r' || k === 'R') toggleRec(ctx);
@@ -212,8 +212,8 @@ function setStyle(k, say) {
   PARAM.style = k; $('sStyle').value = k;
   try { localStorage.setItem('samay.style', k); } catch (e) { }
   if (!say) return;
-  if (k === 'fusion' && !QUAL[PARAM.quality].fusion) toast('Fusion style needs Medium or High quality (Controls → Render quality)', 3200);
-  else toast(k === 'fusion' ? 'Style: Fusion Series, each chapter in its poster’s folk × modern style' : 'Style: realistic render', 2200);
+  if (k !== 'real' && !QUAL[PARAM.quality].fusion) toast('Styled looks need Medium or High quality (Controls → Render quality)', 3200);
+  else toast(k === 'fusion' ? 'Style: Fusion Series, each chapter in its poster’s folk × modern style' : STYLES[k] ? `Style: ${STYLES[k].name}, ${STYLES[k].blurb}` : 'Style: realistic render', 2400);
 }
 /* ---------- listening: sound on, the interface away, long slow shots; a sleep timer fades it all out ---------- */
 const LISTEN = { on: false, prev: null, sleepAt: 0, fade: 1, asleep: false, chipT: 0 };
