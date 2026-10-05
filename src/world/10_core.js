@@ -183,6 +183,19 @@ const _tmpC = new THREE.Color();
 const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ((() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })() && Math.min(screen.width, screen.height) < 900);
 // render quality: ?q=high or #high in the link, else the viewer's last choice, else by device. A chosen quality is never lowered automatically
 const QUALS = ['low', 'med', 'high'];
+// features switched off for this start. From the link: ?off=shadows,scans,grass,post (to find what a machine can't draw). And from a start that
+// lost the graphics (see bootLost): level 1 runs the same quality without shadows, level 2 runs Low. ?safe=0 forgets it
+const SAFE = (() => {
+  const o = { shadows: false, post: false, grass: false, scans: false, lvl: 0 };
+  try {
+    const u = new URLSearchParams(location.search);
+    (u.get('off') || '').split(',').forEach(k => { if (k in o && k !== 'lvl') o[k] = true; });
+    if (u.get('safe') === '0') localStorage.removeItem('samay.safe');
+    const m = JSON.parse(localStorage.getItem('samay.safe') || 'null');
+    if (m && Date.now() - m.at < 7 * 864e5) { o.lvl = m.lvl; if (m.lvl >= 1) o.shadows = true; }
+  } catch (e) { }
+  return o;
+})();
 const QPICK = (() => {
   let q = null; try { q = new URLSearchParams(location.search).get('q') || location.hash.slice(1); } catch (e) { }
   if (!QUALS.includes(q)) try { q = localStorage.getItem('samay.quality'); } catch (e) { }
@@ -191,6 +204,7 @@ const QPICK = (() => {
   const r = QUALS.includes(q) ? { q, pinned: true } : { q: frail ? 'low' : 'med', pinned: false };
   // the last start never reached its first frame (the graphics reset or the tab was killed): go one quality lower and remember it, so the
   // page can't crash the same way every visit. A quality named in the link is a deliberate choice and is left alone
+  if (SAFE.lvl >= 2) { r.q = 'low'; r.pinned = true; }
   let urlQ = null; try { urlQ = new URLSearchParams(location.search).get('q') || location.hash.slice(1); } catch (e) { }
   try {
     const at = +localStorage.getItem('samay.boot') || 0;

@@ -126,6 +126,7 @@ function setupControls(ctx) {
 }
 /* ---------- diagnostics: when something breaks, say what, instead of leaving a black or frozen screen ---------- */
 const DIAG = { log: [], shown: false, lastFrameAt: 0, blackN: 0 };
+const BOOT = { stage: 'start', lost: '' };      // the last start-up stage that finished, and the one the graphics were lost in (if any)
 function diagNote(kind, msg) {
   const line = `${new Date().toISOString().slice(11, 19)} ${kind}: ${msg}`;
   DIAG.log.push(line); if (DIAG.log.length > 40) DIAG.log.shift();
@@ -139,7 +140,7 @@ function diagShow(title, hint) {
     `page: ${location.href}`, `browser: ${navigator.userAgent}`,
     `quality ${PARAM.quality} · chapter ${S.dom + 1} · time ${fmtH(S.t)} · sound ${AUD.on ? 'on' : 'off'}${AUD.ctx ? ' (' + AUD.ctx.state + ')' : ''}`,
     u ? `track: ${u.name} · ${u.mode || 'loading'} · ready ${u.ready} · playing ${u.playing}` : 'track: none on this chapter',
-    `graphics lost: ${!!UI.glLost}`, '', ...DIAG.log];
+    `graphics lost: ${!!UI.glLost}${BOOT.lost ? ' during ' + BOOT.lost : ''} · last stage: ${BOOT.stage} · safe level ${SAFE.lvl}`, '', ...DIAG.log];
   $('diagText').textContent = state.join('\n'); el.hidden = false; DIAG.shown = true;
 }
 function setupDiag() {

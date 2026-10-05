@@ -23,6 +23,24 @@ async function boot() {
   // a start that never reaches its first frame (GPU reset, killed tab) leaves this mark; the next start then goes one quality lower (see QPICK).
   // Leaving the page on purpose clears it
   try { localStorage.setItem('samay.boot', String(Date.now())); addEventListener('pagehide', () => { try { if (!UI.started) localStorage.removeItem('samay.boot'); } catch (x) { } }); } catch (e) { }
+  // features this start must go without (from the link, or because the last start lost the graphics)
+  { const q = QUAL[PARAM.quality]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; }
+  // start-up is checked stage by stage: after each heavy GPU step, wait for it to finish and see whether the graphics survived. The stage
+  // that did not is named in the log, and the next start goes without the likely culprit (shadows first), then at Low, instead of failing again
+  const gl0 = renderer.getContext(), syncPx = new Uint8Array(4);
+  const bootLost = (stage) => {
+    if (BOOT.lost) return; BOOT.lost = stage; diagNote('webgl', `graphics lost during: ${stage}`);
+    if (SAFE.lvl >= 2) { diagShow('The graphics card dropped the scene', 'The browser reset the graphics while starting, even at Low quality. Quit the browser completely and reopen it; if it keeps happening, update the graphics driver.'); return; }
+    try { localStorage.setItem('samay.safe', JSON.stringify({ lvl: SAFE.lvl + 1, at: Date.now(), stage })); } catch (e) { }
+    setTimeout(() => location.replace(location.href), 400);
+  };
+  const gpuSync = (name) => {
+    if (BOOT.lost) return false;
+    try { renderer.setRenderTarget(null); gl0.readPixels(0, 0, 1, 1, gl0.RGBA, gl0.UNSIGNED_BYTE, syncPx); } catch (e) { }
+    if (gl0.isContextLost()) { bootLost(name); return false; }
+    BOOT.stage = name; diagNote('boot', `${name} ok +${Math.round(performance.now() - T0)} ms`); return true;
+  };
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); UI.glLost = true; if (!UI.started || (UI.frameN || 0) < 3) bootLost(BOOT.stage + ' (next)'); }, false);
   const Q = { ...QUAL[PARAM.quality] }; CULL.dens = Q.dens; CULL.errPx = Q.errPx;
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
@@ -52,7 +70,7 @@ async function boot() {
   const PP = buildPost(renderer, scene, CAM.cam, Q);
   const NA = sys('nature', () => buildNature(scene, Q, SK));
   injectFog(scene); mark('world built');
-  const scans = loadScans(scene, Q, renderer, FO, ST).catch((e) => { SCAN.failed = true; diagNote('scan', String(e && e.message || e)); });   // photogrammetry streams in while the loading screen is up
+  const scans = (SAFE.scans ? Promise.resolve(SAFE) : loadScans(scene, Q, renderer, FO, ST)).catch((e) => { SCAN.failed = true; diagNote('scan', String(e && e.message || e)); });   // photogrammetry streams in while the loading screen is up
   const ctx = { canvas, renderer, CAM, resize: null, applyQuality: null };
   let vw = 1, vh = 1;
   // dynamic resolution: scale multiplies the quality's pixel budget; the frame-time controller in step() moves it
@@ -97,24 +115,27 @@ async function boot() {
     scene.traverse(o => { const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) for (const key in m) { const v = m[key]; if (v && v.isTexture && !seen.has(v)) { seen.add(v); try { renderer.initTexture(v); } catch (e) { } } } });
     paletteLUT('poster'); updatePalette(PP, w0);
     // run every post program once (AO, shafts, depth of field) so none compiles mid-show
-    const sp = PP.sp, wasSh = sp.useSh; sp.useAO = true; sp.useSh = true; sp.needDepth = true; sp.compU.uAO.value = 1; sp.maskU.uOnA.value = sp.maskU.uOnB.value = 1; PP.dof.enabled = true; PP.dof.set(CAM.cam, 10, 2);
+    const sp = PP.sp, wasSh = sp.useSh;
+    if (!SAFE.post) { sp.useAO = true; sp.useSh = true; sp.needDepth = true; sp.compU.uAO.value = 1; sp.maskU.uOnA.value = sp.maskU.uOnB.value = 1; PP.dof.enabled = true; PP.dof.set(CAM.cam, 10, 2); }
     try { PP.composer.render(1 / 60); } catch (e) { }
     sp.useSh = wasSh; sp.needDepth = false; PP.dof.enabled = false;
     hidden.forEach(o => { o.visible = false; }); PP.after.enabled = wasAfter;
   }
-  mark('shaders warmed');
+  mark('shaders warmed'); gpuSync('post-warm');
   // give the carving a moment to land before the curtain lifts (it keeps going in the background either way)
   try { await Promise.race([carving, new Promise(r => setTimeout(r, 2500))]); await Promise.race([scans, new Promise(r => setTimeout(r, 15000))]); } catch (e) { }
   mark(SCAN.ready ? 'scans ready' : 'scans late');
   if (SCAN.ready) {
     try { await renderer.compileAsync(scene, CAM.cam); } catch (e) { }
+    gpuSync('scan-compile');
     // the scanned meshes' first draw (shadow programs, index buffers, textures) happens here, behind the loading screen and
-    // into a small frame, rather than in the first seconds of the show
+    // into a small frame, rather than in the first seconds of the show. Colour first, then the shadow pass, each checked on its own
     try {
-      const wasOn = CULL.on; CULL.on = false; CULL.warm = true;
-      fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows); cullFrame(CAM.cam, SK.key, vh * IPR);
-      PP.composer.setPixelRatio(.2); PP.composer.setSize(vw, vh); PP.composer.render(1 / 60);
-      CULL.on = wasOn; CULL.warm = false; CULL.dirty = true; ctx.resize();
+      const wasOn = CULL.on, shadowOn = SK.key.castShadow; CULL.on = false; CULL.warm = true;
+      PP.composer.setPixelRatio(.2); PP.composer.setSize(vw, vh);
+      SK.key.castShadow = false; fitShadow(SK, CAM.cam, CAM, 0); cullFrame(CAM.cam, SK.key, vh * IPR); PP.composer.render(1 / 60);
+      if (gpuSync('scan-colour') && shadowOn) { SK.key.castShadow = true; fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows); cullFrame(CAM.cam, SK.key, vh * IPR); PP.composer.render(1 / 60); gpuSync('scan-shadow'); }
+      SK.key.castShadow = shadowOn; CULL.on = wasOn; CULL.warm = false; CULL.dirty = true; ctx.resize();
     } catch (e) { CULL.on = true; CULL.warm = false; diagNote('boot', 'scan warm-up: ' + (e.message || e)); }
     mark('scans warmed');
   }
@@ -152,7 +173,7 @@ async function boot() {
   };
   // the browser can drop the WebGL context (driver reset, memory pressure, a device sleeping): restore instead of going blank
   canvas.addEventListener('webglcontextlost', (e) => {
-    e.preventDefault(); UI.glLost = true; toast('The browser reset the graphics. Restoring the scene…', 4000);
+    e.preventDefault(); UI.glLost = true; if (BOOT.lost) return; toast('The browser reset the graphics. Restoring the scene…', 4000);
     diagNote('webgl', 'context lost');
     // if the browser doesn't give the graphics back, start again one quality step lower, once; after that, say what happened
     setTimeout(() => {
@@ -319,10 +340,11 @@ async function boot() {
     health();
     PP.composer.render(dt);
     diagFrame();
+    if ((UI.frameN || 0) < 3 && !window.__fixedDt) gpuSync('frame ' + ((UI.frameN || 0) + 1));
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
-    if (!UI.started) { UI.started = true; try { localStorage.removeItem('samay.boot'); } catch (e) { } mark('first frame'); if (QPICK.stepped) setTimeout(() => toast('The last start did not finish, so this one runs at a lighter quality. You can change it under Controls → Render quality.', 8000), 1800); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on && !QPICK.stepped) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
+    if (!UI.started) { UI.started = true; try { localStorage.removeItem('samay.boot'); } catch (e) { } mark('first frame'); if (SAFE.lvl) setTimeout(() => toast(SAFE.lvl === 1 ? 'The graphics reset while starting, so this start runs without shadows. Add ?safe=0 to the link to try again with them.' : 'The graphics reset while starting, so this start runs at Low quality. Add ?safe=0 to the link to try again.', 9000), 1800); else if (QPICK.stepped) setTimeout(() => toast('The last start did not finish, so this one runs at a lighter quality. You can change it under Controls → Render quality.', 8000), 1800); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on && !QPICK.stepped && !SAFE.lvl) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
     updateHUD(ch);
   }
   rafId = requestAnimationFrame((ms) => { last = ms; frame(ms); });
