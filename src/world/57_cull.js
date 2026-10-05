@@ -11,9 +11,10 @@
    layer: the shadow map can only show so much detail, so each piece's shadow
    copy is chosen by the shadow map's resolution, not by the camera's distance.
    ========================================================================= */
-// shDens: square shadow-map texels each triangle may cover when a piece is only in the frame because its shadow falls there
-// errPx / errTexels: how far, in pixels (or shadow texels, for pieces only here for their shadow), a simplified mesh may sit from the real surface
-const CULL = { items: [], on: true, layer: 1, hooked: false, dens: 2.4, shDens: 6, errPx: 1.5, errTexels: 1.5, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
+// shDens: square shadow-map texels each triangle of a shadow caster may cover
+// errPx / errTexels: how far, in screen pixels (colour pass) or shadow-map texels (shadow pass), a simplified mesh may sit from the real surface.
+// The shadow map is soft-filtered and biased by ~1.6 texels, so 3 texels of silhouette error shows nowhere; 6 was also clean in test shots
+const CULL = { items: [], on: true, layer: 1, hooked: false, dens: 2.4, shDens: 30, errPx: 1.5, errTexels: 3, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
 const _cf = new THREE.Frustum(), _cpv = new THREE.Matrix4();
 const SIMP = { ms: null, tried: false, cache: new WeakMap(), ms_: 0, levels: 0 };
 
