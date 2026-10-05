@@ -236,11 +236,13 @@ class DofPass extends Pass {
 const OutputGradeShader = {
   uniforms: {
     tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uExpo: { value: 1 }, uTM: { value: 1 }, uAgxPow: { value: 1.2 }, uAgxSat: { value: 1.2 },
-    uLift: { value: col('#000') }, uGain: { value: col('#fff') }, uSat: { value: 1 }, uCon: { value: 1 }, uVig: { value: .5 }, uGrain: { value: .05 }, uPaper: { value: 0 }, uAmt: { value: 1 }, uAberr: { value: .004 }, uBars: { value: 0 },
+    uLift: { value: col('#000') }, uGain: { value: col('#fff') }, uSat: { value: 1 }, uCon: { value: 1 }, uVig: { value: .5 }, uGrain: { value: .05 }, uPaper: { value: 0 }, uAmt: { value: 1 }, uAberr: { value: .0016 }, uBars: { value: 0 },
     tLutA: { value: null }, tLutB: { value: null }, uLutW: { value: 0 }, uPal: { value: 0 }, uDream: { value: 0 }, uDreamTint: { value: col('#e8dccb') },
+    uShTint: { value: col('#808080') }, uHiTint: { value: col('#808080') }, uSplit: { value: 0 }, uPurk: { value: 0 }, uVigCol: { value: col('#000') },
   },
   vertexShader: FSQ_VS,
   fragmentShader: `precision highp sampler3D; uniform sampler3D tLutA, tLutB; uniform float uLutW, uPal, uDream; uniform vec3 uDreamTint;
+    uniform vec3 uShTint, uHiTint, uVigCol; uniform float uSplit, uPurk;
     uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime,uExpo,uTM,uAgxPow,uAgxSat,uSat,uCon,uVig,uGrain,uPaper,uAmt,uAberr,uBars; uniform vec3 uLift,uGain; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
     float n2(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y); }
@@ -269,11 +271,28 @@ const OutputGradeShader = {
     void main(){
       vec2 cc = vUv-0.5; float ab = uAberr*dot(cc,cc)*4.0;
       vec3 hdr = vec3(texture2D(tDiffuse, vUv-cc*ab).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv+cc*ab).b) * uExpo;
+      const vec3 LW = vec3(0.2126,0.7152,0.0722);
+      // Purkinje shift: in dim light the eye's rods take over, so the dark end of a night frame goes blue and loses its colour
+      // (moonlit, not underexposed). Scene-linear, before the tone curve; lamps and fire stay above the threshold and keep their warmth
+      if (uPurk > 0.001) {
+        float pl = dot(hdr, LW), rod = dot(hdr, vec3(0.06, 0.52, 0.42));
+        hdr = mix(hdr, rod * vec3(0.66, 0.84, 1.22), uPurk * (1.0 - smoothstep(0.0, 0.16, pl)));
+      }
       vec3 c = srgb(mix(aces(hdr), agx(hdr), uTM));
       vec3 g = c*uGain + uLift*(1.0-c);
-      float l = dot(g, vec3(0.2126,0.7152,0.0722));
+      float l = dot(g, LW);
       g = mix(vec3(l), g, uSat);
       g = (g-0.5)*uCon + 0.5;
+      // split tone: shadows lean to the chapter's fill (the sky's colour), highlights to its key light. Only the chroma of each tint
+      // is used, so values stay where the render put them: warm light against cool shade, the painter's temperature contrast
+      {
+        float lt = clamp(dot(g, LW), 0.0, 1.0);
+        vec3 st = uShTint - dot(uShTint, LW), ht = uHiTint - dot(uHiTint, LW);
+        g += (st * (1.0 - smoothstep(0.0, 0.6, lt)) + ht * smoothstep(0.4, 1.0, lt) * (1.0 - lt * 0.5)) * uSplit;
+        // film-like chroma: full in the midtones, rolled off toward black and white so nothing turns neon or muddy
+        float sl = clamp(dot(g, LW), 0.0, 1.0), e = sl * 2.0 - 1.0;
+        g = mix(vec3(sl), g, 1.0 - 0.28 * e * e);
+      }
       if(uPaper>0.001){
         vec2 px = vUv*uRes;
         float f = n2(px/2.5)*0.35 + n2(vUv*vec2(6.0,70.0))*0.25 + n2(vUv*5.0)*0.4 + n2(vUv*23.0)*0.2;
@@ -287,13 +306,16 @@ const OutputGradeShader = {
       // dream: shadows lifted into the chapter's own haze colour, contrast softened, highlights bloomed to milk (a pro-mist look)
       if (uDream > 0.001) {
         vec3 t = uDreamTint; float l = dot(c, vec3(0.2126,0.7152,0.0722));
-        c += t * (1.0 - c) * (1.0 - c) * 0.24 * uDream;
+        // the lift is kept gentle and leans on the tint's colour, not its brightness: a near-white daylight haze otherwise
+        // raised every black to grey and flattened the frame
+        c += t * (1.0 - c) * (1.0 - c) * (0.2 - 0.1 * dot(t, vec3(0.2126,0.7152,0.0722))) * uDream;
         c = mix(c, c * (0.86 + 0.14 * t) + 0.07 * t * smoothstep(0.55, 1.0, l), uDream * 0.6);
         c = mix(c, vec3(l) + (c - vec3(l)) * 0.92, uDream * 0.5);
       }
       float asp = uRes.x/uRes.y;
       float v = smoothstep(0.95, 0.25, length(cc*vec2(asp,1.0)/max(asp,1.0)*1.35));
-      c *= mix(1.0, v, uVig);
+      // vignette falls off into the chapter's own shade colour rather than to grey-black, so the corners stay part of the picture
+      c *= mix(vec3(1.0), mix(uVigCol, vec3(1.0), v), uVig);
       c += (h(vUv*uRes + fract(uTime*37.0)*113.0)-0.5)*uGrain;
       c *= step(uBars, vUv.y) * step(vUv.y, 1.0-uBars);
       gl_FragColor = vec4(clamp(c,0.0,1.0),1.0);
@@ -375,10 +397,13 @@ function updatePost(PP, look, rt, w, h, cam, lightInfo) {
   g.uLift.value.copy(look.lift).convertLinearToSRGB(); g.uGain.value.copy(look.gain).convertLinearToSRGB(); g.uSat.value = look.sat; g.uCon.value = look.con;
   g.uVig.value = look.vig; g.uGrain.value = look.grain * PARAM.grain; g.uPaper.value = look.paper; g.uAmt.value = PARAM.grade; g.uTime.value = rt;
   g.uRes.value.set(w, h); g.uBars.value = PARAM.lbx ? .1 : 0;
+  g.uShTint.value.copy(look.shade).convertLinearToSRGB(); g.uHiTint.value.copy(look.hilite).convertLinearToSRGB(); g.uSplit.value = look.split; g.uPurk.value = look.purk;
+  g.uVigCol.value.copy(look.shade).convertLinearToSRGB().multiplyScalar(.5);
   g.uExpo.value = look.expo; g.uTM.value = TONE.agx; g.uAgxPow.value = TONE.pow; g.uAgxSat.value = TONE.sat;
   PP.bloom.strength = (look.bloom * PARAM.glow * (1 + S.pulse * .25) + S.flash * .45) * TONE.bloom;
   const dr = PARAM.dream; g.uDream.value = dr * PARAM.grade; g.uDreamTint.value.copy(look.dream).convertLinearToSRGB();
-  PP.bloom.strength += dr * .22; PP.bloom.radius = lerp(look.bloomR, .9, dr * .8); PP.bloom.threshold = lerp(look.bloomT, .38, dr * .7);
+  // the dream's bloom lowers the threshold relative to the chapter's own: a fixed low threshold made every daylight pixel glow (a milky veil)
+  PP.bloom.strength += dr * .2; PP.bloom.radius = lerp(look.bloomR, .85, dr * .8); PP.bloom.threshold = lerp(look.bloomT, look.bloomT * .72, dr * .7);
   const a = clamp(look.after * PARAM.exposure, 0, .93);
   PP.after.uniforms.damp.value = a; PP.after.enabled = a > .07;
   // ambient occlusion
