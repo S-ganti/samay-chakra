@@ -57,6 +57,13 @@ A custom domain (for example `samaychakra.art`) can be added later under **Setti
 - A quality picked in the Controls panel is remembered on that device and is never lowered automatically.
   Changing it rebuilds the world (grass, tree density, carving detail and texture sizes are made once at load).
 
+## Defaults and performance
+
+- The page opens on **Medium**, a day in **8 minutes**, population **180**, realism **2**, film grain **0**, the **raw render** (no pigment palette), sounds of the hour **30%**, shot length **8 s** and crowd energy **1.6**. All of them are in the Controls panel (and in `PARAM` in `src/world/10_core.js`).
+- Each quality draws the picture at a fixed pixel budget (`mp` in `QUAL`, `src/world/99_main.js`) and upscales it to the canvas with a Catmull-Rom filter and contrast-adaptive sharpening, so the canvas stays at the screen's own resolution (up to 2x) while the cost stays flat. A frame-time controller trims the budget further if the display's refresh interval is being missed, and raises it again when there is room.
+- Scanned meshes are culled per instance (camera view and shadow box) and drawn at a level of detail that matches their size on screen (`src/world/57_cull.js`). Medium uses FXAA, High uses SMAA. The 2048 px stone and temple textures are resampled on Medium and Low to halve texture memory (`TEXCAP` in `src/world/43_scans.js`).
+- If the browser drops the graphics context and does not restore it, the page restarts once, one quality step lower.
+
 ## How the code is organised
 
 `index.html` holds the page: markup, styles and the interface. The world itself lives in `src/world/` as numbered
