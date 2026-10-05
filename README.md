@@ -52,6 +52,7 @@ A custom domain (for example `samaychakra.art`) can be added later under **Setti
 
 ## Share links
 
+- `?style=fusion` opens in the **Fusion Series** style: each chapter drawn as its poster's pairing of an Indian folk tradition and a modern movement (Gond × Art Deco, Warli × Op Art, Thangka × Suprematism, Madhubani × Star Atlas, Kalighat × Pop Art, Truck Art × Swiss Style, Pattachitra × Memphis, Kolam × Generative Code): ink outlines, flat bands of the design language's named pigments, and the poster's texture in the shade. Medium and High only; also under Controls → Render style, or the **Y** key.
 - `?q=high`, `?q=med` or `?q=low` opens at that render quality, for example
   `https://YOUR-USERNAME.github.io/samay-chakra/?q=high`.
 - A quality picked in the Controls panel is remembered on that device and is never lowered automatically.
@@ -85,6 +86,7 @@ Anything declared in a lower number is visible to the higher ones.
 | `47_rigdata.js`, `48_crowd.js`, `50_people.js` | The crowd: baked motion-capture rig, GPU skinning, behaviour and dance |
 | `57_cull.js` | Per-frame culling and distance LOD for the scanned rocks and temple pieces (and the shadow map's share of them) |
 | `58_light.js`, `60_sky.js`, `70_post.js`, `72_palette.js` | Lighting, sky and atmosphere, post-processing, the pigment palettes |
+| `73_fusion.js` | The Fusion Series render style: per-chapter pigment ramps, ink, and poster textures (`FUSION`) |
 | `74_nature.js` | Moon phase, Bengaluru weather, rain, birds, fireflies |
 | `80_audio.js`, `82_ambience.js` | Generative raga engine, the sounds of each hour |
 | `90_camera.js` | The director: shots for each chapter |

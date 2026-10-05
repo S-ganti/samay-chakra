@@ -378,8 +378,9 @@ function buildPost(renderer, scene, camera, Q) {
   const smaa = new SMAAPass(256, 256); smaa.enabled = Q.smaa;
   const fxaa = new FxaaPass(); fxaa.enabled = !!Q.fxaa;
   const up = new UpscalePass();
-  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up);
-  return { composer, sp, dof, after, bloom, grade, smaa, fxaa, up, dofF: 10, dofK: 0 };
+  const fusion = new FusionPass(sp.depth);
+  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(fusion); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up);
+  return { composer, sp, dof, after, bloom, grade, fusion, smaa, fxaa, up, dofF: 10, dofK: 0 };
 }
 const _shv = V3();
 // screen position of a world point: returns a visibility weight (0 behind the camera, fading when far off-screen)

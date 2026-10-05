@@ -225,10 +225,13 @@ const QPICK = (() => {
   } catch (e) { }
   return r;
 })();
+// render style: 'real' (the lit, graded render) or 'fusion' (each chapter in its Fusion Series poster style). ?style=fusion in the
+// link, else the viewer's last choice. Fusion needs Medium or High quality
+const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return v === 'fusion' ? 'fusion' : 'real'; })();
 const PARAM = {
   dayMinutes: 8, clock: false, playing: true,
   population: 180, dream: .75, stone: 1, energy: 1.6, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,
-  real: 2, shafts: 1, ao: 1, dof: true, palette: 'off',
+  real: 2, shafts: 1, ao: 1, dof: true, palette: 'off', style: STYLE0,
   quality: QPICK.q, qualityPinned: QPICK.pinned,
   camera: 'director', shotLen: 8, cut: false, titles: true, frame: 'fill', lbx: false,
   volume: .8, gen: 1, amb: .3,

@@ -59,6 +59,7 @@ function setupControls(ctx) {
     setTimeout(() => { try { location.reload(); } catch (x) { } }, 700);
   };
   $('sPal').value = PARAM.palette; $('sPal').onchange = (e) => setPalette(e.target.value);
+  $('sStyle').value = PARAM.style; $('sStyle').onchange = (e) => setStyle(e.target.value, true);
   $('sWx').value = WX.mode; $('sWx').onchange = (e) => { WX.mode = e.target.value; const P = wxPlan(new Date()); toast(WX.mode === 'live' ? (P.rain.length ? `Today in Bengaluru: rain around ${P.rain.map(r => fmtH(r.s)).join(' and ')}` + (P.mist ? ', mist at dawn' : '') : P.mist ? 'Today in Bengaluru: a misty dawn, then dry' : 'Today in Bengaluru: a dry day') : 'Weather: ' + e.target.selectedOptions[0].textContent, 3600); };
   $('bListen').onclick = () => toggleListen(); $('bUnlisten').onclick = () => toggleListen(false);
   $('sSleep').onchange = (e) => { const m = +e.target.value; LISTEN.sleepAt = m ? performance.now() + m * 60000 : 0; LISTEN.fade = 1; toast(m ? `The music will fade out in ${m >= 60 ? m / 60 + (m === 60 ? ' hour' : ' hours') : m + ' minutes'}` : 'Sleep timer off', 2200); };
@@ -114,6 +115,7 @@ function setupControls(ctx) {
     else if (k === 't' || k === 'T') { PARAM.titles = !PARAM.titles; $('cTitles').checked = PARAM.titles; toast(PARAM.titles ? 'Title cards on' : 'Title cards off', 1200); }
     else if (k === 'h' || k === 'H') { if (LISTEN.on) toggleListen(false); else toggleClean(); }
     else if (k === 'l' || k === 'L') toggleListen();
+    else if (k === 'y' || k === 'Y') setStyle(PARAM.style === 'fusion' ? 'real' : 'fusion', true);
     else if (k === 'v' || k === 'V') { const i = PAL_KEYS.indexOf(PARAM.palette); setPalette(PAL_KEYS[(i + 1) % PAL_KEYS.length], true); }
     else if (k === 'f' || k === 'F') toggleFull();
     else if (k === 'r' || k === 'R') toggleRec(ctx);
@@ -204,6 +206,14 @@ const PAL_KEYS = ['poster', 'pichwai', 'mughal', 'kalamkari', 'chola', 'bengal',
 function setPalette(k, say) {
   PARAM.palette = k; $('sPal').value = k;
   if (say) toast(k === 'off' ? 'Pigment palette off: the raw render' : k === 'poster' ? 'Palette: each chapter’s poster' : 'Palette: ' + PALETTE_FAMILIES[k].name, 1800);
+}
+/* ---------- render style: the realistic render, or the Fusion Series poster styles ---------- */
+function setStyle(k, say) {
+  PARAM.style = k; $('sStyle').value = k;
+  try { localStorage.setItem('samay.style', k); } catch (e) { }
+  if (!say) return;
+  if (k === 'fusion' && !QUAL[PARAM.quality].fusion) toast('Fusion style needs Medium or High quality (Controls → Render quality)', 3200);
+  else toast(k === 'fusion' ? 'Style: Fusion Series, each chapter in its poster’s folk × modern style' : 'Style: realistic render', 2200);
 }
 /* ---------- listening: sound on, the interface away, long slow shots; a sleep timer fades it all out ---------- */
 const LISTEN = { on: false, prev: null, sleepAt: 0, fade: 1, asleep: false, chipT: 0 };

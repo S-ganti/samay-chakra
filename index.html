@@ -258,11 +258,12 @@ select.btn option{background:#181512;color:var(--bone);}
         <div class="row"><label for="rAO">Contact shadows</label><output id="oAO"></output><input type="range" id="rAO" min="0" max="2" step="0.05"></div>
         <div class="row"><label for="rGrain">Film grain</label><output id="oGrain"></output><input type="range" id="rGrain" min="0" max="2.5" step="0.05"></div>
         <div class="row"><label for="rGrade">Poster colour grade</label><output id="oGrade"></output><input type="range" id="rGrade" min="0" max="1" step="0.05"></div>
+        <div class="row"><label for="sStyle">Render style</label><select id="sStyle"><option value="real">Realistic</option><option value="fusion">Fusion Series posters</option></select></div>
         <div class="row"><label for="sPal">Pigment palette</label><select id="sPal"><option value="poster">Each chapter's poster</option><option value="pichwai">Pichwai night</option><option value="mughal">Mughal miniature</option><option value="kalamkari">Kalamkari</option><option value="chola">Chola bronze</option><option value="bengal">Bengal wash</option><option value="kerala">Kerala mural</option><option value="off">None (the raw render)</option></select></div>
         <div class="row"><label for="sWx">Weather</label><select id="sWx"><option value="live">Bengaluru season, today</option><option value="clear">Always clear</option><option value="rain">Monsoon rain</option><option value="mist">Winter mist</option></select></div>
         <div class="row"><label for="rSoft">Chapter blend length</label><output id="oSoft"></output><input type="range" id="rSoft" min="0.1" max="1" step="0.05"></div>
         <div class="row"><label for="sQual">Render quality</label><select id="sQual"><option value="low">Low</option><option value="med">Medium</option><option value="high">High</option></select></div>
-        <p class="note">Crowd energy changes how each dance floor moves: at 0 people talk and sway, at 1 most dance, towards 2 they jump and raise their hands. Dancers step on the beat of the music. Realism blends each chapter's poster palette with a physically based sky and sun (1 is the designed mix, 2 is fully physical by day). Light shafts, contact shadows, depth of field and grass run on Medium and High quality; High also gives the trees fuller crowns and shadows. Chapter blend length sets how much of each 3-hour prahar is spent crossing into the next one; light, fog, crowd and music all follow it. Weather follows Bengaluru's climate for today's date: afternoon storms before the monsoon, showers from June to October, misty winter dawns. The moon shows tonight's real phase. On warm nights fireflies come out, and over several minutes they fall into step and flash together.</p>
+        <p class="note">Crowd energy changes how each dance floor moves: at 0 people talk and sway, at 1 most dance, towards 2 they jump and raise their hands. Dancers step on the beat of the music. Render style switches to the Fusion Series: each chapter drawn in its poster's folk × modern style, with ink outlines and that poster's pigments (Medium and High). Realism blends each chapter's poster palette with a physically based sky and sun (1 is the designed mix, 2 is fully physical by day). Light shafts, contact shadows, depth of field and grass run on Medium and High quality; High also gives the trees fuller crowns and shadows. Chapter blend length sets how much of each 3-hour prahar is spent crossing into the next one; light, fog, crowd and music all follow it. Weather follows Bengaluru's climate for today's date: afternoon storms before the monsoon, showers from June to October, misty winter dawns. The moon shows tonight's real phase. On warm nights fireflies come out, and over several minutes they fall into step and flash together.</p>
       </section>
       <section class="sec">
         <h3>Music</h3>
@@ -302,6 +303,7 @@ select.btn option{background:#181512;color:var(--bone);}
           <kbd>S</kbd><span>Sound on or off</span>
           <kbd>T</kbd><span>Title cards on or off</span>
           <kbd>L</kbd><span>Listen: sound on, interface away, slow shots</span>
+          <kbd>Y</kbd><span>Realistic or Fusion poster style</span>
           <kbd>V</kbd><span>Next pigment palette</span>
           <kbd>H</kbd><span>Hide interface</span>
           <kbd>F</kbd><span>Fullscreen</span>

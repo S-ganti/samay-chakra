@@ -6,9 +6,9 @@
 // dens: square pixels each triangle of a scanned mesh may cover before a simplified copy is used instead (higher = coarser, cheaper).
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
 const QUAL = {
-  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
-  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190 },
+  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0, fusion: false },
+  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, fusion: true },
+  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, fusion: true },
 };
 async function boot() {
   const canvas = $('gl');
@@ -335,6 +335,7 @@ async function boot() {
     const kdk = CAM.snapped ? 1 : kd;
     PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
     updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
+    if (updateFusion(PP, w, CAM.cam, rt)) PP.sp.needDepth = true;   // the ink lines read the depth buffer
     updatePalette(PP, w);
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
     health();
