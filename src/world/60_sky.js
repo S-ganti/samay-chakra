@@ -173,16 +173,69 @@ function buildSky(scene, Q) {
       void main(){ vec2 q=vUv*2.0-1.0; float r=dot(q,q); float n=nz(vUv*3.0+vSeed*20.0+uTime*0.01)*0.6+nz(vUv*7.0-vSeed*9.0)*0.4;
         float a=smoothstep(1.0,0.1,r)*n*uI*0.33*smoothstep(8.0,40.0,vD); if(a<0.003) discard; gl_FragColor=vec4(uCol,a);} ` }));
   mist.frustumCulled = false; mist.renderOrder = 3; scene.add(mist);
-  // light streaks (Gathering red swirl around the stage, Eclipse magenta around the stones)
-  const NG = 240, NE = 160;
-  const streakMat = new THREE.MeshBasicMaterial({ color: '#ff2a12', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
-  const streakMatE = streakMat.clone();
-  const sgeo = new THREE.BoxGeometry(1, .022, .022);
-  const streaksG = new THREE.InstancedMesh(sgeo, streakMat, NG), streaksE = new THREE.InstancedMesh(sgeo, streakMatE, NE);
-  const sp = (n) => { const a = new Float32Array(n * 5); for (let i = 0; i < n; i++) a.set([rr(), rr(), rr(), rr(), rr()], i * 5); return a; };
-  const spG = sp(NG), spE = sp(NE);
-  for (const im of [streaksG, streaksE]) { im.frustumCulled = false; im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(im); }
-  return { U, sky, moon, moonGlow, flare, hemi, key, stageLight, ridgeLight, synthLight, fog, emberU, petalU, dustU, mistU, mist, streaksG, streaksE, spG, spE, streakMat, streakMatE, NG, NE };
+  // light trails: what a long exposure records of poi spun by people walking the dance orbit. A light swung in a circle beside
+  // a moving body traces cycloid and flower loops; the camera keeps a thin white-hot core inside a coloured halo, brightest at
+  // the poi itself and letting go along the tail. Fire poi round the stage at the Gathering, cold LED poi among the Eclipse
+  // stones. Every ribbon is placed on the GPU from its instance numbers (no per-frame CPU work), depth-tested so the crowd
+  // and the stones hide them
+  const TSEG = 28, tg = new THREE.InstancedBufferGeometry();
+  { const P = [], I = []; for (let k = 0; k <= TSEG; k++) { P.push(k / TSEG, -1, 0, k / TSEG, 1, 0); if (k < TSEG) { const b = k * 2; I.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); } }
+    tg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); tg.setIndex(I); }
+  const spinners = [];   // [centre x, y, z, kind 0 fire / 1 LED]
+  const NSG = 56, NSE = 30;
+  for (let i = 0; i < NSG; i++) spinners.push([0, HP, 0, 0, 6 + Math.sqrt(rr()) * 22]);
+  for (let i = 0; i < NSE; i++) spinners.push([GEO.R.x, RH, GEO.R.z, 1, 4 + Math.sqrt(rr()) * 12]);
+  const NT = spinners.length * 2, A0 = new Float32Array(NT * 4), A1 = new Float32Array(NT * 4), A2 = new Float32Array(NT * 4);
+  spinners.forEach(([cx, cy, cz, kind, rad], i) => {
+    const dir = rr() < .2 ? -1 : 1, walk = dir * (kind ? .55 + rr() * .4 : .85 + rr() * .6) / rad;   // walking pace round the orbit (rad/s): fast enough to open the loops into cycloids
+    const spinR = kind ? .55 + rr() * .35 : .5 + rr() * .3, spin = (kind ? 4.5 : 6.5) + rr() * 3.5, ph0 = rr() * TAU, h = cy + 1.2 + rr() * .3;
+    const flower = rr() < .4 ? Math.floor(2 + rr() * 3) : 0, tail = kind ? 1.3 + rr() * .9 : 1.0 + rr() * .7, hue = rr(), seed = rr() * 100;
+    for (let k = 0; k < 2; k++) {                 // two poi per spinner, half a turn apart (or together, for some)
+      const j = (i * 2 + k) * 4, off = k * (rr() < .7 ? Math.PI : 0);
+      A0.set([cx, cz, rad, ph0], j); A1.set([walk, spinR, spin * (k && rr() < .25 ? -1 : 1), h], j); A2.set([tail, seed + k * 7.3, kind + flower * 2, off + hue * .001], j);
+    }
+  });
+  tg.setAttribute('aT0', new THREE.InstancedBufferAttribute(A0, 4)); tg.setAttribute('aT1', new THREE.InstancedBufferAttribute(A1, 4)); tg.setAttribute('aT2', new THREE.InstancedBufferAttribute(A2, 4));
+  tg.instanceCount = NT;
+  const trailU = { uTime: { value: 0 }, uAmtG: { value: 0 }, uAmtE: { value: 0 }, uColG: { value: col('#ff7a2a') }, uColE: { value: col('#8fb0e8') }, uColE2: { value: col('#d0608a') }, uPxK: { value: .001 }, uPulse: { value: 0 } };
+  const trailMat = new THREE.ShaderMaterial({
+    uniforms: trailU, transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    vertexShader: `attribute vec4 aT0, aT1, aT2; uniform float uTime, uAmtG, uAmtE, uPxK; varying float vX, vS, vA, vKind, vHue, vFl;
+      vec3 path(float t){
+        float ang = aT0.w + aT1.x * t; vec2 dir = vec2(cos(ang), sin(ang)), tg = vec2(-dir.y, dir.x) * sign(aT1.x);
+        vec3 c = vec3(aT0.x + dir.x * aT0.z, aT1.w, aT0.y + dir.y * aT0.z);
+        float sp = aT1.z * t + aT2.w, fl = floor(aT2.z * .5);
+        float r = aT1.y * (fl > .5 ? .75 + .25 * cos(fl * sp) : 1.0);           // some spinners throw flowers (rose curves) rather than circles
+        return c + vec3(tg.x, 0.0, tg.y) * cos(sp) * r + vec3(0.0, sin(sp) * r, 0.0);
+      }
+      void main(){
+        float kind = mod(aT2.z, 2.0), amt = kind < .5 ? uAmtG : uAmtE;
+        vS = position.x; vX = position.y; vKind = kind; vHue = fract(aT2.y * .37); vFl = aT2.y;
+        float t = uTime - vS * aT2.x;
+        vec3 p = path(t), d = path(t + .02) - p;
+        vec3 v = cameraPosition - p; float dist = length(v);
+        vec3 side = normalize(cross(d, v));
+        // the halo is a few centimetres wide; never thinner than ~2 px (the light is spread wider and dimmer, not lost)
+        float w0 = (kind < .5 ? .06 : .045) * pow(1.0 - vS, .5), w = max(w0, 2.2 * uPxK * dist);
+        vA = amt * w0 / max(w, 1e-5) * step(.01, amt) * smoothstep(1.5, 4.5, dist);   // a light swung right past the lens would only smear it
+        gl_Position = projectionMatrix * viewMatrix * vec4(p + side * vX * w, 1.0);
+      }`,
+    fragmentShader: `uniform float uTime, uPulse; uniform vec3 uColG, uColE, uColE2; varying float vX, vS, vA, vKind, vHue, vFl;
+      void main(){
+        if (vA < .002) discard;
+        float x2 = vX * vX, core = exp(-x2 * 28.0), halo = exp(-x2 * 3.5);
+        // the exposure lets go along the tail; fire flickers and sheds, LEDs hold steady
+        float along = pow(1.0 - vS, 1.7) * smoothstep(0.0, .015, vS + .005);
+        float flick = vKind < .5 ? .7 + .3 * sin(uTime * 21.0 + vFl * 13.0 + vS * 40.0) * sin(uTime * 13.0 + vS * 23.0) : 1.0;
+        vec3 hc = vKind < .5 ? mix(uColG, vec3(1.0, .78, .32), .35 * (1.0 - vS)) : mix(uColE, uColE2, step(.7, vHue));
+        vec3 hot = vKind < .5 ? vec3(1.0, .78, .45) : vec3(.9, .95, 1.0);   // fire burns gold at the core, LEDs near white
+        vec3 c = (hot * core * 1.7 + hc * halo * 1.4) * along * flick * vA * (1.0 + uPulse * .5);
+        c += vec3(1.0, .9, .7) * smoothstep(.03, 0.0, vS) * core * 4.0 * vA;          // the poi itself
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
+  const trails = new THREE.Mesh(tg, trailMat); trails.frustumCulled = false; trails.renderOrder = 4; scene.add(trails);
+  return { U, sky, moon, moonGlow, flare, hemi, key, stageLight, ridgeLight, synthLight, fog, emberU, petalU, dustU, mistU, mist, trails, trailU };
 }
 
 const _sd = V3(), _rd = V3(), _md = V3(), RIDGE_P = V3(GEO.R.x, RH, GEO.R.z), MOONW = col('#f2f4ff'), WHITE = col('#ffffff');
@@ -288,21 +341,14 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   SK.mistU.uTime.value = rt; SK.mistU.uI.value = look.mist * (1 - .65 * dayF); SK.mistU.uCol.value.copy(look.fog).lerp(look.skyHor, .3);
   SK.mist.visible = look.mist > .01;
 }
-const _sm = new THREE.Matrix4(), _sq = new THREE.Quaternion(), _sp = V3(), _ss = V3(), _ax = V3(0, 1, 0);
-function updateStreaks(SK, look, rt, pulse) {
-  const doSet = (im, spa, n, cx, cy, cz, r0, r1, h0, h1, spd, amt, mat) => {
-    im.visible = amt > .01; if (!im.visible) return;
-    mat.color.copy(look.streakCol).multiplyScalar(1.5 * amt * (1 + pulse * .8));
-    for (let i = 0; i < n; i++) {
-      const a = spa[i * 5], b = spa[i * 5 + 1], c = spa[i * 5 + 2], d = spa[i * 5 + 3], e = spa[i * 5 + 4];
-      const rr = lerp(r0, r1, Math.sqrt(a)), w = (spd * (.5 + b)) / rr * (c < .15 ? -1 : 1), th = d * TAU + rt * w;
-      _sp.set(cx + Math.cos(th) * rr, cy + lerp(h0, h1, e) + Math.sin(rt * 1.3 + d * 20) * .2, cz + Math.sin(th) * rr);
-      _sq.setFromAxisAngle(_ax, -th - Math.PI / 2);
-      const L = (1.2 + b * 4.5) * (.6 + .8 * amt);
-      _ss.set(L, 1 + c * 1.5, 1 + c * 1.5); _sm.compose(_sp, _sq, _ss); im.setMatrixAt(i, _sm);
-    }
-    im.instanceMatrix.needsUpdate = true;
-  };
-  doSet(SK.streaksG, SK.spG, SK.NG, 0, HP, 0, 5, 30, .3, 2.6, 5.5, look.streakG, SK.streakMat);
-  doSet(SK.streaksE, SK.spE, SK.NE, GEO.R.x, RH, GEO.R.z, 3, 17, .3, 2.2, 7.5, look.streakE, SK.streakMatE);
+// light trails: the chapter's amount and colours, and the pixel size (so the thinnest trail stays at least ~2 px wide)
+function updateStreaks(SK, look, rt, pulse, cam, H) {
+  const U = SK.trailU;
+  U.uTime.value = rt; U.uPulse.value = pulse;
+  U.uAmtG.value = look.streakG * 1.8; U.uAmtE.value = look.streakE * 2.6;
+  U.uColG.value.copy(look.streakCol).lerp(_tc.set('#ff7a2a'), .55);
+  U.uColE.value.copy(look.streakCol); U.uColE2.value.copy(look.practical);
+  U.uPxK.value = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) / Math.max(H, 1);
+  SK.trails.visible = look.streakG + look.streakE > .01;
 }
+const _tc = new THREE.Color();
