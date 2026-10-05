@@ -81,6 +81,29 @@ function routeAt(R, u) {
 }
 function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x + e, z), 2 * e, groundY(x, z - e) - groundY(x, z + e)).normalize(); return _nrm; }
 
+/* ---------- texture memory: a decoded map costs width x height x 4 bytes (+1/3 for mips) of GPU memory ----------
+   The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
+   which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
+const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
+function capTexture(t, cap) {
+  const im = t.image;
+  if (!im || !im.width || Math.max(im.width, im.height) <= cap || typeof createImageBitmap !== 'function') return Promise.resolve(t);
+  const k = cap / Math.max(im.width, im.height), fromBitmap = typeof ImageBitmap !== 'undefined' && im instanceof ImageBitmap;
+  // a bitmap from the glTF loader is already oriented; a plain image gets its flip baked in so the texture can stay flipY = false
+  const orient = !fromBitmap && t.flipY ? 'flipY' : 'from-image';
+  return createImageBitmap(im, { resizeWidth: Math.max(1, Math.round(im.width * k)), resizeHeight: Math.max(1, Math.round(im.height * k)), resizeQuality: 'high', imageOrientation: orient, premultiplyAlpha: 'none', colorSpaceConversion: 'none' })
+    .then((bm) => { if (im.close) im.close(); t.image = bm; if (orient === 'flipY') t.flipY = false; t.needsUpdate = true; return t; })
+    .catch(() => t);
+}
+function capGltfTextures(root, cap) {
+  const seen = new Set(), jobs = [];
+  root.traverse((o) => {
+    const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+    for (const m of ms) for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) { const t = m[key]; if (t && !seen.has(t)) { seen.add(t); jobs.push(capTexture(t, cap)); } }
+  });
+  return Promise.all(jobs);
+}
+
 async function loadScans(scene, Q, renderer, FO, ST) {
   const N = SCAN_Q[PARAM.quality] || SCAN_Q.med;
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -89,7 +112,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   want.full.push('jacaranda_tree', 'island_tree_02'); if (N.trees) want.full.push('searsia_lucida');   // the two trees also become the forest's impostors
   SCAN.total = want.lod.length + want.full.length;
   const A = { lod: {}, full: {} };
-  const get = async (kind, id) => { try { const a = scanParts(await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb')); await capParts(a.parts, texEdge('scan')); A[kind][id] = a; } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
+  const get = async (kind, id) => { try { const gltf = await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb'); await capGltfTextures(gltf.scene, TEXCAP[PARAM.quality].scan); A[kind][id] = scanParts(gltf); } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
   await Promise.all([simplifierReady(), ...want.lod.map(id => get('lod', id)), ...want.full.map(id => get('full', id))]);
   if (!Object.keys(A.lod).length) { SCAN.failed = true; return SCAN; }
   const r = rng(4242), inLens = shotClearance();
@@ -189,7 +212,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   for (const im of SCAN.groups) { const m = im.material; if (m.fog && !m.userData.hf) { m.userData.hf = 1; chainHook(m, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); } }
   scanRelease(A);
   SCAN.ready = true;
-  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles, ${TEXCAP.n} textures shrunk (${TEXCAP.savedMB.toFixed(0)} MB saved), ${SIMP.levels} LOD levels in ${SIMP.ms_.toFixed(0)} ms`);
+  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles, ${SIMP.levels} LOD levels in ${SIMP.ms_.toFixed(0)} ms`);
   return SCAN;
 }
 // assets that were only loaded to bake the impostors (or that nothing ended up standing on) give their GPU memory back
@@ -319,7 +342,7 @@ function heritagePlace(scene, asset, list, { cast = true } = {}) {
 }
 async function loadHeritage(scene, ST) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), A = {};
-  await Promise.all(['shikhara', 'pillar', 'wall', 'platform'].map(async (id) => { try { const a = scanParts(await L.loadAsync(HERITAGE.base + id + '.glb')); await capParts(a.parts, texEdge('heritage')); A[id] = a; } catch (e) { diagNote && diagNote('scan', `heritage ${id} failed: ${e.message || e}`); } }));
+  await Promise.all(['shikhara', 'pillar', 'wall', 'platform'].map(async (id) => { try { const gltf = await L.loadAsync(HERITAGE.base + id + '.glb'); await capGltfTextures(gltf.scene, TEXCAP[PARAM.quality].hero); A[id] = scanParts(gltf); } catch (e) { diagNote && diagNote('scan', `heritage ${id} failed: ${e.message || e}`); } }));
   HERITAGE.parts = A;
   // Enter / Return: the portal wheel flanked by two real shikharas in place of the painted towers
   if (A.shikhara && ST.gateTowers) {
