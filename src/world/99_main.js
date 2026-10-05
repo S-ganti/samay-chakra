@@ -4,10 +4,13 @@
 // pr: the canvas's sharpest pixel ratio (native up to this). mp: the megapixels the picture is actually drawn at; it is
 // upscaled and sharpened to the canvas, so a big or high-density screen costs no more to draw than a small one.
 // dens: square pixels each triangle of a scanned mesh may cover before a simplified copy is used instead (higher = coarser, cheaper).
+// errPx: how far (in pixels) a simplified copy may sit from the real surface.
+// cap: the longest edge, in texels, kept of each kind of photographed texture (see 56_texcap.js): scan = rocks, trees and the like,
+// heritage = the temple scans, stone = the detail maps under every carved surface, ground = the terrain's four surfaces.
 const QUAL = {
-  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, ao: 8, shafts: true, dof: true, grass: 124 },
-  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, ao: 12, shafts: true, dof: true, grass: 190 },
+  low: { pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0, cap: { scan: 512, heritage: 1024, stone: 512, ground: 512 } },
+  med: { pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, cap: { scan: 1024, heritage: 2048, stone: 1024, ground: 1024 } },
+  high: { pr: 2, mp: 3, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, cap: { scan: 2048, heritage: 2048, stone: 2048, ground: 2048 } },
 };
 async function boot() {
   const canvas = $('gl');
@@ -15,7 +18,7 @@ async function boot() {
   let renderer;
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false }); }
   catch (e) { $('glerr').classList.add('on'); $('loading').classList.add('done'); return; }
-  const Q = { ...QUAL[PARAM.quality] }; CULL.dens = Q.dens;
+  const Q = { ...QUAL[PARAM.quality] }; CULL.dens = Q.dens; CULL.errPx = Q.errPx;
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -69,7 +72,7 @@ async function boot() {
     NA.flies.U.uSize.value = ps; ST.diyas.flameU.uSize.value = ps; W.torch.U.uSize.value = ps; DE.bulbU.uSize.value = ps; SK.emberU.uSize.value = ps; SK.petalU.uSize.value = ps; SK.dustU.uSize.value = ps; CT.lamps.lampGlowU.uSize.value = ps;
   };
   ctx.applyQuality = () => {
-    const q = QUAL[PARAM.quality]; CULL.dens = q.dens; PP.smaa.enabled = q.smaa; PP.fxaa.enabled = q.fxaa; if (q.ao) PP.sp.setAOSamples(q.ao);
+    const q = QUAL[PARAM.quality]; CULL.dens = q.dens; CULL.errPx = q.errPx; PP.smaa.enabled = q.smaa; PP.fxaa.enabled = q.fxaa; if (q.ao) PP.sp.setAOSamples(q.ao);
     treeQuality(PARAM.quality);
     SK.key.castShadow = q.shadows > 0; if (q.shadows) { SK.key.shadow.mapSize.set(q.shadows, q.shadows); if (SK.key.shadow.map) { SK.key.shadow.map.dispose(); SK.key.shadow.map = null; } }
     ctx.resize();

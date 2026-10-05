@@ -89,7 +89,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   want.full.push('jacaranda_tree', 'island_tree_02'); if (N.trees) want.full.push('searsia_lucida');   // the two trees also become the forest's impostors
   SCAN.total = want.lod.length + want.full.length;
   const A = { lod: {}, full: {} };
-  const get = async (kind, id) => { try { A[kind][id] = scanParts(await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb')); } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
+  const get = async (kind, id) => { try { const a = scanParts(await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb')); await capParts(a.parts, texEdge('scan')); A[kind][id] = a; } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
   await Promise.all([simplifierReady(), ...want.lod.map(id => get('lod', id)), ...want.full.map(id => get('full', id))]);
   if (!Object.keys(A.lod).length) { SCAN.failed = true; return SCAN; }
   const r = rng(4242), inLens = shotClearance();
@@ -187,9 +187,19 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   try { if (ST) await loadHeritage(scene, ST); } catch (e) { diagNote && diagNote('scan', 'heritage failed: ' + (e.message || e)); }
   try { SCAN.imps = renderer ? impostorForest(scene, renderer, FO, A) : 0; } catch (e) { diagNote && diagNote('scan', 'impostors failed: ' + (e.message || e)); }
   for (const im of SCAN.groups) { const m = im.material; if (m.fog && !m.userData.hf) { m.userData.hf = 1; chainHook(m, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); } }
+  scanRelease(A);
   SCAN.ready = true;
-  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles`);
+  diagNote && diagNote('scan', `${SCAN.groups.length} scan groups, ${(SCAN.tris / 1e6).toFixed(2)} M triangles, ${TEXCAP.n} textures shrunk (${TEXCAP.savedMB.toFixed(0)} MB saved), ${SIMP.levels} LOD levels in ${SIMP.ms_.toFixed(0)} ms`);
   return SCAN;
+}
+// assets that were only loaded to bake the impostors (or that nothing ended up standing on) give their GPU memory back
+function scanRelease(A) {
+  const usedM = new Set(SCAN.groups.map(g => g.material)), usedG = new Set(SCAN.groups.map(g => g.geometry)), seen = new Set(); let n = 0;
+  for (const kind in A) for (const id in A[kind]) for (const [g, m] of A[kind][id].parts) {
+    if (!usedM.has(m)) { for (const k in m) { const v = m[k]; if (v && v.isTexture && !seen.has(v.source)) { seen.add(v.source); v.dispose(); n++; } } m.dispose(); }
+    if (!usedG.has(g)) g.dispose();
+  }
+  SCAN.released = n;
 }
 
 /* ---------- impostors: the scanned trees baked from 12 directions into an atlas, so the whole forest can wear them ---------- */
@@ -309,7 +319,7 @@ function heritagePlace(scene, asset, list, { cast = true } = {}) {
 }
 async function loadHeritage(scene, ST) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), A = {};
-  await Promise.all(['shikhara', 'pillar', 'wall', 'platform'].map(async (id) => { try { A[id] = scanParts(await L.loadAsync(HERITAGE.base + id + '.glb')); } catch (e) { diagNote && diagNote('scan', `heritage ${id} failed: ${e.message || e}`); } }));
+  await Promise.all(['shikhara', 'pillar', 'wall', 'platform'].map(async (id) => { try { const a = scanParts(await L.loadAsync(HERITAGE.base + id + '.glb')); await capParts(a.parts, texEdge('heritage')); A[id] = a; } catch (e) { diagNote && diagNote('scan', `heritage ${id} failed: ${e.message || e}`); } }));
   HERITAGE.parts = A;
   // Enter / Return: the portal wheel flanked by two real shikharas in place of the painted towers
   if (A.shikhara && ST.gateTowers) {

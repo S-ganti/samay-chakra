@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "magic-string": "^0.30.21",
-    "meshoptimizer": "^0.21.0",
+    "meshoptimizer": "^1.3.0",
     "vite": "^8.3.1"
   }
 }

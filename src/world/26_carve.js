@@ -688,7 +688,7 @@ function stoneSet(kind) {
   const done = () => { if (++n === 3) set.uOn.value = 1; };
   const ld = (k, u, srgb) => L.load(`scans/${id}_${k}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) { t.colorSpace = THREE.SRGBColorSpace;
     try { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); g.drawImage(t.image, 0, 0, 16, 16); const d = g.getImageData(0, 0, 16, 16).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } const k2 = 1 / (255 * 256); set.uMean.value.set(Math.pow(r * k2, 2.2), Math.pow(gg * k2, 2.2), Math.pow(b * k2, 2.2)); } catch (e) { } }
-    set[u].value = t; done(); }, undefined, () => { });
+    capTexture(t, texEdge('stone')).then(() => { set[u].value = t; done(); }); }, undefined, () => { });
   ld('Diffuse', 'tD', true); ld('nor_gl', 'tN', false); if (id.startsWith('tex/')) { set.tA.value = _flatARM(); done(); } else ld('arm', 'tA', false);
   return set;
 }

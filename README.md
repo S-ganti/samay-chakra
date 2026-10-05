@@ -57,6 +57,22 @@ A custom domain (for example `samaychakra.art`) can be added later under **Setti
 - A quality picked in the Controls panel is remembered on that device and is never lowered automatically.
   Changing it rebuilds the world (grass, tree density, carving detail and texture sizes are made once at load).
 
+## Render quality and speed
+
+Medium is the default on every device (phones that report very little memory start on Low). Each tier in `QUAL`
+(`99_main.js`) sets the picture's pixel budget, shadow map size, anti-aliasing and the budgets below. The picture is
+drawn at that budget and upscaled and sharpened to the canvas, and a frame-time controller lowers the internal
+resolution first if the display can't keep up.
+
+- **Culling and LOD** (`57_cull.js`): each frame only the scanned pieces the camera or the shadow box can see are drawn,
+  each at the coarsest mesh that still gives every triangle `dens` square pixels and moves the surface by less than
+  `errPx` pixels. The simplified meshes are built once at load with [meshoptimizer](https://github.com/zeux/meshoptimizer)
+  (down to about 3% of a scan's triangles) and share the full mesh's vertex buffers.
+- **Texture budget** (`56_texcap.js`): `QUAL[...].cap` names the longest texture edge kept per kind (`scan`, `heritage`,
+  `stone`, `ground`). Larger files are shrunk as they load; High keeps them at full size.
+- **Seeing the numbers**: in the browser console, `__samay.CULL` shows how many pieces and triangles are drawn,
+  `__samay.renderer.info` the draw calls and texture count, and `__samay.DR.rs` the current render scale.
+
 ## How the code is organised
 
 `index.html` holds the page: markup, styles and the interface. The world itself lives in `src/world/` as numbered
@@ -73,6 +89,8 @@ Anything declared in a lower number is visible to the higher ones.
 | `30_structures.js` | The ring stage, the portal wheel, towers, steps, Diamond Ring arches, the eclipse ring |
 | `40_city.js`, `42_trees.js`, `44_temple.js`, `45_decor.js`, `46_grass.js` | City and plaza, trees, the Sun Temple, garlands and lamps, grass |
 | `47_rigdata.js`, `48_crowd.js`, `50_people.js` | The crowd: baked motion-capture rig, GPU skinning, behaviour and dance |
+| `56_texcap.js` | Texture budget: shrinks the photographed textures to the longest edge each quality tier keeps, before they reach the GPU |
+| `57_cull.js` | Per-frame culling and distance LOD for the scanned rocks and temple pieces (and the shadow map's share of them) |
 | `58_light.js`, `60_sky.js`, `70_post.js`, `72_palette.js` | Lighting, sky and atmosphere, post-processing, the pigment palettes |
 | `74_nature.js` | Moon phase, Bengaluru weather, rain, birds, fireflies |
 | `80_audio.js`, `82_ambience.js` | Generative raga engine, the sounds of each hour |
