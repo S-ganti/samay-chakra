@@ -149,8 +149,9 @@ select.btn option{background:#181512;color:var(--bone);}
 #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#050505;transition:opacity 1.2s ease;pointer-events:none;}
 #loading.done{opacity:0;}
 #loading p{font:400 11px/1.6 var(--f-sans);letter-spacing:.34em;text-transform:uppercase;color:var(--bone-2);text-align:center;margin:0;padding-inline:16px;}
-#glerr{display:none;position:absolute;inset:0;z-index:21;align-items:center;justify-content:center;padding-inline:16px;text-align:center;font:400 14px/1.6 var(--f-sans);color:var(--bone);}
+#glerr{display:none;position:absolute;inset:0;z-index:21;background:#050505;align-items:center;justify-content:center;padding-inline:16px;text-align:center;font:400 14px/1.6 var(--f-sans);color:var(--bone);}
 #glerr.on{display:flex;}
+#glerr>div{max-width:520px;}
 
 /* hidden-UI (VJ/capture) */
 #app.clean #hud,#app.clean #dock{opacity:0;pointer-events:none;}
@@ -324,7 +325,8 @@ select.btn option{background:#181512;color:var(--bone);}
   <div id="recDot">REC <span id="recT">00:00</span></div>
   <div id="listenChip" role="status"><span id="listenTxt">Listening</span><button id="bUnlisten">Leave</button></div>
   <div id="loading"><p>The Ring · Samay Chakra<br>raising the wheel</p></div>
-  <div id="glerr"><p>This world needs WebGL, and this browser didn't provide it. Try a recent Chrome, Edge, Safari or Firefox on a laptop or desktop.</p></div>
+  <div id="glerr"><div><p>This world needs WebGL, and this browser didn't provide it. Try a recent Chrome, Edge, Safari or Firefox on a laptop or desktop.</p>
+    <p style="margin-top:14px;opacity:.75">If it was working before, the browser may have switched graphics off after a crash: quit it completely, reopen it, then use <a href="?q=low" style="color:inherit;text-decoration:underline">the light version</a>.</p></div></div>
 </div>
 <script type="module" src="/src/main.js"></script>
 </body>

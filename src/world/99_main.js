@@ -14,8 +14,15 @@ async function boot() {
   const canvas = $('gl');
   const T0 = performance.now(), mark = (k) => diagNote('boot', `${k} +${Math.round(performance.now() - T0)} ms`);
   let renderer;
+  // ask for the fast GPU first; some hybrid laptops refuse that request (or the fast GPU is mid-reset), so ask again without a preference
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', alpha: false }); }
-  catch (e) { $('glerr').classList.add('on'); $('loading').classList.add('done'); return; }
+  catch (e) {
+    try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false }); diagNote('webgl', 'fast-GPU request refused; using the default GPU'); }
+    catch (e2) { diagNote('webgl', 'no context: ' + (e2.message || e2)); $('glerr').classList.add('on'); $('loading').classList.add('done'); return; }
+  }
+  // a start that never reaches its first frame (GPU reset, killed tab) leaves this mark; the next start then goes one quality lower (see QPICK).
+  // Leaving the page on purpose clears it
+  try { localStorage.setItem('samay.boot', String(Date.now())); addEventListener('pagehide', () => { try { if (!UI.started) localStorage.removeItem('samay.boot'); } catch (x) { } }); } catch (e) { }
   const Q = { ...QUAL[PARAM.quality] }; CULL.dens = Q.dens; CULL.errPx = Q.errPx;
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
@@ -104,11 +111,11 @@ async function boot() {
     // the scanned meshes' first draw (shadow programs, index buffers, textures) happens here, behind the loading screen and
     // into a small frame, rather than in the first seconds of the show
     try {
-      const wasOn = CULL.on; CULL.on = false;
+      const wasOn = CULL.on; CULL.on = false; CULL.warm = true;
       fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows); cullFrame(CAM.cam, SK.key, vh * IPR);
       PP.composer.setPixelRatio(.2); PP.composer.setSize(vw, vh); PP.composer.render(1 / 60);
-      CULL.on = wasOn; CULL.dirty = true; ctx.resize();
-    } catch (e) { CULL.on = true; diagNote('boot', 'scan warm-up: ' + (e.message || e)); }
+      CULL.on = wasOn; CULL.warm = false; CULL.dirty = true; ctx.resize();
+    } catch (e) { CULL.on = true; CULL.warm = false; diagNote('boot', 'scan warm-up: ' + (e.message || e)); }
     mark('scans warmed');
   }
   try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => { }); } catch (e) { }
@@ -315,7 +322,7 @@ async function boot() {
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
-    if (!UI.started) { UI.started = true; mark('first frame'); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
+    if (!UI.started) { UI.started = true; try { localStorage.removeItem('samay.boot'); } catch (e) { } mark('first frame'); if (QPICK.stepped) setTimeout(() => toast('The last start did not finish, so this one runs at a lighter quality. You can change it under Controls → Render quality.', 8000), 1800); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on && !QPICK.stepped) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
     updateHUD(ch);
   }
   rafId = requestAnimationFrame((ms) => { last = ms; frame(ms); });

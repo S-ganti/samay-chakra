@@ -188,7 +188,18 @@ const QPICK = (() => {
   if (!QUALS.includes(q)) try { q = localStorage.getItem('samay.quality'); } catch (e) { }
   // Medium is the default everywhere; phones that report very little memory start on Low. Anyone who picks a quality keeps it
   const frail = isMobile && navigator.deviceMemory && navigator.deviceMemory <= 3;
-  return QUALS.includes(q) ? { q, pinned: true } : { q: frail ? 'low' : 'med', pinned: false };
+  const r = QUALS.includes(q) ? { q, pinned: true } : { q: frail ? 'low' : 'med', pinned: false };
+  // the last start never reached its first frame (the graphics reset or the tab was killed): go one quality lower and remember it, so the
+  // page can't crash the same way every visit. A quality named in the link is a deliberate choice and is left alone
+  let urlQ = null; try { urlQ = new URLSearchParams(location.search).get('q') || location.hash.slice(1); } catch (e) { }
+  try {
+    const at = +localStorage.getItem('samay.boot') || 0;
+    if (at && Date.now() - at < 15 * 60000 && !QUALS.includes(urlQ) && r.q !== 'low') {
+      r.q = r.q === 'high' ? 'med' : 'low'; r.pinned = true; r.stepped = true;
+      localStorage.setItem('samay.quality', r.q); localStorage.removeItem('samay.boot');
+    }
+  } catch (e) { }
+  return r;
 })();
 const PARAM = {
   dayMinutes: 8, clock: false, playing: true,

@@ -14,7 +14,7 @@
 // shDens: square shadow-map texels each triangle of a shadow caster may cover
 // errPx / errTexels: how far, in screen pixels (colour pass) or shadow-map texels (shadow pass), a simplified mesh may sit from the real surface.
 // The shadow map is soft-filtered and biased by ~1.6 texels, so 3 texels of silhouette error shows nowhere; 6 was also clean in test shots
-const CULL = { items: [], on: true, layer: 1, hooked: false, dens: 2.4, shDens: 30, errPx: 1.5, errTexels: 3, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
+const CULL = { items: [], on: true, warm: false, layer: 1, hooked: false, dens: 2.4, shDens: 30, errPx: 1.5, errTexels: 3, minPx: 5, pad: 1.06, tris: 0, shadowTris: 0, seen: 0, drawn: 0, dirty: true };
 const _cf = new THREE.Frustum(), _cpv = new THREE.Matrix4();
 const SIMP = { ms: null, tried: false, cache: new WeakMap(), ms_: 0, levels: 0 };
 
@@ -152,8 +152,15 @@ function cullFrame(cam, key, pxH = 1080) {
     if (!CULL.dirty) return; CULL.dirty = false;
     for (const it of CULL.items) {
       it.counts.fill(0); it.shCounts.fill(0);
-      for (let i = 0; i < it.N; i++) { cullWrite(it, 0, i, i); if (it.cast) cullWriteSh(it, 0, i, i); }
-      it.counts[0] = it.N; if (it.cast) it.shCounts[0] = it.N; cullPublish(it);
+      if (CULL.warm) {
+        // warm-up: one instance on every mesh and level is enough to compile its programs and upload its buffers and textures. Drawing
+        // the whole map at full detail in one frame was ~10 M triangles on High: long enough to make a slower GPU reset
+        for (let l = 0; l < it.levels.length; l++) { cullWrite(it, l, 0, 0); it.counts[l] = 1; if (it.cast) { cullWriteSh(it, l, 0, 0); it.shCounts[l] = 1; } }
+      } else {
+        for (let i = 0; i < it.N; i++) { cullWrite(it, 0, i, i); if (it.cast) cullWriteSh(it, 0, i, i); }
+        it.counts[0] = it.N; if (it.cast) it.shCounts[0] = it.N;
+      }
+      cullPublish(it);
     }
     return;
   }
