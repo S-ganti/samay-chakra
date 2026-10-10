@@ -4,3 +4,8 @@ dist-artifact/
 tools/rig/out/
 .DS_Store
 *.log
+promo/footage/
+promo/audio/
+promo/out/
+promo/flick-output/remotion/node_modules/
+promo/**/node_modules/
