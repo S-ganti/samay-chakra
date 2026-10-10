@@ -9,13 +9,14 @@ Flick renders each approved scene on its own (no all-scenes composition, no musi
 
 Usage: python3 assemble.py [v|h|both] [--first10]     (--first10 also exports the first 10 s of each cut)
 """
-import json, os, subprocess, sys, tempfile
+import json, math, os, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # promo/
 FLICK = os.path.join(ROOT, 'flick-output')
 AUDIO = os.path.join(ROOT, 'audio')
 OUT = os.path.join(ROOT, 'out')
 XF = 0.25  # music crossfade at each prahar cut, seconds (centred on the cut)
+MUSIC_LUFS = -16.0  # every raga is matched to this before mixing (recordings range -16.1 to -11.5 LUFS)
 PRAHAR = ['enter', 'gathering', 'eclipse', 'brahma', 'diamond', 'dispersal', 'zero', 'return']
 
 
@@ -45,7 +46,9 @@ def music_manifest():
     for it in items:
         name = os.path.splitext(os.path.basename(it.get('file') or it.get('name')))[0]
         off = it.get('first_beat_offset_s', it.get('firstBeatOffset', it.get('first_beat_s', 0))) or 0
-        out[name] = {'path': os.path.join(AUDIO, name + '.wav'), 'beat': float(off), 'dur': float(it.get('duration', it.get('duration_s', 0)) or 0)}
+        bpm = float(it.get('bpm') or 120)
+        out[name] = {'path': os.path.join(AUDIO, name + '.wav'), 'beat': float(off), 'bar': 4 * 60 / bpm,
+                     'lufs': float(it.get('lufs', -14)), 'dur': float(it.get('duration', it.get('duration_s', 0)) or 0)}
     return out
 
 
@@ -87,9 +90,10 @@ def build(fmt, first10):
     for c in PRAHAR:
         s = next(x for x in segs if x['id'] == f'prahar-{c}')
         a = m[f'a_{c}']
-        parts.append((c, a, a['beat'], s['start'], s['end']))
+        parts.append((c, a, a['beat'] + a['bar'], s['start'], s['end']))
     # the closer continues the bed from where the opening left it (plus a bar), so it doesn't restart the same phrase
-    parts.append(('bed-close', bed, bed['beat'] + first + 4.0, last, total))
+    resume = bed['beat'] + math.ceil((first + 4.0) / bed['bar']) * bed['bar']  # next bar line, a phrase later
+    parts.append(('bed-close', bed, resume, last, total))
 
     mi, mf, ml = [], [], []
     for k, (name, a, src_in, t0, t1) in enumerate(parts):
@@ -99,9 +103,10 @@ def build(fmt, first10):
         start_src = max(0.0, src_in - pre)
         length = (t1 - t0) + pre + post
         mi += ['-i', a['path']]
-        fade_in = f'afade=t=in:st=0:d={XF:.3f},' if k else ''
+        fade_in = f'afade=t=in:st=0:d={XF:.3f},' if k else 'afade=t=in:st=0:d=0.015,'
         fade_out = f'afade=t=out:st={length - XF:.3f}:d={XF:.3f},' if k < len(parts) - 1 else ''
-        mf.append(f'[{k}:a]atrim={start_src:.4f}:{start_src + length:.4f},asetpts=PTS-STARTPTS,aresample=48000,'
+        gain = MUSIC_LUFS - a['lufs']
+        mf.append(f'[{k}:a]atrim={start_src:.4f}:{start_src + length:.4f},asetpts=PTS-STARTPTS,aresample=48000,volume={gain:.2f}dB,'
                   f'aformat=channel_layouts=stereo,{fade_in}{fade_out}adelay={int((t0 - pre) * 1000)}|{int((t0 - pre) * 1000)},apad[m{k}]')
         ml.append(f'[m{k}]')
     # the closer settles to -10 dB over the last 1.5 s rather than to silence, so the loop restart isn't abrupt

@@ -1,0 +1,878 @@
+[
+ {
+  "entry": {
+   "file": "a_enter.wav",
+   "duration": 30.0,
+   "lufs": -13.1,
+   "true_peak_db": -1.4,
+   "bpm": 108.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch1 Enter the Ring, 19:30, Raga Yaman, 108 BPM. Organic downtempo: half-time kick, sub bass, shaker, flute lead, tabla, bells; torch crackle and dusk birds under it. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -13.1,
+   "lra": 0.7,
+   "true_peak_db": -1.4,
+   "loudnorm_i": -13.09,
+   "loudnorm_tp": -1.41
+  },
+  "clipping": {
+   "float_peak": 0.8496776223182678,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.6338539427112652,
+   "kick_click_timing_ms_range": [
+    -0.0034357024892575083,
+    2.2129097437229452
+   ],
+   "kick_click_count": 11,
+   "kicks_found": 39,
+   "kick_dev_median_ms": 3.631944444443036,
+   "kick_dev_min_ms": -12.000000000000455,
+   "kick_dev_max_ms": 10.965277777774673,
+   "kick_jitter_ms_std": 7.520919374561952,
+   "kick_jitter_ms_maxabs": 11.95667500035924,
+   "fitted_bpm_from_kicks": 107.99904662549979,
+   "drift_ppm": 8.827619594864444,
+   "first_kick_s": 0.007229166666666667,
+   "comb_kick": {
+    "score": 0.22938803282516088,
+    "bpm": 80.9999999999988,
+    "phase_s": 0.21333333333333332
+   },
+   "comb_broad": {
+    "score": 0.3610110647931142,
+    "bpm": 71.99999999999932,
+    "phase_s": 0.27199999999999996
+   },
+   "engine_bpm": 108,
+   "first_kick_detector_s": 0.007229166666666667,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.0007758176070638001,
+   "rms_dbfs": -14.580687515920314,
+   "first_sample_abs": 0.25012797117233276,
+   "last_sample_abs": 0.14171747863292694,
+   "shortterm_lufs_min": -13.6,
+   "shortterm_lufs_max": -12.6
+  },
+  "recording": {
+   "workletGaps": 18,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 860,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.0977777777778428
+   },
+   "event_loop_lag": {
+    "max": 41.799999999813735,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    19.5,
+    19.5
+   ],
+   "tempo_samples": [
+    108
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_gathering.wav",
+   "duration": 30.0,
+   "lufs": -15.5,
+   "true_peak_db": -2.1,
+   "bpm": 128.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch2 The Gathering, 22:30, Raga Bihag, 128 BPM. Hypnotic techno: four-on-the-floor kick, rolling bass, offbeat open hats, claps, filtered chord stabs; torch crackle. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -15.5,
+   "lra": 0.5,
+   "true_peak_db": -2.1,
+   "loudnorm_i": -15.53,
+   "loudnorm_tp": -2.06
+  },
+  "clipping": {
+   "float_peak": 0.7867289781570435,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.4065142473808415,
+   "kick_click_timing_ms_range": [
+    -0.002580593301503361,
+    2.190363584000881
+   ],
+   "kick_click_count": 28,
+   "kicks_found": 64,
+   "kick_dev_median_ms": 4.14583333333357,
+   "kick_dev_min_ms": -11.75000000000015,
+   "kick_dev_max_ms": 7.958333333334622,
+   "kick_jitter_ms_std": 4.925359755157316,
+   "kick_jitter_ms_maxabs": 14.2032056051562,
+   "fitted_bpm_from_kicks": 127.9949733191034,
+   "drift_ppm": 39.27248677237927,
+   "first_kick_s": 0.0,
+   "comb_kick": {
+    "score": 0.7344203522087506,
+    "bpm": 63.99999999999977,
+    "phase_s": 0.448
+   },
+   "comb_broad": {
+    "score": 0.529735855340518,
+    "bpm": 63.99999999999977,
+    "phase_s": 0.6986666666666667
+   },
+   "engine_bpm": 128,
+   "first_kick_detector_s": 0.0,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.0014419801300391555,
+   "rms_dbfs": -16.577863568529327,
+   "first_sample_abs": 0.11654166877269745,
+   "last_sample_abs": 0.045359060168266296,
+   "shortterm_lufs_min": -15.8,
+   "shortterm_lufs_max": -15.1
+  },
+  "recording": {
+   "workletGaps": 41,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 1041,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.08020833333333144
+   },
+   "event_loop_lag": {
+    "max": 13.399999999441206,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    22.5,
+    22.5
+   ],
+   "tempo_samples": [
+    128
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_eclipse.wav",
+   "duration": 30.0,
+   "lufs": -16.1,
+   "true_peak_db": -1.1,
+   "bpm": 144.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch3 Eclipse, 01:30, Raga Malkauns, 144 BPM. Forest psytrance: kick plus off-beat bass, 16th hats, acid lead, crickets and a far owl. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -16.1,
+   "lra": 0.4,
+   "true_peak_db": -1.1,
+   "loudnorm_i": -16.17,
+   "loudnorm_tp": -1.08
+  },
+  "clipping": {
+   "float_peak": 0.8831926584243774,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.4825119667577453,
+   "kick_click_timing_ms_range": [
+    -0.0008906138116942705,
+    1.8002722018512038
+   ],
+   "kick_click_count": 32,
+   "kicks_found": 72,
+   "kick_dev_median_ms": 2.70833333333087,
+   "kick_dev_min_ms": -12.000000000004007,
+   "kick_dev_max_ms": 6.104166666666799,
+   "kick_jitter_ms_std": 6.605366226558411,
+   "kick_jitter_ms_maxabs": 11.609102452106335,
+   "fitted_bpm_from_kicks": 144.0031571597065,
+   "drift_ppm": -21.924239501092124,
+   "first_kick_s": 0.005520833333333333,
+   "comb_kick": {
+    "score": 0.6972883894782478,
+    "bpm": 143.99999999999523,
+    "phase_s": 0.39466666666666667
+   },
+   "comb_broad": {
+    "score": 0.6922545198207154,
+    "bpm": 71.99999999999932,
+    "phase_s": 0.20266666666666666
+   },
+   "engine_bpm": 144,
+   "first_kick_detector_s": 0.005520833333333333,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.002783260541036725,
+   "rms_dbfs": -17.13743738890059,
+   "first_sample_abs": 0.07833564281463623,
+   "last_sample_abs": 0.041250817477703094,
+   "shortterm_lufs_min": -16.4,
+   "shortterm_lufs_max": -15.7
+  },
+  "recording": {
+   "workletGaps": 12,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 1352,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.09766666666673629
+   },
+   "event_loop_lag": {
+    "max": 8.900000000372529,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    1.5,
+    1.5
+   ],
+   "tempo_samples": [
+    144
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_brahma.wav",
+   "duration": 30.0,
+   "lufs": -11.5,
+   "true_peak_db": -2.5,
+   "bpm": 72.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch4 Brahma Muhurta, 04:30, Raga Lalit, engine clock 72 BPM (beatless). Tanpura drone, wide pad, slow flute and bells; crickets, far owl, temple bell. No drum onsets, so bpm is the engine step clock. Hard edges: fade in/out."
+  },
+  "loudness": {
+   "lufs": -11.5,
+   "lra": 0.4,
+   "true_peak_db": -2.5,
+   "loudnorm_i": -11.48,
+   "loudnorm_tp": -2.53
+  },
+  "clipping": {
+   "float_peak": 0.7463333606719971,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kicks_found": 0,
+   "comb_kick": {
+    "score": 0.3704670960474106,
+    "bpm": 75.64999999999911,
+    "phase_s": 0.224
+   },
+   "comb_broad": {
+    "score": 0.2126941847863537,
+    "bpm": 88.39999999999839,
+    "phase_s": 0.09066666666666666
+   },
+   "engine_bpm": 72,
+   "bpm_source": "engine clock (beatless chapter, no drum onsets)",
+   "dc_offset": -2.8837426725658588e-05,
+   "rms_dbfs": -13.256344226389727,
+   "first_sample_abs": 0.09251199662685394,
+   "last_sample_abs": 0.11774905025959015,
+   "shortterm_lufs_min": -11.8,
+   "shortterm_lufs_max": -11.2
+  },
+  "recording": {
+   "workletGaps": 6,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 112,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.10133333333333994
+   },
+   "event_loop_lag": {
+    "max": 9.200000000186265,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    4.5,
+    4.5
+   ],
+   "tempo_samples": [
+    72
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_diamond.wav",
+   "duration": 30.0,
+   "lufs": -14.4,
+   "true_peak_db": -1.6,
+   "bpm": 138.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch5 Diamond Ring, 07:30, Raga Bhairav, 138 BPM. Progressive psytrance sunrise peak: four-on-the-floor, 16th bass, plucked arpeggio lead, bells, claps, 16th hats; songbirds and koel on top. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -14.4,
+   "lra": 0.6,
+   "true_peak_db": -1.6,
+   "loudnorm_i": -14.49,
+   "loudnorm_tp": -1.55
+  },
+  "clipping": {
+   "float_peak": 0.8296416401863098,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.0061183321512789735,
+   "kick_click_timing_ms_range": [
+    -0.017107662117339828,
+    0.0026150076543759817
+   ],
+   "kick_click_count": 30,
+   "kicks_found": 68,
+   "kick_dev_median_ms": -11.068387681159031,
+   "kick_dev_min_ms": -12.019021739128277,
+   "kick_dev_max_ms": 7.693840579708677,
+   "kick_jitter_ms_std": 5.654541374768825,
+   "kick_jitter_ms_maxabs": 15.435161946022902,
+   "fitted_bpm_from_kicks": 137.9897878167895,
+   "drift_ppm": 74.00680421421058,
+   "first_kick_s": 0.0024375,
+   "comb_kick": {
+    "score": 0.6276062320352406,
+    "bpm": 68.99999999999949,
+    "phase_s": 0.416
+   },
+   "comb_broad": {
+    "score": 0.6118312211590512,
+    "bpm": 68.99999999999949,
+    "phase_s": 0.6506666666666666
+   },
+   "engine_bpm": 138,
+   "first_kick_detector_s": 0.0024375,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.002790849655866623,
+   "rms_dbfs": -15.712036503880269,
+   "first_sample_abs": 0.07099036872386932,
+   "last_sample_abs": 0.022901484742760658,
+   "shortterm_lufs_min": -14.9,
+   "shortterm_lufs_max": -14.0
+  },
+  "recording": {
+   "workletGaps": 43,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 1652,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.09882608695653872
+   },
+   "event_loop_lag": {
+    "max": 49.60000000055879,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    7.5,
+    7.5
+   ],
+   "tempo_samples": [
+    138
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_dispersal.wav",
+   "duration": 30.0,
+   "lufs": -15.8,
+   "true_peak_db": -1.2,
+   "bpm": 96.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch6 Dispersal, 10:30, Raga Todi, 96 BPM. Broken-beat downtempo: syncopated kick, sub bass, shaker, tabla, Rhodes lead; daytime birds, crows and far horns. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -15.8,
+   "lra": 0.6,
+   "true_peak_db": -1.2,
+   "loudnorm_i": -15.83,
+   "loudnorm_tp": -1.2
+  },
+  "clipping": {
+   "float_peak": 0.8711466193199158,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.0002435301519850007,
+   "kick_click_timing_ms_range": [
+    -0.00034767493480873196,
+    0.0004208833472366299
+   ],
+   "kick_click_count": 10,
+   "kicks_found": 48,
+   "kick_dev_median_ms": 5.239583333334963,
+   "kick_dev_min_ms": -12.00000000000001,
+   "kick_dev_max_ms": 7.333333333333414,
+   "kick_jitter_ms_std": 6.742960167495416,
+   "kick_jitter_ms_maxabs": 13.86143526026018,
+   "fitted_bpm_from_kicks": 95.99676420659918,
+   "drift_ppm": 33.707317403486314,
+   "first_kick_s": 0.004583333333333333,
+   "comb_kick": {
+    "score": 0.36292100408173167,
+    "bpm": 95.99999999999795,
+    "phase_s": 0.29333333333333333
+   },
+   "comb_broad": {
+    "score": 0.4514051972514742,
+    "bpm": 63.99999999999977,
+    "phase_s": 0.9333333333333333
+   },
+   "engine_bpm": 96,
+   "first_kick_detector_s": 0.004583333333333333,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.004374789074063301,
+   "rms_dbfs": -16.612196108245474,
+   "first_sample_abs": 0.040024884045124054,
+   "last_sample_abs": 0.1279727816581726,
+   "shortterm_lufs_min": -16.3,
+   "shortterm_lufs_max": -15.3
+  },
+  "recording": {
+   "workletGaps": 21,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 794,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.09750000000000014
+   },
+   "event_loop_lag": {
+    "max": 30.5,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "clock_h": [
+    10.5,
+    10.5
+   ],
+   "tempo_samples": [
+    96
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_zero.wav",
+   "duration": 30.0,
+   "lufs": -14.5,
+   "true_peak_db": -2.2,
+   "bpm": 104.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch7 Zero Point, 13:30, Raga Bhimpalasi, 104 BPM. Dub: sparse kick/bass/hats, santoor lead, long delay and reverb; midday ambience (far horns, crows). Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -14.5,
+   "lra": 0.3,
+   "true_peak_db": -2.2,
+   "loudnorm_i": -14.56,
+   "loudnorm_tp": -2.17
+  },
+  "clipping": {
+   "float_peak": 0.778566300868988,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.006922490044538339,
+   "kick_click_timing_ms_range": [
+    -0.018619161053975947,
+    0.001974023920113884
+   ],
+   "kick_click_count": 22,
+   "kicks_found": 52,
+   "kick_dev_median_ms": -7.672275641024129,
+   "kick_dev_min_ms": -12.020833333330927,
+   "kick_dev_max_ms": 8.902243589743897,
+   "kick_jitter_ms_std": 7.21996328283985,
+   "kick_jitter_ms_maxabs": 12.909765502720383,
+   "fitted_bpm_from_kicks": 104.00767872697766,
+   "drift_ppm": -73.8284622024965,
+   "first_kick_s": 0.00014583333333333335,
+   "comb_kick": {
+    "score": 0.4701788333849102,
+    "bpm": 103.9999999999975,
+    "phase_s": 0.5599999999999999
+   },
+   "comb_broad": {
+    "score": 0.45209279591263124,
+    "bpm": 103.9999999999975,
+    "phase_s": 0.5706666666666667
+   },
+   "engine_bpm": 104,
+   "first_kick_detector_s": 0.00014583333333333335,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.0007543227984569967,
+   "rms_dbfs": -15.784286711068859,
+   "first_sample_abs": 0.2759053111076355,
+   "last_sample_abs": 0.1258191168308258,
+   "shortterm_lufs_min": -14.8,
+   "shortterm_lufs_max": -14.1
+  },
+  "recording": {
+   "workletGaps": 10,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 773,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.0989487179487174
+   },
+   "event_loop_lag": {
+    "max": 9.200000000186265,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0
+   ],
+   "clock_h": [
+    13.5,
+    13.5
+   ],
+   "tempo_samples": [
+    104
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_return.wav",
+   "duration": 30.0,
+   "lufs": -14.1,
+   "true_peak_db": -1.8,
+   "bpm": 116.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "Ch8 The Return, 16:30, Raga Marwa, 116 BPM. Four-on-the-floor with off-beat bass and hats, sarangi lead, tabla, claps; late-afternoon birds, crows, far horns. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -14.1,
+   "lra": 0.4,
+   "true_peak_db": -1.8,
+   "loudnorm_i": -14.09,
+   "loudnorm_tp": -1.77
+  },
+  "clipping": {
+   "float_peak": 0.8157951235771179,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.007626783015448186,
+   "kick_click_timing_ms_range": [
+    -0.020197932476509806,
+    0.000525216808058578
+   ],
+   "kick_click_count": 24,
+   "kicks_found": 56,
+   "kick_dev_median_ms": -10.857758620691271,
+   "kick_dev_min_ms": -12.017959770115993,
+   "kick_dev_max_ms": 8.020114942528522,
+   "kick_jitter_ms_std": 6.746224602277214,
+   "kick_jitter_ms_maxabs": 14.631341848943435,
+   "fitted_bpm_from_kicks": 115.98886572516523,
+   "drift_ppm": 95.9943419152065,
+   "first_kick_s": 0.003895833333333333,
+   "comb_kick": {
+    "score": 0.6072832121988685,
+    "bpm": 115.99999999999682,
+    "phase_s": 0.5013333333333333
+   },
+   "comb_broad": {
+    "score": 0.48697241174629974,
+    "bpm": 115.99999999999682,
+    "phase_s": 0.256
+   },
+   "engine_bpm": 116,
+   "first_kick_detector_s": 0.003895833333333333,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.0014108414761722088,
+   "rms_dbfs": -15.087664041884363,
+   "first_sample_abs": 0.024839011952280998,
+   "last_sample_abs": 0.10867509990930557,
+   "shortterm_lufs_min": -14.4,
+   "shortterm_lufs_max": -13.8
+  },
+  "recording": {
+   "workletGaps": 24,
+   "frames": 1440000,
+   "late_notes": {
+    "n": 883,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.0977931034482733
+   },
+   "event_loop_lag": {
+    "max": 9.399999999441206,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+   ],
+   "clock_h": [
+    16.5,
+    16.5
+   ],
+   "tempo_samples": [
+    116
+   ]
+  }
+ },
+ {
+  "entry": {
+   "file": "a_bed_long.wav",
+   "duration": 100.0,
+   "lufs": -14.2,
+   "true_peak_db": -1.2,
+   "bpm": 138.0,
+   "first_beat_offset_s": 0.0,
+   "silences": [],
+   "description": "100 s continuous steady high-energy bed: Diamond Ring (Raga Bhairav, 138 BPM, 07:30), four-on-the-floor psytrance with 16th bass, pluck lead, bells; light dawn birds. 50 bars, no tempo drift. Cut on the bar-1 downbeat (hard edges: fade in/out)."
+  },
+  "loudness": {
+   "lufs": -14.2,
+   "lra": 0.4,
+   "true_peak_db": -1.2,
+   "loudnorm_i": -14.27,
+   "loudnorm_tp": -1.24
+  },
+  "clipping": {
+   "float_peak": 0.8667476177215576,
+   "float_samples_ge_0dBFS": 0,
+   "int16_samples_at_full_scale": 0
+  },
+  "analysis": {
+   "kick_click_timing_ms_std": 0.005145789570736608,
+   "kick_click_timing_ms_range": [
+    -0.017932018655690385,
+    0.006876151774176739
+   ],
+   "kick_click_count": 110,
+   "kicks_found": 228,
+   "kick_dev_median_ms": -11.265398550723837,
+   "kick_dev_min_ms": -12.019927536231823,
+   "kick_dev_max_ms": 7.61050724637613,
+   "kick_jitter_ms_std": 4.961750681318784,
+   "kick_jitter_ms_maxabs": 16.34441443434298,
+   "fitted_bpm_from_kicks": 138.00025082013804,
+   "drift_ppm": -1.8175339288051262,
+   "first_kick_s": 0.0,
+   "comb_kick": {
+    "score": 0.6132593232936352,
+    "bpm": 137.99999999999557,
+    "phase_s": 0.416
+   },
+   "comb_broad": {
+    "score": 0.5350573041995105,
+    "bpm": 137.99999999999557,
+    "phase_s": 0.21333333333333332
+   },
+   "engine_bpm": 138,
+   "first_kick_detector_s": 0.0,
+   "bpm_source": "kick-onset regression (independent of engine value)",
+   "dc_offset": -0.002398635959252715,
+   "rms_dbfs": -15.491086856811762,
+   "first_sample_abs": 0.2032153457403183,
+   "last_sample_abs": 0.03576792776584625,
+   "shortterm_lufs_min": -14.7,
+   "shortterm_lufs_max": -13.8
+  },
+  "recording": {
+   "workletGaps": 121,
+   "frames": 4800000,
+   "late_notes": {
+    "n": 4941,
+    "late": 0,
+    "lateMax": 0,
+    "minAhead": 0.08805797101469892
+   },
+   "event_loop_lag": {
+    "max": 14.899999999441206,
+    "over100": 0,
+    "over250": 0
+   },
+   "wx": {
+    "rain": 0,
+    "mist": 0,
+    "storm": 0,
+    "mode": "live",
+    "label": ""
+   },
+   "weights": [
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0
+   ],
+   "clock_h": [
+    7.5,
+    7.5
+   ],
+   "tempo_samples": [
+    138
+   ]
+  }
+ }
+]
