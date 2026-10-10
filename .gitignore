@@ -10,3 +10,6 @@ promo/out/
 promo/flick-output/remotion/node_modules/
 promo/**/node_modules/
 promo/capture/audio/raw/
+promo/flick-output/logs/
+promo/flick-output/scenes/
+promo/footage/

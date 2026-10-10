@@ -8,7 +8,7 @@ import {WipeLine} from '../lib/Type';
 import {easeInOut, ramp} from '../lib/motion';
 import {sfxVol, useHero} from './a_shared';
 
-const START_FROM = 0; // s02_enter, blurred; offset set from the manifest
+const START_FROM = 120; // s02_enter, blurred; offset set from the manifest
 const DOCK_AT = 18; // dial reaches the corner here; the click lands on this frame
 
 export const IBuiltAllEight: FC = () => {

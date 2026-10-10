@@ -8,7 +8,7 @@ import {ClockDigits, HeroDial, SWEEP_MINUTES, handDegAt, sfxVol, useHero} from '
 
 // The 24 h time-lapse is played so the WHOLE day cycle fits the scene: clip frames per scene frame.
 const TL_START = 0; // frames into the clip
-const TL_CLIP_FRAMES = 0; // frames of one full 24 h cycle in the clip (from the manifest); 0 = play at 1x
+const TL_CLIP_FRAMES = 180; // frames of one full 24 h cycle in the clip (from the manifest); 0 = play at 1x
 
 export const HookItsAClock: FC = () => {
   const frame = useCurrentFrame();

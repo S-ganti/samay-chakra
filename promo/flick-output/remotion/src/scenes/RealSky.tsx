@@ -8,27 +8,28 @@ import {Footage} from '../lib/Footage';
 import {Hairline, WipeLine} from '../lib/Type';
 
 // Footage offsets (frames into each clip), picked to avoid camera cuts.
-const MOON_START = 0;
-const RAIN_START = 0;
-const CROWD_START = 0;
+const MOON_START = 12;
+const RAIN_START = 8;
+const CROWD_START = 24;
 
 // The moon clip's visible phase. 0 = new, 0.25 = first quarter, 0.5 = full, 0.75 = last quarter.
 // `null` shows no disc, just the generic live label.
-const MOON_PHASE: number | null = null;
-const MOON_LABEL = 'MOON PHASE · LIVE';
+const MOON_PHASE: number | null = 0.5; // the clip and the site's own HUD both read FULL MOON
+const MOON_LABEL = 'MOON PHASE · FULL';
 
 const BPM = 128;
 const BEAT = (30 * 60) / BPM; // 14.06 frames
 
 /** Lit portion of the moon disc for a phase 0..1 (northern-hemisphere style: waxing lights the right). */
 const MoonDisc: FC<{size: number; phase: number}> = ({size, phase}) => {
-  const a = Math.cos(phase * 2 * Math.PI); // 1 new … -1 full
-  const rx = Math.abs(a) * 40;
+  const k = Math.cos(phase * 2 * Math.PI); // 1 new ... -1 full
+  const rx = Math.abs(k) * 40;
   const waxing = phase < 0.5;
-  // right/left half arc, then the terminator ellipse back
+  // outer limb: right half (waxing) or left half (waning); then the terminator ellipse back to the top
   const outer = waxing ? 'M50 10 A40 40 0 0 1 50 90' : 'M50 10 A40 40 0 0 0 50 90';
-  const sweep = (waxing ? a > 0 : a < 0) ? 0 : 1;
-  const inner = waxing ? `A${rx} 40 0 0 ${sweep} 50 10` : `A${rx} 40 0 0 ${sweep ? 0 : 1} 50 10`;
+  const crescent = k > 0;
+  const bulgesRight = waxing === crescent; // waxing crescent / waning gibbous bulge right
+  const inner = `A${rx} 40 0 0 ${bulgesRight ? 0 : 1} 50 10`;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100">
       <circle cx={50} cy={50} r={40} fill="none" stroke={C.bone3} strokeWidth={2.5} />

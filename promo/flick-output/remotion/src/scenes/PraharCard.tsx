@@ -17,7 +17,7 @@ const hex = (h: string, a: number) => {
 type Look = {startFrom: number; focusY: number; push: number; dim: number; scrim: number};
 // Footage offsets / legibility per chapter. startFrom is in frames into the captured clip.
 export const LOOK: Record<string, Look> = {
-  enter: {startFrom: 0, focusY: 50, push: 0.08, dim: 0.16, scrim: 0.5},
+  enter: {startFrom: 15, focusY: 50, push: 0.08, dim: 0.16, scrim: 0.5},
   gathering: {startFrom: 0, focusY: 50, push: 0.08, dim: 0.14, scrim: 0.5},
   eclipse: {startFrom: 0, focusY: 50, push: 0.08, dim: 0.12, scrim: 0.5},
   brahma: {startFrom: 0, focusY: 50, push: 0.08, dim: 0.12, scrim: 0.5},

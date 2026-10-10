@@ -1,6 +1,5 @@
 // Usage: node capture.mjs <size> <q> <clipName,clipName,...>   (clip specs live in clips.mjs)
 import { launch, openWorld, prepare, record, FOOTAGE } from './lib.mjs';
-import { CLIPS } from './clips.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -12,6 +11,7 @@ const t0 = Date.now();
 const { page } = await openWorld(b, { w: size, h: size, q: Q });
 console.log(`booted in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 for (const name of names) {
+  const { CLIPS } = await import('./clips.mjs?' + Date.now());   // re-read each time so specs can be tuned while a worker is running
   const spec = CLIPS[name]; if (!spec) { console.error('no such clip', name); continue; }
   const out = path.join(FOOTAGE, name + '.mp4');
   const ts = Date.now();

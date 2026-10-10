@@ -1,5 +1,5 @@
 import type {CSSProperties, FC, ReactNode} from 'react';
-import {AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {AbsoluteFill, Freeze, Img, OffthreadVideo, interpolate, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
 import {C, FONT, tracked} from '../lib/tokens';
 import {easeInOut, ramp} from '../lib/motion';
 import {useFormat} from '../lib/format';
@@ -8,8 +8,36 @@ import {Grain} from '../lib/Footage';
 import {WipeLine} from '../lib/Type';
 import {Sfx, URL_TEXT} from './c_common';
 
-// Frames into ui_{v,h}_dial_scrub.mp4 to start from (set from the capture manifest).
-const VIDEO_START = 0;
+// The real UI capture. `HAS_SCRUB` plays ui_{v,h}_dial_scrub.mp4 (time-travel Enter -> Eclipse, 120 frames at 30 fps,
+// held on its last frame if the scene runs longer); otherwise the ui_*_hud / ui_*_card stills stand in and cross-dissolve.
+const HAS_SCRUB = true;
+const SCRUB_FRAMES = 121;
+// The capture sits on Enter the Ring for ~40 frames before the chip press starts the travel. Hold that look while the URL
+// types, then let the clip play from there at Enter, so the time-travel starts when the page "loads".
+const SCRUB_HOLD = 40;
+
+const Viewport: FC<{v: boolean}> = ({v}) => {
+  const frame = useCurrentFrame();
+  const o = v ? 'v' : 'h';
+  const {durationInFrames: dur} = useVideoConfig();
+  if (HAS_SCRUB) {
+    const f = Math.min(SCRUB_FRAMES - 1, SCRUB_HOLD + Math.max(0, frame - ENTER));
+    return (
+      <Freeze frame={f}>
+        <OffthreadVideo src={staticFile(`footage/ui_${o}_dial_scrub.mp4`)} muted style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+      </Freeze>
+    );
+  }
+  const swap = ramp(frame, 64, 84, easeInOut);
+  const zoom = interpolate(frame, [0, dur], [1, 1.02]);
+  const img: CSSProperties = {position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${zoom})`};
+  return (
+    <AbsoluteFill style={{overflow: 'hidden'}}>
+      <Img src={staticFile(`footage/ui_${o}_hud.png`)} style={img} />
+      <Img src={staticFile(`footage/ui_${o}_card.png`)} style={{...img, opacity: swap}} />
+    </AbsoluteFill>
+  );
+};
 
 const TYPE_A = 6; // address bar starts typing
 const TYPE_B = 58; // last character lands
@@ -70,11 +98,11 @@ export const RunsInBrowser: FC = () => {
   const textOut = ramp(frame, dur - EXIT, dur - EXIT + 14, easeInOut);
 
   // browser geometry
-  const bw = v ? 580 : 1180;
+  const bw = v ? 520 : 1180;
   const barH = v ? 92 : 56;
   const vpH = Math.round(v ? (bw * 16) / 9 : (bw * 9) / 16);
   const bx = v ? (width - bw) / 2 : width - bw - 80;
-  const by = v ? 520 : (height - (barH + vpH)) / 2;
+  const by = v ? 545 : (height - (barH + vpH)) / 2;
   const scale = 1 - 0.14 * exit;
 
   const tLine = (size: number): CSSProperties => ({...tracked(size, 0.34, 500), color: C.bone, whiteSpace: 'nowrap'});
@@ -91,12 +119,7 @@ export const RunsInBrowser: FC = () => {
 
       <div style={{position: 'absolute', left: bx, top: by, transform: `scale(${scale})`, transformOrigin: '50% 50%', opacity: 1 - exit}}>
         <Browser w={bw} vpH={vpH} mobile={v} typed={typed} caret={caret} load={load}>
-          <OffthreadVideo
-            src={staticFile(`footage/ui_${v ? 'v' : 'h'}_dial_scrub.mp4`)}
-            startFrom={VIDEO_START}
-            muted
-            style={{width: '100%', height: '100%', objectFit: 'cover'}}
-          />
+          <Viewport v={v} />
         </Browser>
       </div>
 

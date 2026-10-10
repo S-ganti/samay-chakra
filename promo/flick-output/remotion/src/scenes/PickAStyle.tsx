@@ -8,11 +8,11 @@ import {Hairline, RiseLetters} from '../lib/Type';
 
 const INK = '15,13,11';
 const STYLES = [
-  {clip: 's11_style_real', name: 'Realistic'},
-  {clip: 's11_style_fusion', name: 'Fusion Posters'},
-  {clip: 's11_style_sumi', name: 'Sumi Ink'},
-  {clip: 's11_style_neon', name: 'Chungking Neon'},
-  {clip: 's11_style_paint', name: 'Painted Light'},
+  {clip: 's11_style_real_loop', name: 'Realistic'},
+  {clip: 's11_style_fusion_loop', name: 'Fusion Posters'},
+  {clip: 's11_style_sumi_loop', name: 'Sumi Ink'},
+  {clip: 's11_style_neon_loop', name: 'Chungking Neon'},
+  {clip: 's11_style_paint_loop', name: 'Painted Light'},
 ];
 // Same moment in every style render: identical startFrom keeps the five clips time-aligned.
 const START_FROM = 0;

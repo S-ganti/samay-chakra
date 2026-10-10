@@ -11,8 +11,8 @@ type Shot = {clip: string; startFrom: number; focusY?: number; lead?: string; wo
 // Offsets (frames into each clip) chosen from the capture manifest.
 const SHOTS: Shot[] = [
   {clip: 's03_gathering', startFrom: GATHERING_START, lead: 'EACH WITH', word: 'RAGA.', key: '#e0332a', tag: '01 / 03', wave: true},
-  {clip: 's05_brahma', startFrom: 0, word: 'LIGHT.', key: '#7fa2e6', tag: '02 / 03'},
-  {clip: 's10_crowd_dance', startFrom: 0, word: 'CROWD.', key: '#ff7a2f', tag: '03 / 03'},
+  {clip: 's05_brahma', startFrom: 120, word: 'LIGHT.', key: '#7fa2e6', tag: '02 / 03'},
+  {clip: 's10_crowd_dance', startFrom: 80, word: 'CROWD.', key: '#ff7a2f', tag: '03 / 03'},
 ];
 
 /** A thin waveform hairline that breathes, under "RAGA". */

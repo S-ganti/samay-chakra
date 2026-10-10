@@ -40,7 +40,7 @@ export async function openWorld(browser, { w, h, q = 'med', style = 'real', hour
     }
   }, { virtualTimers });
   const url = `${BASE}?q=${q}&style=${style}`;
-  await page.goto(url, { waitUntil: 'load' });
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 300000 });
   await page.waitForFunction(() => window.__samay && window.__samay.UI && window.__samay.UI.started === true, null, { timeout: 600000, polling: 500 });
   await page.evaluate(() => { window.__freeze = true; });
   await sleep(300);
@@ -61,7 +61,7 @@ export const HELPERS = `(() => {
       const { S, PARAM, CAM } = s;
       s.setTime(o.hour); S.rt = o.rt0 ?? 1000; S.beatPos = 0; S.beat = 0; S.pulse = 0;
       CAM.booted = false; CAM.chapter = -1; CAM.shot = -1; CAM.flight = null; CAM.cutKey = null; CAM.vel.set(0, 0, 0); CAM.lvel.set(0, 0, 0);
-      PARAM.shotLen = 1e6; PARAM.cut = true; PARAM.titles = false; PARAM.playing = o.playing !== false;
+      PARAM.shotLen = 1e6; PARAM.cut = true; PARAM.titles = false; PARAM.playing = false;
       H.idx = o.shot ?? 0; H.orbit = o.orbit || null; H.fn = o.fnSrc ? new Function('S', 's', 'H', o.fnSrc) : null; H.i = 0;
       if (o.population) PARAM.population = o.population;
       PARAM.camera = H.orbit ? 'orbit' : 'director';
@@ -81,7 +81,7 @@ export const HELPERS = `(() => {
     step(n, cheap) {
       const { PP } = s, r = PP.composer.render;
       if (cheap) PP.composer.render = () => {};
-      try { for (let i = 0; i < n; i++) { H.pre(); s.step(1000 / 30); H.i++; } } finally { PP.composer.render = r; }
+      try { for (let i = 0; i < n; i++) { H.pre(); s.step(1000 / 30); if (!H.hold) H.i++; } } finally { PP.composer.render = r; }
     },
     sync() { const gl = s.renderer.getContext(), px = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); },
   };
@@ -103,22 +103,23 @@ export const GRAB_FN = `(() => {
   return { w, h, b64: btoa(bin) };
 })()`;
 
-export function startFfmpeg(out, w, h, { crf = 14, fps = 30, vflip = true, cropTo = null } = {}) {
-  const vf = [vflip ? 'vflip' : null, cropTo ? `scale=${cropTo}:flags=lanczos` : null, 'format=yuv420p'].filter(Boolean).join(',');
-  const p = spawn('/usr/bin/ffmpeg', ['-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${w}x${h}`, '-r', String(fps), '-i', '-', '-vf', vf,
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', String(crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+export function startFfmpeg(out, w, h, { crf = 14, fps = 30, vflip = true, cropTo = null, interp = null } = {}) {
+  // interp: capture ran at `fps` (15) and the clip is motion-interpolated up to 30 fps
+  const vf = [vflip ? 'vflip' : null, cropTo ? `scale=${cropTo}:flags=lanczos` : null, interp ? (interp === 'blend' ? 'minterpolate=fps=30:mi_mode=blend' : 'minterpolate=fps=30:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1') + ',tpad=stop=3:stop_mode=clone' : null, 'format=yuv420p'].filter(Boolean).join(',');
+  const p = spawn('/usr/bin/ffmpeg', ['-y', '-loglevel', 'error', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${w}x${h}`, '-r', String(fps), '-i', '-', '-vf', vf, ...(interp ? ['-r', '30'] : []),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise((res, rej) => { p.on('close', c => c === 0 ? res() : rej(new Error('ffmpeg exit ' + c))); });
   return { stdin: p.stdin, done };
 }
 
 // step N frames, grabbing each to ffmpeg. perFrame(i) optional hook (runs in node before each step)
-export async function record(page, out, n, { crf = 14, perFrame = null, evalPerFrame = null, size = null } = {}) {
+export async function record(page, out, n, { crf = 14, perFrame = null, evalPerFrame = null, size = null, inFps = 30, interp = null } = {}) {
   let ff = null, t0 = Date.now(); const log = [];
   for (let i = 0; i < n; i++) {
     if (perFrame) await perFrame(i);
     const r = await page.evaluate(`(() => { const s = window.__samay, H = window.__H; H.step(1, false); const o = ${GRAB_FN}; o.t = s.S.t; o.shot = s.CAM.shot; o.snap = !!s.CAM.snapped; o.name = s.CAM.shotName; return o; })()`);
     log.push({ t: r.t, shot: r.shot, snap: r.snap, name: r.name });
-    if (!ff) ff = startFfmpeg(out, r.w, r.h, { crf });
+    if (!ff) ff = startFfmpeg(out, r.w, r.h, { crf, fps: inFps, interp });
     const buf = Buffer.from(r.b64, 'base64');
     if (!ff.stdin.write(buf)) await new Promise(res => ff.stdin.once('drain', res));
     if (i % 15 === 0) console.log(`  ${path.basename(out)} frame ${i}/${n}  ${((Date.now() - t0) / (i + 1) / 1000).toFixed(2)} s/frame`);
@@ -128,11 +129,11 @@ export async function record(page, out, n, { crf = 14, perFrame = null, evalPerF
 }
 
 // reset + warm-up: `cheap` frames with the draw call skipped, then `real` fully rendered frames (TAA history, DOF, shadows settle)
-export async function prepare(page, o, cheap = 100, real = 10) {
-  await page.evaluate((o) => window.__H.reset(o), o);
+export async function prepare(page, o, cheap = 120, real = 6) {
+  await page.evaluate((o) => { window.__H.reset(o); window.__H.hold = true; }, o);
   await page.evaluate((n) => window.__H.step(n, true), cheap);
   for (let i = 0; i < real; i++) await page.evaluate(() => { window.__H.step(1, false); window.__H.sync(); });
-  await page.evaluate(() => { window.__H.i = 0; });
+  await page.evaluate((pl) => { window.__H.hold = false; window.__H.i = 0; window.__samay.PARAM.playing = pl; }, o.playing !== false);
 }
 export async function stepSync(page, n = 1) { await page.evaluate((n) => { for (let i = 0; i < n; i++) { window.__H.step(1, false); } window.__H.sync(); }, n); }
 // raw grab -> file via ffmpeg (PNG or JPG)

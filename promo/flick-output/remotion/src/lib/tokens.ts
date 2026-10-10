@@ -37,7 +37,7 @@ export const CHAPTERS: Chapter[] = [
   {id: 'eclipse', n: 3, start: 0, title: 'Eclipse', native: 'གཟའ་འཛིན', lang: 'bo', raga: 'Malkauns', font: 'disp', key: '#ff3d9a', footage: 's04_eclipse'},
   {id: 'brahma', n: 4, start: 3, title: 'Brahma Muhurta', native: 'ബ്രഹ്മമുഹൂർത്തം', lang: 'ml', raga: 'Lalit', font: 'sans', key: '#7fa2e6', footage: 's05_brahma'},
   {id: 'diamond', n: 5, start: 6, title: 'Diamond Ring', native: 'প্রভাত', lang: 'bn', raga: 'Bhairav', font: 'disp', key: '#ffc247', footage: 's06_diamond'},
-  {id: 'dispersal', n: 6, start: 9, title: 'Dispersal', native: 'ವಿಸರ್ಜನೆ', lang: 'kn', raga: 'Todi', font: 'sten', key: '#d8342b', footage: 's07_dispersal'},
+  {id: 'dispersal', n: 6, start: 9, title: 'Dispersal', native: 'ವಿಸರ್ಜನೆ', lang: 'kn', raga: 'Todi', font: 'sten', key: '#d8342b', footage: 's07_dispersal_alt_chai'},
   {id: 'zero', n: 7, start: 12, title: 'Zero Shadow', native: 'ଛାୟାହୀନ', lang: 'or', raga: 'Bhimpalasi', font: 'sans', key: '#e9b43b', footage: 's08_zero'},
   {id: 'return', n: 8, start: 15, title: 'Return', native: 'திரும்புதல்', lang: 'ta', raga: 'Marwa', font: 'sans', key: '#f0a060', footage: 's09_return'},
 ];

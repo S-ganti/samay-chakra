@@ -66,5 +66,5 @@ export const sfxVol = (db: number) => Math.pow(10, db / 20);
 
 // Footage offsets (frames into each clip) shared between neighbouring scenes so motion carries over a cut.
 // Scene 3's last frames fade in the first shot of scene 4; scene 4 picks up from the same moment.
-export const GATHERING_START = 0; // s03_gathering, first shot of scene 4
+export const GATHERING_START = 40; // s03_gathering, first shot of scene 4
 export const SHOT_FRAMES_CARRY = 9; // frames of s03 shown at the tail of scene 3
