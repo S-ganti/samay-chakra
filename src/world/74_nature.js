@@ -165,7 +165,7 @@ const _bm = new THREE.Matrix4(), _bq = new THREE.Quaternion(), _bp = V3(), _bs =
 const LANES = [[V3(-260, 70, -120), V3(240, 95, 160)], [V3(230, 60, -160), V3(-250, 80, 120)], [V3(-200, 85, 190), V3(210, 70, -150)], [V3(-150, 40, 40), V3(180, 55, 170)], [V3(160, 45, -60), V3(-170, 50, 120)], [V3(-90, 30, -40), V3(120, 36, 140)], [V3(80, 28, 190), V3(-60, 34, -60)]];
 function updateBirds(B, h, rt, dt) {
   B.U.uTime.value = rt;
-  const wet = 1 - WX.rain * .9, im = B.im;
+  const wet = 1 - WX.rain * .9, im = B.im, ck = CELU.uCel.value > .5 ? 1.45 : 1;   // in Cel the birds are drawn larger, as the dark marks they are in the films
   let vis = 0;
   for (const f of B.flocks) {
     const act = smooth(f.on[0], f.on[0] + .4, h) * (1 - smooth(f.on[1] - .4, f.on[1], h)) * wet;
@@ -173,7 +173,7 @@ function updateBirds(B, h, rt, dt) {
       for (let k = 0; k < f.n; k++) {
         const j = f.i0 + k, a = f.ph + rt * f.w;
         _bp.set(f.c.x + Math.cos(a) * f.r, f.c.y + Math.sin(rt * .05 + f.ph) * 6, f.c.z + Math.sin(a) * f.r);
-        const s = act > .02 ? B.scale[0] : 0, sg = Math.sign(f.w);
+        const s = act > .02 ? B.scale[0] * ck : 0, sg = Math.sign(f.w);
         _be.set(0, Math.atan2(-Math.sin(a) * sg, Math.cos(a) * sg), -.35 * sg); _bq.setFromEuler(_be);
         _bs.setScalar(s); _bm.compose(_bp, _bq, _bs); im.setMatrixAt(j, _bm); vis += s > 0;
       }
@@ -189,7 +189,7 @@ function updateBirds(B, h, rt, dt) {
       if (f.kind === BIRD.EGRET) { const side = k % 2 ? 1 : -1, row = (k + 1) >> 1; _bp.x += Math.cos(yaw) * side * row * 2.6 - Math.sin(yaw) * row * 2.2; _bp.z += -Math.sin(yaw) * side * row * 2.6 - Math.cos(yaw) * row * 2.2; _bp.y += Math.sin(rt * 1.3 + k) * .4; }
       else { const q = k * 2.399 + rt * (f.kind === BIRD.PARAKEET ? .9 : .4), rr = (f.kind === BIRD.PARAKEET ? 5 : 7) * Math.sqrt((k + .5) / f.n); _bp.x += Math.cos(q) * rr + Math.sin(rt * .7 + k) * 1.5; _bp.y += Math.sin(q * 1.3 + rt) * rr * .4; _bp.z += Math.sin(q) * rr; }
       _be.set(0, yaw, Math.sin(rt * .8 + k) * .12); _bq.setFromEuler(_be);
-      _bs.setScalar(B.scale[f.kind] * clamp(act * 3, 0, 1)); _bm.compose(_bp, _bq, _bs); im.setMatrixAt(j, _bm); vis++;
+      _bs.setScalar(B.scale[f.kind] * ck * clamp(act * 3, 0, 1)); _bm.compose(_bp, _bq, _bs); im.setMatrixAt(j, _bm); vis++;
     }
   }
   im.instanceMatrix.needsUpdate = true; im.visible = vis > 0;

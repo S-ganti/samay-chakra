@@ -4,7 +4,7 @@
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`;
 const SKY_FS = `
 uniform vec3 uZen,uHor,uGlow,uFog,uCloud,uSunDir,uPole,uMwN,uFogSun,uScatDir,uSunT,uCloudP,uGround;
-uniform float uSunI,uSunVis,uStars,uTrail,uMilky,uCloudAmt,uTime,uRot,uNight,uPhysW,uPhysK,uFogScat;
+uniform float uSunI,uSunVis,uStars,uTrail,uMilky,uCloudAmt,uTime,uRot,uNight,uPhysW,uPhysK,uFogScat,uCel;
 uniform sampler2D uLUT;
 varying vec3 vDir;
 float h1(float n){return fract(sin(n*127.1)*43758.5453);}
@@ -29,13 +29,24 @@ void main(){
   c += uGlow * pow(az,3.0) * exp(-abs(el)*9.0) * 0.35 * sunUp * (1.0-smoothstep(0.35,0.8,uSunDir.y));
   // physical sky (Rayleigh + Mie + ozone), blended in by the chapter's realism weight
   if (uPhysW > 0.001) c = mix(c, physMap(physSky(uLUT, d, uSunDir) * uPhysK), uPhysW);
+  // Cel: a painted-background sky, deeper and bluer toward the zenith by day (the films' blue is a colour, not just a haze)
+  if (uCel > 0.5) { float dk = smoothstep(-0.05, 0.25, uSunDir.y) * (1.0 - uNight), tz = pow(clamp(el, 0.0, 1.0), 0.55);
+    c = mix(c, c * vec3(0.78, 0.96, 1.32), tz * dk * 0.85); c = mix(vec3(dot(c, vec3(0.3333))), c, 1.0 + 0.4 * tz * dk); }
   // clouds
   if(uCloudAmt>0.005){
     vec3 cp = vec3(d.x/(el+0.16), d.z/(el+0.16), 0.0)*0.9 + vec3(uTime*0.006, uTime*0.002, uTime*0.004);
     float n = fbm3(cp*1.3);
     float cl = smoothstep(0.62-uCloudAmt*0.28, 0.95, n) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
     vec3 cc = mix(uCloud * (0.55 + 0.9*pow(sd,3.0)), uCloudP * (0.6 + 0.7*pow(sd,6.0)) * (0.8 + 0.4*n), uPhysW);
-    c = mix(c, cc, cl*0.9);
+    if (uCel > 0.5) {
+      // toon cloud: a crisp-edged body, lit on the sun side (a second sample nudged toward the sun finds the rim), a flat cool underside
+      float lo = 0.62-uCloudAmt*0.28;
+      float body = smoothstep(lo, lo+0.045, n) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
+      float n2 = fbm3((cp + vec3(uSunDir.x, uSunDir.z, 0.0) * 0.08) * 1.3);
+      float lit = smoothstep(-0.01, 0.035, n - n2);
+      vec3 cb = mix(cc * vec3(0.66,0.72,0.9), cc * 1.1, lit);
+      c = mix(c, cb, body * 0.96);
+    } else c = mix(c, cc, cl*0.9);
   }
 #ifndef ENV
   // stars + trails, in the rotating pole frame
@@ -90,7 +101,7 @@ function buildSky(scene, Q) {
   const U = {
     uZen: { value: col('#000') }, uHor: { value: col('#000') }, uGlow: { value: col('#000') }, uFog: { value: col('#000') }, uCloud: { value: col('#fff') },
     uSunDir: { value: V3(1, 0, 0) }, uPole: { value: V3(0, Math.sin(.227), -Math.cos(.227)).normalize() }, uMwN: { value: V3(.35, .6, .72).normalize() },
-    uSunI: { value: 1 }, uSunVis: { value: 1 }, uStars: { value: 0 }, uTrail: { value: 0 }, uMilky: { value: 0 }, uCloudAmt: { value: 0 }, uTime: { value: 0 }, uRot: { value: 0 }, uNight: { value: 0 },
+    uSunI: { value: 1 }, uSunVis: { value: 1 }, uStars: { value: 0 }, uTrail: { value: 0 }, uMilky: { value: 0 }, uCloudAmt: { value: 0 }, uCel: CELU.uCel, uTime: { value: 0 }, uRot: { value: 0 }, uNight: { value: 0 },
     uFogSun: { value: col('#000') }, uScatDir: { value: V3(0, 1, 0) }, uSunT: { value: col('#fff') }, uCloudP: { value: col('#fff') }, uGround: { value: col('#000') },
     uPhysW: { value: 0 }, uPhysK: { value: 1 }, uFogScat: { value: 0 }, uLUT: { value: null },
   };

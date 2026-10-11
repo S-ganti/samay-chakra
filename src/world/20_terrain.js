@@ -126,24 +126,32 @@ const GROUND = { names: ['forest_leaves_02', 'red_laterite_soil_stones', 'rock_b
 function groundLayers(m) {
   const L = new THREE.TextureLoader(); let n = 0;
   const load = (u, i, kind) => L.load(`scans/tex/${GROUND.names[i]}_${kind}.webp`, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; if (kind === 'Diffuse') t.colorSpace = THREE.SRGBColorSpace; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { GROUND.U[u].value = t; if (++n === 8) GROUND.U.uGT.value = 1; }); }, undefined, () => { });
-  for (let i = 0; i < 4; i++) { load('tG' + i, i, 'Diffuse'); load('tN' + i, i, 'nor_gl'); }
+  // a start in Cel never reads these (the style draws the ground procedurally); leaving Cel reloads the page, which then loads them
+  if (STYLE0 !== 'cel') for (let i = 0; i < 4; i++) { load('tG' + i, i, 'Diffuse'); load('tN' + i, i, 'nor_gl'); }
   const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); blank.needsUpdate = true;
   for (const k in GROUND.U) if (k !== 'uGT') GROUND.U[k].value = blank;
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, GROUND.U);
+    Object.assign(sh.uniforms, GROUND.U); sh.uniforms.uCel = CELU.uCel;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aW; attribute float aK; varying vec4 vW; varying float vK; varying vec3 vWP;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = aW; vK = aK; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uGT; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
-      vec3 gSamp(sampler2D t, vec2 p) { return mix(texture2D(t, p / 3.2).rgb, texture2D(t, p / 11.0 + .37).rgb, .38); }`)
+      uniform float uGT, uCel; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
+      vec3 gSamp(sampler2D t, vec2 p) { return mix(texture2D(t, p / 3.2).rgb, texture2D(t, p / 11.0 + .37).rgb, .38); }
+      float cH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float cN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(cH(i), cH(i + vec2(1.0, 0.0)), f.x), mix(cH(i + vec2(0.0, 1.0)), cH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-      if (uGT > 0.5) {
+      if (uCel > 0.5) {
+        // Cel: no texture reads at all. The vertex colours already carry the pigments; broad washes and a per-layer tint (leaf litter, laterite, granite, grass) do the rest
+        vec2 p = vWP.xz; float cn = cN(p / 2.8) * .55 + cN(p / 9.0 + 4.0) * .45;
+        vec3 tint = vW.x * vec3(.92, 1.0, .82) + vW.y * vec3(1.2, .9, .7) + vW.z * vec3(1.0, 1.0, 1.06) + vW.w * vec3(.95, 1.12, .7);
+        diffuseColor.rgb *= mix(tint * (.82 + .36 * cn), vec3(1.0), vK);
+      } else if (uGT > 0.5) {
         vec2 p = vWP.xz;
         vec3 alb = gSamp(tG0, p) * vW.x + gSamp(tG1, p * 1.3) * vW.y + gSamp(tG2, p * .7) * vW.z + gSamp(tG3, p) * vW.w;
         diffuseColor.rgb = mix(alb * 0.95, diffuseColor.rgb, vK);
       }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-      if (uGT > 0.5) {
+      if (uGT > 0.5 && uCel < 0.5) {
         vec2 p = vWP.xz;
         vec3 tn = (texture2D(tN0, p / 3.2).xyz * vW.x + texture2D(tN1, p * 1.3 / 3.2).xyz * vW.y + texture2D(tN2, p * .7 / 3.2).xyz * vW.z + texture2D(tN3, p / 3.2).xyz * vW.w) * 2.0 - 1.0;
         tn.xy *= 1.1 * (1.0 - vK);
@@ -222,10 +230,10 @@ function buildTerrain(scene) {
   const mMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   // the far ranges wear an aerial scan of rock and scrub, projected from above at the scale of a hillside
   const aerU = { tAer: { value: null }, uAer: { value: 0 } };
-  new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { aerU.tAer.value = t; aerU.uAer.value = 1; }); }, undefined, () => { });
-  mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, aerU);
+  if (STYLE0 !== 'cel') new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { aerU.tAer.value = t; aerU.uAer.value = 1; }); }, undefined, () => { });
+  mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, aerU); sh.uniforms.uCel = CELU.uCel;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = (modelMatrix * vec4(position, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer, uCel; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uCel > 0.5) { float sn = sin(vMP.x * .021) * sin(vMP.z * .017) * .5 + .5, sn2 = sin(vMP.x * .07 + vMP.z * .05) * .5 + .5, st = fract(vMP.y * .042 + sn * 1.4 + sn2 * .25); diffuseColor.rgb *= mix(.7, 1.25, smoothstep(.4, .6, st)) * vec3(4.2, 5.0, 6.6); } else if (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');
   };
   const mm = new THREE.Mesh(mg, mMat);
   scene.add(mm);

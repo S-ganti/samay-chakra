@@ -69,7 +69,7 @@ float windGust(vec2 p, float t){
 const TREE_U = { uFrame: { value: 0 }, uHashA: { value: 0 }, uTime: { value: 0 }, uFade: { value: new THREE.Vector2(2.5, 7.5) }, uTransl: { value: .55 }, uCard: { value: new THREE.Vector3(.3, .45, .8) }, uCardFar: { value: new THREE.Vector2(70, 110) } };
 // kept share of camera-facing cards, silhouette band, card size, and the distance over which cards melt into the core
 const TREE_CARDS = { low: [.1, .3, .65, 40, 70], med: [.25, .42, .78, 65, 105], high: [.5, .55, 1, 120, 180] };
-function treeQuality(q) { const v = TREE_CARDS[q]; TREE_U.uCard.value.set(v[0], v[1], v[2]); TREE_U.uCardFar.value.set(v[3], v[4]); TREE_U.uHashA.value = QUAL[q] && QUAL[q].taa ? 1 : 0; }
+function treeQuality(q) { const v = TREE_CARDS[q]; TREE_U.uCard.value.set(v[0], v[1], v[2]); TREE_U.uCardFar.value.set(v[3], v[4]); TREE_U.uHashA.value = QUAL[q] && QUAL[q].taa && PARAM.style !== 'cel' ? 1 : 0; }   // (Cel keeps the plain cut: its flat colour would turn the per-frame dither into speckle)
 const TREE_GLSL_V = `
 uniform float uTime; uniform vec2 uFade, uCardFar; uniform vec3 uCard; varying float vCamD;
 ${WIND_GLSL}

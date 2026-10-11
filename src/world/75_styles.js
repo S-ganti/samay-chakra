@@ -28,6 +28,7 @@ const STYLES = {
   sumi: { name: 'Sumi & Shu', blurb: 'ink wash on rice paper, one vermilion' },
   neon: { name: 'Chungking Neon', blurb: 'one colour owns the frame, step-printed' },
   paint: { name: 'Painted Light', blurb: 'brush strokes, coloured shade, light as the actor' },
+  cel: { name: 'Cel Anime', blurb: 'banded light, coloured shade, thin ink line, and a lighter load on the browser' },
 };
 // Chungking Neon: per chapter, the colour that owns the frame and the colour that answers it
 const NEON_PAIRS = [
@@ -160,6 +161,47 @@ void main(){
   gl_FragColor = vec4(mix(c, clamp(o, 0.0, 1.0), uAmt), src.a);
 }`;
 
+/* CEL ANIME. The painted-background films (Ghibli's Oga, Shinkai): light in a few soft, hand-edged bands rather than a gradient, shade that
+   stays coloured (pale blue-violet) and light that stays warm, flat colour washes, a thin line in the local colour (never black) that
+   dies away with distance. It is one cheap pass: the light is judged over a small patch (so a band is a shape, not a pixel noise), nine
+   texture reads in all. While it is on, the heavy passes underneath are off (see applyStyleProfile), which is where the saving comes from. */
+const CEL_FS = `${STYLE_HEAD}
+uniform vec3 uShade, uWarm;
+void main(){
+  vec4 src = texture2D(tDiffuse, vUv); vec3 c = src.rgb;
+  vec2 px = vUv * uRes / uScale, tx = 1.0 / uRes; float r = 1.5 * uScale;
+  vec3 tR = texture2D(tDiffuse, vUv + vec2(r, 0.0) * tx).rgb, tL = texture2D(tDiffuse, vUv - vec2(r, 0.0) * tx).rgb,
+       tU = texture2D(tDiffuse, vUv + vec2(0.0, r) * tx).rgb, tD = texture2D(tDiffuse, vUv - vec2(0.0, r) * tx).rgb;
+  float l0 = dot(c, LW), g = abs(dot(tR - tL, LW)) + abs(dot(tU - tD, LW));
+  // flat wash: texture noise settles into the field it belongs to, edges keep their sample
+  vec3 wash = (c * 2.0 + tR + tL + tU + tD) / 6.0;
+  vec3 b = mix(mix(c, wash, 0.65), c, smoothstep(0.1, 0.28, g));
+  float l = dot(wash, LW);
+  // night frames are dim: lift them so the bands still have a range
+  float lg = clamp(l * mix(2.3, 1.0, uDay), 0.0, 1.0);
+  // light in three soft-edged bands (shade, half-tone, light); the band edge is a hand-painted blend, not a hard step
+  float s1 = smoothstep(0.17, 0.25, lg), s2 = smoothstep(0.5, 0.58, lg);
+  float lq = mix(mix(0.12, 0.4, s1), 0.74, s2);
+  float k = clamp(lq / max(lg, 0.05), 0.8, 1.4);
+  vec3 o = b * mix(1.0, k, 0.75);
+  // coloured shade and warm light
+  // (tints are normalised to equal brightness: they turn the hue, they never darken it, so warm lamplight survives a cool night shade)
+  vec3 st = uShade / max(dot(uShade, LW), 0.05), wt = uWarm / max(dot(uWarm, LW), 0.05);
+  o = mix(o, o * st, (1.0 - s1) * 0.5);
+  o = mix(o, o * wt, s2 * 0.24);
+  float ol = dot(o, LW); o = mix(vec3(ol), o, mix(1.18, 1.3, uDay));
+  // line: silhouettes from depth, interior edges from value; thin, tinted, and thinner with distance (it wobbles a hair, as a pencil does)
+  float z; float edge = depthEdge(vUv + (vec2(vn(px * 0.09), vn(px * 0.09 + 17.0)) - 0.5) * 1.6 * uScale * tx, 1.0 * uScale, z);
+  // silhouettes carry further than interior lines; distant leaf edges would only scribble, so they melt into the wash
+  edge = max(edge * (1.0 - smoothstep(16.0, 80.0, z)), smoothstep(0.12, 0.28, g) * 0.5 * (1.0 - smoothstep(9.0, 42.0, z)));
+  o = mix(o, b * 0.36 * mix(vec3(1.0), uShade, 0.55), clamp(edge, 0.0, 1.0) * 0.8);
+  // sky: a little deeper than the render's
+  float sky = step(9e4, z); o = mix(o, mix(vec3(dot(o, LW)), o, 1.5), sky);
+  o += uWarm * smoothstep(0.78, 1.0, l) * 0.08;
+  vec3 kk = max(o - 0.8, 0.0); o = min(o, 0.8) + kk / (1.0 + kk / 0.2);
+  gl_FragColor = vec4(mix(c, clamp(o, 0.0, 1.0), uAmt), src.a);
+}`;
+
 class StylePass extends Pass {
   constructor(depth) {
     super(); this.needsSwap = true; this.enabled = false; this.mode = 'sumi';
@@ -169,7 +211,7 @@ class StylePass extends Pass {
       uKeyC: { value: new THREE.Color() }, uCounter: { value: new THREE.Color() }, uHal: { value: col('#ff3a1a').convertLinearToSRGB() }, uStreak: { value: col('#4a9cff').convertLinearToSRGB() }, uBars: { value: 0 },
       uShade: { value: new THREE.Color() }, uWarm: { value: new THREE.Color() },
     };
-    this.q = { sumi: fsq(U, SUMI_FS), neon: fsq(U, NEON_FS), paint: fsq(U, PAINT_FS) };
+    this.q = { sumi: fsq(U, SUMI_FS), neon: fsq(U, NEON_FS), paint: fsq(U, PAINT_FS), cel: fsq(U, CEL_FS) };
   }
   setSize(w, h) { this.u.uRes.value.set(w, h); this.u.uScale.value = Math.max(h / 1080, .5); }
   render(renderer, writeBuffer, readBuffer) {
@@ -182,7 +224,7 @@ const _stA = new THREE.Color(), _stB = new THREE.Color();
 const PAINT_SHADE_D = col('#7a86d8'), PAINT_SHADE_N = col('#4a4f9a'), PAINT_WARM_D = col('#fff0d8'), PAINT_WARM_N = col('#ffd8b0');
 function updateStyles(PP, look, w, cam, rt) {
   const P = PP.styles, on = !!STYLES[PARAM.style] && QUAL[PARAM.quality].fusion && !SAFE.post;
-  P.enabled = on; if (!on) return false;
+  P.enabled = on; CELU.uCel.value = on && PARAM.style === 'cel' ? 1 : 0; if (!on) return false;
   const U = P.u; P.mode = PARAM.style;
   const day = smooth(-.12, .06, S.sunDir.y);
   U.uDay.value = day; U.uTime.value = rt; U.uAmt.value = PARAM.grade > 0 ? 1 : 0;
@@ -195,7 +237,7 @@ function updateStyles(PP, look, w, cam, rt) {
     const asp = U.uRes.value.x / U.uRes.value.y; U.uBars.value = asp < 2.39 ? (1 - asp / 2.39) / 2 : 0;
     // step printing: every moving thing drags its last frames behind it
     PP.after.uniforms.damp.value = Math.max(PP.after.uniforms.damp.value, .62); PP.after.enabled = true;
-  } else if (P.mode === 'paint') {
+  } else if (P.mode === 'paint' || P.mode === 'cel') {
     U.uShade.value.copy(PAINT_SHADE_N).lerp(PAINT_SHADE_D, day).convertLinearToSRGB();
     U.uWarm.value.copy(PAINT_WARM_N).lerp(PAINT_WARM_D, day).convertLinearToSRGB();
   }

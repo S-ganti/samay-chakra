@@ -292,7 +292,7 @@ attribute vec4 iHair;              // hair.rgb, skirt collapse
 attribute vec4 iPat;               // pattern on the top, pattern on the bottom, pattern ink (0 accent, 1 dark, 2 light), silk / zari sheen
 flat varying vec3 vPCol;
 #ifdef CROWD_FABRIC
-flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP;
+flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP; uniform float uCel;
 #endif
 mat4 crowdBone(int row, int b){
   vec4 r0 = texelFetch(uBones, ivec2(b * 3, row), 0), r1 = texelFetch(uBones, ivec2(b * 3 + 1, row), 0), r2 = texelFetch(uBones, ivec2(b * 3 + 2, row), 0);
@@ -315,7 +315,7 @@ mat4 crowdSkin(){
   return m;
 }`;
 function crowdHook(sh, withColor) {
-  sh.uniforms.uBones = CROWD_U.uBones;
+  sh.uniforms.uBones = CROWD_U.uBones; sh.uniforms.uCel = CELU.uCel;
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + CROWD_VS_PARS)
     .replace('#include <beginnormal_vertex>', 'mat4 cSkinM = crowdSkin();\nvec3 objectNormal = normalize(mat3(cSkinM) * normal);\n#ifdef USE_TANGENT\nvec3 objectTangent = vec3( tangent.xyz );\n#endif')
     .replace('#include <begin_vertex>', `vec3 transformed = (cSkinM * vec4(mix(position, aPos2, iHair.w), 1.0)).xyz;
@@ -342,7 +342,26 @@ function crowdHook(sh, withColor) {
           sheenK = rg == 3 ? vPat.w : (rg == 1 || rg == 2) ? vPat.w * .55 : 0.0;
           if (rg == 3) pc *= 1.0 + .25 * vPat.w;           // zari: the gold thread catches more light
         }
-        diffuseColor.rgb *= pc;`)
+        diffuseColor.rgb *= pc;
+        if (uCel > .5 && vReg < .5) {
+          // Cel: a drawn face on the skin of the head: two eyes with a catch-light, a little blush, a short mouth. The head is an ellipsoid facing +z
+          // in the bind pose; the marks dissolve with distance (a face smaller than a few pixels is only noise)
+          vec3 hp = vBP - vec3(0.0, 1.675, .025);
+          if (hp.z > .0 && abs(hp.y) < .12) {
+            float fd = 1.0 - smoothstep(.004, .0085, max(fwidth(hp.x), fwidth(hp.y)));
+            vec2 e = vec2(abs(hp.x) - .036, hp.y - .014) / vec2(.0155, .0225);
+            float eye = (1.0 - smoothstep(.75, 1.0, length(e))) * smoothstep(-.005, .02, hp.z);
+            float glint = 1.0 - smoothstep(.0, .0075, length(vec2(abs(hp.x) - .0315, hp.y - .0225)));
+            float blush = (1.0 - smoothstep(.0, .02, length(vec2(abs(hp.x) - .05, hp.y + .022)))) * .35;
+            float mouth = (1.0 - smoothstep(.0012, .0028, abs(hp.y + .056 - .004 * (hp.x * hp.x) / .0002 * .1))) * (1.0 - smoothstep(.009, .015, abs(hp.x)));
+            vec3 skinC = diffuseColor.rgb;
+            vec3 f = mix(skinC, skinC * vec3(1.18, .78, .78), blush);
+            f = mix(f, vec3(.05, .035, .04), eye * .95);
+            f = mix(f, vec3(1.0), glint * eye);
+            f = mix(f, skinC * vec3(.5, .3, .3), mouth * .85);
+            diffuseColor.rgb = mix(skinC, f, fd);
+          }
+        }`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, .34, sheenK);')
       // a soft rim of sky light round each figure (the probe's own colour, so cool at night and warm by day, never a glow of its own):
       // the edge separation a painter gives a figure against the ground
@@ -354,7 +373,7 @@ function crowdHook(sh, withColor) {
 // woven and printed cloth: returns ink cover (0..1) and a value multiplier; every pattern fades to its average tone once its
 // period shrinks below a few pixels, so distant crowds don't shimmer
 const CROWD_FABRIC_FS = `
-flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP;
+flat varying vec4 vPat; flat varying vec3 vAcc; flat varying float vReg; varying vec3 vBP; uniform float uCel;
 float fbH(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float fabric(float id, vec2 p, out float val){
   val = 1.0; float per, avg, m;

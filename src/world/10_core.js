@@ -227,7 +227,8 @@ const QPICK = (() => {
 })();
 // render style: 'real' (the lit, graded render), 'fusion' (each chapter in its Fusion Series poster style), or one of the styles in
 // 75_styles.js ('sumi', 'neon', 'paint'). ?style=… in the link, else the viewer's last choice. The styled looks need Medium or High
-const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint'];
+const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint', 'cel'];
+const CELU = { uCel: { value: 0 } };   // 1 while the Cel style is on: the sky, the far ranges and the birds read it to draw themselves in its manner
 const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return STYLE_KEYS.includes(v) ? v : 'real'; })();
 const PARAM = {
   dayMinutes: 8, clock: false, playing: true,

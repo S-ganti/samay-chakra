@@ -209,8 +209,14 @@ function setPalette(k, say) {
 }
 /* ---------- render style: the realistic render, or the Fusion Series poster styles ---------- */
 function setStyle(k, say) {
-  PARAM.style = k; $('sStyle').value = k;
+  const was = PARAM.style; PARAM.style = k; $('sStyle').value = k;
   try { localStorage.setItem('samay.style', k); } catch (e) { }
+  if (was === 'cel' && k !== 'cel' && STYLE0 === 'cel') {
+    // this start kept its textures small for Cel (and skipped the ground and range photographs): the world reloads to show the other styles at full detail
+    try { sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, palette: PARAM.palette, wx: WX.mode })); const u = new URL(location.href); u.searchParams.delete('style'); toast('Reloading at full texture detail…', 2600); setTimeout(() => { try { location.replace(u.toString()); } catch (x) { } }, 700); } catch (x) { }
+    return;
+  }
+  if ((was === 'cel') !== (k === 'cel') && STYLEHOOK.fn) STYLEHOOK.fn();   // entering or leaving Cel swaps the quality profile
   if (!say) return;
   if (k !== 'real' && !QUAL[PARAM.quality].fusion) toast('Styled looks need Medium or High quality (Controls → Render quality)', 3200);
   else toast(k === 'fusion' ? 'Style: Fusion Series, each chapter in its poster’s folk × modern style' : STYLES[k] ? `Style: ${STYLES[k].name}, ${STYLES[k].blurb}` : 'Style: realistic render', 2400);

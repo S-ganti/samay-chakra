@@ -85,6 +85,8 @@ function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x +
    The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
    which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
 const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
+// a start in Cel keeps every scanned texture small: the style flattens colour into washes, so the detail would only be memory (leaving Cel reloads at full size)
+if (STYLE0 === 'cel') for (const q in TEXCAP) for (const k in TEXCAP[q]) TEXCAP[q][k] = Math.min(TEXCAP[q][k], k === 'hero' ? 768 : 512);
 function capTexture(t, cap) {
   const im = t.image;
   if (!im || !im.width || Math.max(im.width, im.height) <= cap || typeof createImageBitmap !== 'function') return Promise.resolve(t);

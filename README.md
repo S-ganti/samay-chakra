@@ -53,10 +53,11 @@ A custom domain (for example `samaychakra.art`) can be added later under **Setti
 ## Share links
 
 - `?style=fusion` opens in the **Fusion Series** style: each chapter drawn as its poster's pairing of an Indian folk tradition and a modern movement (Gond × Art Deco, Warli × Op Art, Thangka × Suprematism, Madhubani × Star Atlas, Kalighat × Pop Art, Truck Art × Swiss Style, Pattachitra × Memphis, Kolam × Generative Code): ink outlines, flat bands of the design language's named pigments, and the poster's texture in the shade. Medium and High only; also under Controls → Render style, or the **Y** key.
-- Three more render styles, each one cohesive concept (`src/world/75_styles.js`), also Medium and High only:
+- Four more render styles, each one cohesive concept (`src/world/75_styles.js`), also Medium and High only:
   - `?style=sumi`: **Sumi & Shu**, ink wash on rice paper after Hasegawa Tōhaku's *Pine Trees*, Sesshū and *Ōkami*; distance dissolves into mist, a pressure-varied brush line, and only vermilion survives (fire, lamps, sindoor), Kurosawa-style. Signed with a red hanko seal bearing the ring.
   - `?style=neon`: **Chungking Neon**, after Christopher Doyle and Wong Kar-wai, *Blade Runner 2049* and *Akira*: the chapter's colour owns the frame against one counter colour, step-printed motion smear, film halation, anamorphic streaks, 2.39:1 scope bars, heavy grain.
   - `?style=paint`: **Painted Light**, after Kazuo Oga's Ghibli backgrounds, Makoto Shinkai's light, Monet and Van Gogh, and *Arcane*: brush strokes that follow the forms, blue-violet shade instead of black, warm saturated light, thin wobbling coloured outlines, canvas weave.
+  - `?style=cel`: **Cel Anime**, the painted-background films (Oga, Shinkai): light in three soft-edged bands, shade that stays blue-violet and light that stays warm, flat colour washes, a thin tinted ink line that fades with distance, toon clouds with a sunlit rim, a deeper blue sky, drawn faces on the crowd. It is also the **light-on-the-browser** look: while it is on, the ambient-occlusion, light-shaft and depth-of-field passes are off, the shadow map is 1024 and the pixel budget is 25% smaller (the temporal pass rebuilds it); the terrain draws its ground from procedural noise (no texture reads) and the far ranges from procedural strata (`applyStyleProfile` in `src/world/99_main.js`). Starting the page in Cel (`?style=cel`, or choosing it and reloading) also skips the ground and range photographs and caps scanned textures at 512 px; choosing another style from a Cel start reloads the page at full detail.
   The **Y** key cycles through all five styles.
 - `?q=high`, `?q=med` or `?q=low` opens at that render quality, for example
   `https://YOUR-USERNAME.github.io/samay-chakra/?q=high`.
@@ -93,7 +94,7 @@ Anything declared in a lower number is visible to the higher ones.
 | `57_cull.js` | Per-frame culling and distance LOD for the scanned rocks and temple pieces (and the shadow map's share of them) |
 | `58_light.js`, `60_sky.js`, `70_post.js`, `72_palette.js` | Lighting, sky and atmosphere, post-processing, the pigment palettes |
 | `73_fusion.js` | The Fusion Series render style: per-chapter pigment ramps, ink, and poster textures (`FUSION`) |
-| `75_styles.js` | Sumi & Shu, Chungking Neon and Painted Light render styles (`STYLES`, `NEON_PAIRS`) |
+| `75_styles.js` | Sumi & Shu, Chungking Neon, Painted Light and Cel Anime render styles (`STYLES`, `NEON_PAIRS`) |
 | `74_nature.js` | Moon phase, Bengaluru weather, rain, birds, fireflies |
 | `80_audio.js`, `82_ambience.js` | Generative raga engine, the sounds of each hour |
 | `90_camera.js` | The director: shots for each chapter |

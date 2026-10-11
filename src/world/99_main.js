@@ -11,6 +11,16 @@ const QUAL = {
   med: { taa: true, sharp: .8, pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, fusion: true },
   high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, fusion: true },
 };
+// the Cel style does its own banded light, so while it is on the heavy passes underneath are switched off (ambient occlusion, light shafts,
+// depth of field), the shadow map is smaller and fewer pixels are drawn (the temporal pass rebuilds them): a lean profile over the chosen quality
+const QUAL_BASE = JSON.parse(JSON.stringify(QUAL));
+const CEL_LEAN = (b) => ({ ao: 0, shafts: false, dof: false, shadows: Math.min(b.shadows, 1024), mp: +(b.mp * .75).toFixed(2) });
+const STYLEHOOK = { fn: null };
+function applyStyleProfile() {
+  for (const k in QUAL) { const b = QUAL_BASE[k]; Object.assign(QUAL[k], b); if (PARAM.style === 'cel' && b.fusion) Object.assign(QUAL[k], CEL_LEAN(b)); }
+  // features this start must go without (see SAFE) win over everything
+  for (const k in QUAL) { const q = QUAL[k]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; }
+}
 async function boot() {
   const canvas = $('gl');
   const T0 = performance.now(), mark = (k) => diagNote('boot', `${k} +${Math.round(performance.now() - T0)} ms`);
@@ -25,7 +35,7 @@ async function boot() {
   // Leaving the page on purpose clears it
   try { localStorage.setItem('samay.boot', String(Date.now())); addEventListener('pagehide', () => { try { if (!UI.started) localStorage.removeItem('samay.boot'); } catch (x) { } }); } catch (e) { }
   // features this start must go without (from the link, or because the last start lost the graphics)
-  { const q = QUAL[PARAM.quality]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; }
+  applyStyleProfile();
   // start-up is checked stage by stage: after each heavy GPU step, wait for it to finish and see whether the graphics survived. The stage
   // that did not is named in the log, and the next start goes without the likely culprit (shadows first), then at Low, instead of failing again
   const gl0 = renderer.getContext(), syncPx = new Uint8Array(4);
@@ -102,6 +112,7 @@ async function boot() {
     ctx.resize();
   };
   addEventListener('resize', ctx.resize); ctx.resize(); treeQuality(PARAM.quality);
+  STYLEHOOK.fn = () => { applyStyleProfile(); ctx.applyQuality(); try { LI.env.update(true); } catch (e) { } };   // a change of render style re-reads the profile
   setupDial(); setupControls(ctx);
   // warm-up: compile every material, upload every texture and build the post chain while the loading screen is up,
   // so no chapter stalls the first time it appears
@@ -344,7 +355,7 @@ async function boot() {
       const TQ = QUAL[PARAM.quality], st = PARAM.style;
       PP.sp.needDepth = true;
       PP.taa.O.uGrain.value = PP.grade.uniforms.uGrain.value + (st === 'neon' ? .05 : 0); PP.grade.uniforms.uGrain.value = 0;
-      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : 0;
+      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : st === 'cel' ? .2 : 0;
       PP.taa.O.uSharp.value = TQ.sharp || .5; PP.taa.O.uTime.value = rt;
       if (CAM.snapped) PP.taa.reset = true;
     }
