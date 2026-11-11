@@ -135,11 +135,17 @@ function groundLayers(m) {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = aW; vK = aK; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
       uniform float uGT; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
-      vec3 gSamp(sampler2D t, vec2 p) { return mix(texture2D(t, p / 3.2).rgb, texture2D(t, p / 11.0 + .37).rgb, .38); }`)
+      // two scales, the second turned 37 degrees so the two grids never line up into stripes
+      vec3 gSamp(sampler2D t, vec2 p) { vec2 q = vec2(p.x * .7986 - p.y * .6018, p.x * .6018 + p.y * .7986); return mix(texture2D(t, p / 3.2).rgb, texture2D(t, q / 13.7 + .37).rgb, .45); }
+      float gH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float gN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(gH(i), gH(i + vec2(1.0, 0.0)), f.x), mix(gH(i + vec2(0.0, 1.0)), gH(i + vec2(1.0, 1.0)), f.x), f.y); }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       if (uGT > 0.5) {
         vec2 p = vWP.xz;
         vec3 alb = gSamp(tG0, p) * vW.x + gSamp(tG1, p * 1.3) * vW.y + gSamp(tG2, p * .7) * vW.z + gSamp(tG3, p) * vW.w;
+        // broad patches of lighter and darker, drier and greener ground (tens of metres across): no texture repeats at that scale
+        float gm = gN(p / 17.0) * .6 + gN(p / 53.0 + 3.0) * .4;
+        alb *= mix(vec3(.74, .76, .7), vec3(1.2, 1.15, 1.02), gm);
         diffuseColor.rgb = mix(alb * 0.95, diffuseColor.rgb, vK);
       }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -152,6 +158,13 @@ function groundLayers(m) {
         normal = normalize(normal + (vn - (viewMatrix * vec4(0., 1., 0., 0.)).xyz));
       }`);
   };
+}
+// height of the far-mountain ring at (x, z) (the same formula its mesh is built from), for seating scanned rock on it
+function ringY(x, z) {
+  const r = Math.hypot(x, z), a = Math.atan2(z, x), jn = Math.pow(clamp((r - 225) / 415, 0, 1), 1 / 1.3);
+  const peak = fbm(Math.cos(a) * 2.2 + 11, Math.sin(a) * 2.2 + r * .004, 5);
+  const envl = smooth(0, .25, jn) * (1 - smooth(.85, 1, jn) * .4) * (1 - .82 * smooth(.62, .95, Math.cos(a)));
+  return terrainRaw(x, z) + envl * (20 + 150 * Math.pow(peak, 2.2));
 }
 function buildTerrain(scene) {
   const g = new THREE.PlaneGeometry(TER.size, TER.size, TER.seg, TER.seg);
@@ -201,7 +214,7 @@ function buildTerrain(scene) {
   // far mountains: a ring beyond the terrain square
   const rings = 22, segs = 180, r0 = 225, r1 = 640;
   const mg = new THREE.BufferGeometry(), mp = [], mc = [], mi = [];
-  const cM1 = col('#3a3a2c'), cM2 = col('#5a5650'), cSnow = col('#9a968e');
+  const cM1 = col('#6a5f4a'), cM2 = col('#8a7c68'), cSnow = col('#a89e90');   // weathered granite and dry scrub, not a dark silhouette
   for (let j = 0; j <= rings; j++) for (let i = 0; i <= segs; i++) {
     const a = i / segs * TAU, r = lerp(r0, r1, Math.pow(j / rings, 1.3));
     const x = Math.cos(a) * r, z = Math.sin(a) * r;

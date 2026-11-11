@@ -84,7 +84,7 @@ function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x +
 /* ---------- texture memory: a decoded map costs width x height x 4 bytes (+1/3 for mips) of GPU memory ----------
    The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
    which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
-const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
+const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 2048, scan: 1024, hero: 2048, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
 function capTexture(t, cap) {
   const im = t.image;
   if (!im || !im.width || Math.max(im.width, im.height) <= cap || typeof createImageBitmap !== 'function') return Promise.resolve(t);
@@ -140,6 +140,15 @@ async function loadScans(scene, Q, renderer, FO, ST) {
     T[pick(domes)].push([x, y - s * .3, z, s, r() * TAU, s * (.7 + r() * .4), .05]);
   }
   for (const d of domes) add('lod', d, T[d], { tint: GRANITE });
+
+  // 1a — the far ranges wear real rock: the scanned mountainside (a tall weathered face), 90 to 170 m across, set into the ring's slopes
+  if (A.lod.mountainside) { const M = [], sz = A.lod.mountainside.size, nM = PARAM.quality === 'low' ? 8 : PARAM.quality === 'med' ? 16 : 24;
+    for (let i = 0; i < nM; i++) {
+      const a = (i / nM) * TAU + (r() - .5) * .2; if (Math.cos(a) > .68) continue;
+      const d = 262 + r() * 130, x = Math.cos(a) * d, z = Math.sin(a) * d, s = (90 + r() * 80) / Math.max(sz.x, sz.z);
+      M.push([x, ringY(x, z) - sz.y * s * .28, z, s, Math.atan2(-x, -z) + (r() - .5) * .7, s * (1 + r() * .35), .03]);
+    }
+    add('lod', 'mountainside', M, { tint: GRANITE }); }
 
   // 1b — the foot of the far ranges: scanned cliff ledges (Poly Haven, CC0), 35 to 70 m across, sunk into the ground where the plain
   // meets the mountains, so the ranges rise out of real rock. (They are wide ledges, not tall faces: on the skyline they read as slabs.)

@@ -127,7 +127,9 @@ THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
     float fRel = min(fI / max(fL, 1e-4), hfQ.y);          // mean density along the ray vs the base altitude (capped)
     float fD = max(fL - hfQ.x, 0.0);                        // a clear zone in front of the camera
     #ifdef FOG_EXP2
-      float fOD = pow(fogDensity * fRel * fD, 2.0) + hfP.z * fD;
+      // ground haze (soft in height: the 1.5 power has no hard top, where the square had one) + aerial perspective: beyond ~90 m the air itself
+      // takes everything toward the horizon's colour, whatever its height, so far ranges sit in the sky instead of standing in front of it
+      float fOD = pow(fogDensity * fRel * fD, 1.5) * .5 + hfP.z * fD + hfQ.z * max(fL - 90.0, 0.0);
     #else
       float fOD = hfP.z * fD;
     #endif

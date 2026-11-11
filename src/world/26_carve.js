@@ -587,7 +587,7 @@ const CARVE = { list: [], by: {}, ms: 0, pending: 0, wall: 0, done: null };
 function _dtex(d, w, h, srgb, ty) {
   const t = new THREE.DataTexture(d, w, h, THREE.RGBAFormat);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = ty ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
-  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = 8; t.needsUpdate = true;
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = 16; t.needsUpdate = true;
   return t;
 }
 const SHEET_ASPECT = { konark: 1, strip: .25, frieze: .25, panels: .7, band: .125, spoke: 2, medallion: 1, wall: .7, ashlar: 1, eclipse: .25, marble: .25 };
@@ -686,7 +686,7 @@ function stoneSet(kind) {
   const set = { tD: { value: null }, tN: { value: null }, tA: { value: null }, uOn: { value: 0 }, uMean: { value: new THREE.Vector3(.5, .5, .5) } };
   STONE.sets[id] = set; const L = new THREE.TextureLoader(); let n = 0;
   const done = () => { if (++n === 3) set.uOn.value = 1; };
-  const ld = (k, u, srgb) => L.load(`scans/${id}_${k}.webp`, (t0) => capTexture(t0, TEXCAP[PARAM.quality].stone).then((t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; if (srgb) { t.colorSpace = THREE.SRGBColorSpace;
+  const ld = (k, u, srgb) => L.load(`scans/${id}_${k}.webp`, (t0) => capTexture(t0, TEXCAP[PARAM.quality].stone).then((t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 16; if (srgb) { t.colorSpace = THREE.SRGBColorSpace;
     try { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); g.drawImage(t.image, 0, 0, 16, 16); const d = g.getImageData(0, 0, 16, 16).data; let r = 0, gg = 0, b = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; } const k2 = 1 / (255 * 256); set.uMean.value.set(Math.pow(r * k2, 2.2), Math.pow(gg * k2, 2.2), Math.pow(b * k2, 2.2)); } catch (e) { } }
     set[u].value = t; done(); }), undefined, () => { });
   ld('Diffuse', 'tD', true); ld('nor_gl', 'tN', false); if (id.startsWith('tex/')) { set.tA.value = _flatARM(); done(); } else ld('arm', 'tA', false);

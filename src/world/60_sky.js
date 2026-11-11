@@ -35,7 +35,13 @@ void main(){
     float n = fbm3(cp*1.3);
     float cl = smoothstep(0.62-uCloudAmt*0.28, 0.95, n) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
     vec3 cc = mix(uCloud * (0.55 + 0.9*pow(sd,3.0)), uCloudP * (0.6 + 0.7*pow(sd,6.0)) * (0.8 + 0.4*n), uPhysW);
-    c = mix(c, cc, cl*0.9);
+    // cumulus with form: a second, finer field breaks the edge into billows; a sample nudged toward the sun finds each billow's lit side,
+    // and the far side and the base fall into the sky's own shade (so the clouds are lit by this sky, at any hour)
+    float nd = fbm3(cp*4.1 + 7.0), lo = 0.62-uCloudAmt*0.28;
+    cl = smoothstep(lo, lo + 0.16, n + (nd - 0.5) * 0.22) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
+    float lit = smoothstep(-0.03, 0.07, n - fbm3((cp + vec3(uSunDir.x, uSunDir.z, 0.0) * 0.12) * 1.3));
+    vec3 shadeC = mix(cc * 0.5, c, 0.35);
+    c = mix(c, mix(shadeC, cc * 1.08, clamp(lit * 0.75 + smoothstep(lo, 1.0, n) * 0.4, 0.0, 1.0)), cl*0.93);
   }
 #ifndef ENV
   // stars + trails, in the rotating pole frame
@@ -230,7 +236,7 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   SK.fog.color.copy(look.fog); if (physW > .001) SK.fog.color.lerp(_pc2, physW * .3);
   SK.fog.density = look.fogD * fogK;
   HFOG.hfP.value.set(1 / look.fogH, look.fogY, look.fogD * .06 * fogK, 0);
-  HFOG.hfQ.value.x = look.fogS;
+  HFOG.hfQ.value.x = look.fogS; HFOG.hfQ.value.z = (.0011 + look.fogD * .09) * fogK;   // aerial perspective: ~35% at 400 m on a clear day, more in haze
   const scatVis = dayF > .5 ? smooth(-.1, .04, S.sunDir.y) : .55 * smooth(-.05, .1, S.moonDir.y);
   HFOG.hfSunCol.value.copy(look.skyGlow).multiplyScalar(1.1); if (physW > .001) HFOG.hfSunCol.value.lerp(_pc1, physW);
   HFOG.hfP.value.w = clamp(lerp(look.scat, .9, physW) * scatVis, 0, 1);
