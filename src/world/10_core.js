@@ -178,7 +178,7 @@ function blendLook(w) {
   if (b < 0) b = a;
   // when the pair wraps (7 then 0) keep order irrelevant: weights carry it
   const wa = w[a], wb = a === b ? 0 : w[b];
-  const LC = JRN.on ? JLOOKC : LOOKC, A = LC[a], B = LC[b];
+  const A = LOOKC[a], B = LOOKC[b];
   for (const k of LOOK_KEYS) {
     const va = A[k], vb = B[k];
     if (va.isColor) LOOK[k].copy(va).multiplyScalar(wa).add(_tmpC.copy(vb).multiplyScalar(wb));
@@ -227,8 +227,7 @@ const QPICK = (() => {
 })();
 // render style: 'real' (the lit, graded render), 'fusion' (each chapter in its Fusion Series poster style), or one of the styles in
 // 75_styles.js ('sumi', 'neon', 'paint'). ?style=… in the link, else the viewer's last choice. The styled looks need Medium or High
-const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint', 'cel', 'journey'];
-const JRN = { on: false, n: 10, first: 25 };   // on while the Journey style is (see 76_journey.js): dunes for ground, the festival out of view, a few travellers
+const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint', 'cel'];
 const CELU = { uCel: { value: 0 } };   // 1 while the Cel style is on: the sky, the far ranges and the birds read it to draw themselves in its manner
 const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return STYLE_KEYS.includes(v) ? v : 'real'; })();
 const PARAM = {

@@ -28,7 +28,6 @@ const STYLES = {
   sumi: { name: 'Sumi & Shu', blurb: 'ink wash on rice paper, one vermilion' },
   neon: { name: 'Chungking Neon', blurb: 'one colour owns the frame, step-printed' },
   paint: { name: 'Painted Light', blurb: 'brush strokes, coloured shade, light as the actor' },
-  journey: { name: 'Journey', blurb: 'dunes to the horizon, a mountain with a light, the ruins alone' },
   cel: { name: 'Cel Anime', blurb: 'banded light, coloured shade, thin ink line, and a lighter load on the browser' },
 };
 // Chungking Neon: per chapter, the colour that owns the frame and the colour that answers it
@@ -176,7 +175,7 @@ void main(){
   float l0 = dot(c, LW), g = abs(dot(tR - tL, LW)) + abs(dot(tU - tD, LW));
   // flat wash: texture noise settles into the field it belongs to, edges keep their sample
   vec3 wash = (c * 2.0 + tR + tL + tU + tD) / 6.0;
-  vec3 b = mix(mix(c, wash, 0.3), c, smoothstep(0.1, 0.28, g));          // (most of the texture stays: it is what makes a surface look made of something)
+  vec3 b = mix(mix(c, wash, 0.65), c, smoothstep(0.1, 0.28, g));
   float l = dot(wash, LW);
   // night frames are dim: lift them so the bands still have a range
   float lg = clamp(l * mix(2.3, 1.0, uDay), 0.0, 1.0);
@@ -192,10 +191,10 @@ void main(){
   o = mix(o, o * wt, s2 * 0.24);
   float ol = dot(o, LW); o = mix(vec3(ol), o, mix(1.18, 1.3, uDay));
   // line: silhouettes from depth, interior edges from value; thin, tinted, and thinner with distance (it wobbles a hair, as a pencil does)
-  float z; float edge = depthEdge(vUv + (vec2(vn(px * 0.09), vn(px * 0.09 + 17.0)) - 0.5) * 1.2 * uScale * tx, 1.5 * uScale, z);
-  // the line is a soft, shadow-coloured accent, not a drawn contour: wide, faint, a deep tint of the surface itself, gone with distance
-  edge = max(edge * (1.0 - smoothstep(14.0, 70.0, z)), smoothstep(0.14, 0.34, g) * 0.3 * (1.0 - smoothstep(8.0, 36.0, z)));
-  o = mix(o, b * 0.62 * mix(vec3(1.0), uShade, 0.4), smoothstep(0.0, 1.0, clamp(edge, 0.0, 1.0)) * 0.42);
+  float z; float edge = depthEdge(vUv + (vec2(vn(px * 0.09), vn(px * 0.09 + 17.0)) - 0.5) * 1.6 * uScale * tx, 1.0 * uScale, z);
+  // silhouettes carry further than interior lines; distant leaf edges would only scribble, so they melt into the wash
+  edge = max(edge * (1.0 - smoothstep(16.0, 80.0, z)), smoothstep(0.12, 0.28, g) * 0.5 * (1.0 - smoothstep(9.0, 42.0, z)));
+  o = mix(o, b * 0.36 * mix(vec3(1.0), uShade, 0.55), clamp(edge, 0.0, 1.0) * 0.8);
   // sky: a little deeper than the render's
   float sky = step(9e4, z); o = mix(o, mix(vec3(dot(o, LW)), o, 1.5), sky);
   o += uWarm * smoothstep(0.78, 1.0, l) * 0.08;
@@ -212,7 +211,7 @@ class StylePass extends Pass {
       uKeyC: { value: new THREE.Color() }, uCounter: { value: new THREE.Color() }, uHal: { value: col('#ff3a1a').convertLinearToSRGB() }, uStreak: { value: col('#4a9cff').convertLinearToSRGB() }, uBars: { value: 0 },
       uShade: { value: new THREE.Color() }, uWarm: { value: new THREE.Color() },
     };
-    this.q = { sumi: fsq(U, SUMI_FS), neon: fsq(U, NEON_FS), paint: fsq(U, PAINT_FS), cel: fsq(U, CEL_FS), journey: fsq(U, JOURNEY_FS) };
+    this.q = { sumi: fsq(U, SUMI_FS), neon: fsq(U, NEON_FS), paint: fsq(U, PAINT_FS), cel: fsq(U, CEL_FS) };
   }
   setSize(w, h) { this.u.uRes.value.set(w, h); this.u.uScale.value = Math.max(h / 1080, .5); }
   render(renderer, writeBuffer, readBuffer) {
@@ -238,8 +237,6 @@ function updateStyles(PP, look, w, cam, rt) {
     const asp = U.uRes.value.x / U.uRes.value.y; U.uBars.value = asp < 2.39 ? (1 - asp / 2.39) / 2 : 0;
     // step printing: every moving thing drags its last frames behind it
     PP.after.uniforms.damp.value = Math.max(PP.after.uniforms.damp.value, .62); PP.after.enabled = true;
-  } else if (P.mode === 'journey') {
-    U.uShade.value.copy(look.shade).convertLinearToSRGB(); U.uWarm.value.copy(look.hilite).convertLinearToSRGB();
   } else if (P.mode === 'paint' || P.mode === 'cel') {
     U.uShade.value.copy(PAINT_SHADE_N).lerp(PAINT_SHADE_D, day).convertLinearToSRGB();
     U.uWarm.value.copy(PAINT_WARM_N).lerp(PAINT_WARM_D, day).convertLinearToSRGB();

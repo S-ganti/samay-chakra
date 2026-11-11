@@ -4,7 +4,7 @@
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`;
 const SKY_FS = `
 uniform vec3 uZen,uHor,uGlow,uFog,uCloud,uSunDir,uPole,uMwN,uFogSun,uScatDir,uSunT,uCloudP,uGround;
-uniform float uSunI,uSunVis,uStars,uTrail,uMilky,uCloudAmt,uTime,uRot,uNight,uPhysW,uPhysK,uFogScat,uCel,uJ; uniform vec3 uMid, uCloudB;
+uniform float uSunI,uSunVis,uStars,uTrail,uMilky,uCloudAmt,uTime,uRot,uNight,uPhysW,uPhysK,uFogScat,uCel;
 uniform sampler2D uLUT;
 varying vec3 vDir;
 float h1(float n){return fract(sin(n*127.1)*43758.5453);}
@@ -22,7 +22,6 @@ void main(){
   // poster sky: two-colour gradient, sun glow, horizon warmth on the sun side
   float t = pow(clamp(el,0.0,1.0), 0.42);
   vec3 c = mix(uHor, uZen, t);
-  if (uJ > 0.5) c = mix(mix(uHor, uMid, smoothstep(0.0, 0.55, t)), uZen, smoothstep(0.4, 1.0, t));   // Journey: the gradient passes through a hue, not through grey
   float sd = max(dot(d,uSunDir),0.0);
   float sunUp = smoothstep(-0.3, 0.05, uSunDir.y);
   c += uGlow * (pow(sd,5.0)*0.45 + pow(sd,48.0)*0.8) * sunUp * clamp(uSunI*0.28,0.0,0.85);
@@ -39,14 +38,7 @@ void main(){
     float n = fbm3(cp*1.3);
     float cl = smoothstep(0.62-uCloudAmt*0.28, 0.95, n) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
     vec3 cc = mix(uCloud * (0.55 + 0.9*pow(sd,3.0)), uCloudP * (0.6 + 0.7*pow(sd,6.0)) * (0.8 + 0.4*n), uPhysW);
-    if (uJ > 0.5) {
-      // Journey (after Maggiori's skies): layered cumulus mapped on the dome, lit on the sun side, violet underneath, cauliflower edges
-      vec3 jp = vec3(d.x, d.y * 2.2 + .15, d.z) * 2.6 + vec3(uTime * 0.004, uTime * 0.0015, uTime * 0.003);
-      float jn = fbm3(jp), jn2 = fbm3(jp + vec3(uSunDir.x, uSunDir.y * 2.2, uSunDir.z) * .22), jd = fbm3(jp * 3.1 + 7.0), jlo = .6 - uCloudAmt * .32;
-      float jb = smoothstep(jlo, jlo + .07, jn + (jd - .5) * .2) * smoothstep(0.0, .06, el) * (1.0 - smoothstep(.62, .95, el));
-      vec3 jc = mix(uCloudB, uCloud * (0.9 + 0.5 * pow(sd, 3.0)), clamp(smoothstep(-.02, .06, jn - jn2) * .6 + smoothstep(jlo, 1.0, jn) * .55 + (jd - .5) * .3, 0.0, 1.0));
-      c = mix(c, jc, jb * .97);
-    } else if (uCel > 0.5) {
+    if (uCel > 0.5) {
       // toon cloud: a crisp-edged body, lit on the sun side (a second sample nudged toward the sun finds the rim), a flat cool underside
       float lo = 0.62-uCloudAmt*0.28;
       float body = smoothstep(lo, lo+0.045, n) * smoothstep(0.0,0.06,el) * (1.0-smoothstep(0.3,0.75,el));
@@ -109,7 +101,7 @@ function buildSky(scene, Q) {
   const U = {
     uZen: { value: col('#000') }, uHor: { value: col('#000') }, uGlow: { value: col('#000') }, uFog: { value: col('#000') }, uCloud: { value: col('#fff') },
     uSunDir: { value: V3(1, 0, 0) }, uPole: { value: V3(0, Math.sin(.227), -Math.cos(.227)).normalize() }, uMwN: { value: V3(.35, .6, .72).normalize() },
-    uSunI: { value: 1 }, uSunVis: { value: 1 }, uStars: { value: 0 }, uTrail: { value: 0 }, uMilky: { value: 0 }, uCloudAmt: { value: 0 }, uCel: CELU.uCel, uJ: JSKY.uJ, uMid: JSKY.uMid, uCloudB: JSKY.uCloudB, uTime: { value: 0 }, uRot: { value: 0 }, uNight: { value: 0 },
+    uSunI: { value: 1 }, uSunVis: { value: 1 }, uStars: { value: 0 }, uTrail: { value: 0 }, uMilky: { value: 0 }, uCloudAmt: { value: 0 }, uCel: CELU.uCel, uTime: { value: 0 }, uRot: { value: 0 }, uNight: { value: 0 },
     uFogSun: { value: col('#000') }, uScatDir: { value: V3(0, 1, 0) }, uSunT: { value: col('#fff') }, uCloudP: { value: col('#fff') }, uGround: { value: col('#000') },
     uPhysW: { value: 0 }, uPhysK: { value: 1 }, uFogScat: { value: 0 }, uLUT: { value: null },
   };
@@ -133,9 +125,9 @@ function buildSky(scene, Q) {
   key.castShadow = Q.shadows > 0;
   if (Q.shadows) { key.shadow.mapSize.set(Q.shadows, Q.shadows); const sc = key.shadow.camera; sc.left = sc.bottom = -75; sc.right = sc.top = 75; sc.near = 1; sc.far = 400; key.shadow.bias = -.0006; key.shadow.normalBias = .6; }
   scene.add(key, key.target);
-  const stageLight = new THREE.PointLight('#ff3a20', 0, 70, 1.4); stageLight.position.set(0, HP + 7, 0); stageLight.userData.j = 'hide'; scene.add(stageLight);
-  const ridgeLight = new THREE.PointLight('#ff2d95', 0, 60, 1.4); ridgeLight.position.set(GEO.R.x, RH + 6, GEO.R.z); ridgeLight.userData.j = 'hide'; scene.add(ridgeLight);
-  const synthLight = new THREE.PointLight('#ffb070', 0, 18, 1.6); synthLight.position.set(GEO.SYNTH.x, groundY(GEO.SYNTH.x, GEO.SYNTH.z) + 2.2, GEO.SYNTH.z + .6); synthLight.userData.j = 'hide'; scene.add(synthLight);
+  const stageLight = new THREE.PointLight('#ff3a20', 0, 70, 1.4); stageLight.position.set(0, HP + 7, 0); scene.add(stageLight);
+  const ridgeLight = new THREE.PointLight('#ff2d95', 0, 60, 1.4); ridgeLight.position.set(GEO.R.x, RH + 6, GEO.R.z); scene.add(ridgeLight);
+  const synthLight = new THREE.PointLight('#ffb070', 0, 18, 1.6); synthLight.position.set(GEO.SYNTH.x, groundY(GEO.SYNTH.x, GEO.SYNTH.z) + 2.2, GEO.SYNTH.z + .6); scene.add(synthLight);
   const fog = new THREE.FogExp2('#000000', .01); scene.fog = fog;
 
   /* ---------- particles ---------- */
@@ -143,7 +135,7 @@ function buildSky(scene, Q) {
     const g = new THREE.BufferGeometry(); const P = new Float32Array(n * 3), A = new Float32Array(n * 4); fill(P, A);
     g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aR', new THREE.BufferAttribute(A, 4));
     const m = new THREE.ShaderMaterial({ uniforms, vertexShader: vs, fragmentShader: fs, transparent: true, depthWrite: false, blending });
-    const p = new THREE.Points(g, m); p.frustumCulled = false; if (n !== 1200) p.userData.j = 'hide'; scene.add(p); return p;   // (1200 is the dust; embers and petals are festival)
+    const p = new THREE.Points(g, m); p.frustumCulled = false; scene.add(p); return p;
   };
   const rr = rng(4242);
   // embers / fireflies around the clearing, steps and gate
@@ -253,7 +245,7 @@ function buildSky(scene, Q) {
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
-  const trails = new THREE.Mesh(tg, trailMat); trails.frustumCulled = false; trails.renderOrder = 4; trails.userData.j = 'hide'; scene.add(trails);
+  const trails = new THREE.Mesh(tg, trailMat); trails.frustumCulled = false; trails.renderOrder = 4; scene.add(trails);
   return { U, sky, moon, moonGlow, flare, hemi, key, stageLight, ridgeLight, synthLight, fog, emberU, petalU, dustU, mistU, mist, trails, trailU };
 }
 
@@ -286,8 +278,6 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   S.keyDir.copy(S.moonDir).lerp(S.sunDir, dayF);
   if (S.keyDir.y < .15) S.keyDir.y = .15 + (S.keyDir.y - .15) * .2;
   S.keyDir.normalize();
-  // Journey: the light never stands overhead (the dunes would go flat); it stays low enough to rake the sand
-  if (JRN.on && S.keyDir.y > .6) { const k = Math.sqrt(.64 / Math.max(1 - S.keyDir.y * S.keyDir.y, 1e-4)); S.keyDir.x *= k; S.keyDir.z *= k; S.keyDir.y = .6; }
   // realism: how much of the physical sky / sun colour to use (fades out below the horizon, where the posters rule)
   const physW = clamp(look.phys * PARAM.real, 0, 1) * smooth(-.24, -.07, S.sunDir.y);
   S.physW = physW;

@@ -152,7 +152,6 @@ function cullFrame(cam, key, pxH = 1080) {
     if (!CULL.dirty) return; CULL.dirty = false;
     for (const it of CULL.items) {
       it.counts.fill(0); it.shCounts.fill(0);
-      if (it.off) { cullPublish(it); continue; }
       if (CULL.warm) {
         // warm-up: one instance on every mesh and level is enough to compile its programs and upload its buffers and textures. Drawing
         // the whole map at full detail in one frame was ~10 M triangles on High: long enough to make a slower GPU reset
@@ -178,7 +177,6 @@ function cullFrame(cam, key, pxH = 1080) {
   let tris = 0, shTris = 0, seen = 0, drawn = 0;
   for (const it of CULL.items) {
     const { px, py, pz, rr, sm, errs, counts, shCounts, tris: lt } = it, nl = it.levels.length, doSh = shOn && it.cast; counts.fill(0); shCounts.fill(0);
-    if (it.off) { cullPublish(it); continue; }          // switched off (Journey keeps only its ruins)
     for (let i = 0; i < it.N; i++) {
       const x = px[i], y = py[i], z = pz[i], r = rr[i];
       const dx0 = x - cx, dy0 = y - cy, dz0 = z - cz, d2 = dx0 * dx0 + dy0 * dy0 + dz0 * dz0, rk = r * kPx;

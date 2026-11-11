@@ -91,8 +91,8 @@ function buildCity(scene, Q) {
   // the great wheel, carved (the sheet is cut by the carving workers)
   const wheelMat = CARVE.by.konark ? carvedMaterial(CARVE.by.konark) : new THREE.MeshStandardMaterial({ map: toTex(texKonark(Q.tex * 2)), roughness: .9 });
   out.wheelMat = wheelMat;
-  jt(flat(new THREE.CircleGeometry(17, 160), wheelMat, P.x, P.z, .08), 'keep');
-  const rim = new THREE.Mesh(torusFriezeUV(new THREE.TorusGeometry(17, .32, 10, 220), 10), CARVE.by.band ? carvedMaterial(CARVE.by.band) : new THREE.MeshStandardMaterial({ color: '#cdb892', roughness: .9 })); rim.rotation.x = Math.PI / 2; rim.position.set(P.x, .12, P.z); rim.userData.j = 'keep'; scene.add(rim);
+  flat(new THREE.CircleGeometry(17, 160), wheelMat, P.x, P.z, .08);
+  const rim = new THREE.Mesh(torusFriezeUV(new THREE.TorusGeometry(17, .32, 10, 220), 10), CARVE.by.band ? carvedMaterial(CARVE.by.band) : new THREE.MeshStandardMaterial({ color: '#cdb892', roughness: .9 })); rim.rotation.x = Math.PI / 2; rim.position.set(P.x, .12, P.z); scene.add(rim);
   flat(new THREE.RingGeometry(17, 25, 160, 1), paving, P.x, P.z, .05);
   flat(new THREE.RingGeometry(25, 33, 160, 1), asphalt, P.x, P.z, .03);
   // roads
@@ -115,7 +115,7 @@ function buildCity(scene, Q) {
   const cyl = (r0, r1, h, y) => { const g = new THREE.CylinderGeometry(r0, r1, h, 28); g.translate(0, y + h / 2, 0); pil.push(g); return y + h; };
   let yy = .1; yy = cyl(3.2, 3.4, .5, yy); yy = cyl(2.4, 2.6, .5, yy); yy = cyl(1.3, 1.5, .8, yy); yy = cyl(.55, .62, 6.8, yy); yy = cyl(.9, .7, .6, yy);
   const ringTop = new THREE.TorusGeometry(1.55, .2, 10, 48); ringTop.translate(0, yy + 1.6, 0); pil.push(ringTop);
-  const pillar = new THREE.Mesh(mergeGeometries(pil), CARVE.by.spoke ? carvedMaterial(CARVE.by.spoke) : new THREE.MeshStandardMaterial({ color: '#b9ae98', roughness: .85 })); pillar.position.set(P.x, 0, P.z); pillar.castShadow = true; pillar.userData.j = 'keep'; scene.add(pillar);
+  const pillar = new THREE.Mesh(mergeGeometries(pil), CARVE.by.spoke ? carvedMaterial(CARVE.by.spoke) : new THREE.MeshStandardMaterial({ color: '#b9ae98', roughness: .85 })); pillar.position.set(P.x, 0, P.z); pillar.castShadow = true; scene.add(pillar);
   const redDots = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .22, .06, 16), new THREE.MeshStandardMaterial({ color: '#b3261e', roughness: .7 }), 8);
   for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; _p.set(P.x + Math.cos(a) * 3.3, .38, P.z + Math.sin(a) * 3.3); _q.setFromAxisAngle(V3(Math.cos(a), 0, Math.sin(a)).cross(V3(0, 1, 0)).normalize(), -Math.PI / 2); setIM(redDots, i, _p, _q, _s); }
   scene.add(redDots);
