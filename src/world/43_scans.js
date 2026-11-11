@@ -85,8 +85,6 @@ function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x +
    The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
    which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
 const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
-// a start in Cel keeps every scanned texture small: the style flattens colour into washes, so the detail would only be memory (leaving Cel reloads at full size)
-if (STYLE0 === 'cel') for (const q in TEXCAP) for (const k in TEXCAP[q]) TEXCAP[q][k] = Math.min(TEXCAP[q][k], k === 'hero' ? 768 : 512);
 function capTexture(t, cap) {
   const im = t.image;
   if (!im || !im.width || Math.max(im.width, im.height) <= cap || typeof createImageBitmap !== 'function') return Promise.resolve(t);
@@ -109,7 +107,7 @@ function capGltfTextures(root, cap) {
 async function loadScans(scene, Q, renderer, FO, ST) {
   const N = SCAN_Q[PARAM.quality] || SCAN_Q.med;
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
+  const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'coastal_cliff_01', 'coastal_cliff_02', 'coastal_cliff_04', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
     full: N.hero ? ['namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_cliff_01', 'rock_face_01', 'tree_stump_01', 'dead_tree_trunk_02', 'stone_fire_pit'] : [] };   // the moss beds (60k triangles each) stay at their LOD
   want.full.push('jacaranda_tree', 'island_tree_02'); if (N.trees) want.full.push('searsia_lucida');   // the two trees also become the forest's impostors
   SCAN.total = want.lod.length + want.full.length;
@@ -142,6 +140,18 @@ async function loadScans(scene, Q, renderer, FO, ST) {
     T[pick(domes)].push([x, y - s * .3, z, s, r() * TAU, s * (.7 + r() * .4), .05]);
   }
   for (const d of domes) add('lod', d, T[d], { tint: GRANITE });
+
+  // 1b — the far ranges: scanned cliff faces (Poly Haven, CC0) set into the mountain ring, 60 to 130 m across, so the skyline is real
+  // rock with real strata instead of a smooth procedural ridge. Each faces the middle of the map; the east stays open for sunrise
+  { const big = ['coastal_cliff_01', 'coastal_cliff_02', 'coastal_cliff_04'].filter(id => A.lod[id]), B = {}; big.forEach(b => B[b] = []);
+    const nB = PARAM.quality === 'low' ? 10 : 22;
+    for (let i = 0; i < nB && big.length; i++) {
+      const a = (i / nB) * TAU + (r() - .5) * .2; if (Math.cos(a) > .7) continue;
+      const d = 255 + r() * 120, x = Math.cos(a) * d, z = Math.sin(a) * d, id = big[i % big.length], sz = A.lod[id].size;
+      const s = (60 + r() * 70) / Math.max(sz.x, sz.z), y = terrainRaw(x, z) + 30 * Math.pow(fbm(Math.cos(a) * 2.2 + 11, Math.sin(a) * 2.2 + d * .004, 5), 2.2);
+      B[id].push([x, y - sz.y * s * .3, z, s, Math.atan2(-x, -z) + (r() - .5) * .9, s * (.9 + r() * .5), .03]);
+    }
+    for (const b of big) add('lod', b, B[b], { tint: GRANITE }); }
 
   // 2 — outcrops on the slopes around the plateau and the ridge, faces turned downhill
   const cliffs = ['namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'rock_face_01', 'rock_face_02'], C = {}; cliffs.forEach(c => C[c] = []);

@@ -5,22 +5,11 @@
 // upscaled and sharpened to the canvas, so a big or high-density screen costs no more to draw than a small one.
 // dens: square pixels each triangle of a scanned mesh may cover before a simplified copy is used instead (higher = coarser, cheaper).
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
-// fusion: the styled render looks (Fusion Series, Sumi & Shu, Chungking Neon, Painted Light) are allowed at this quality.
 const QUAL = {
-  low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0, fusion: false },
-  med: { taa: true, sharp: .8, pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124, fusion: true },
-  high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190, fusion: true },
+  low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0 },
+  med: { taa: true, sharp: .8, pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
+  high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190 },
 };
-// the Cel style does its own banded light, so while it is on the heavy passes underneath are switched off (ambient occlusion, light shafts,
-// depth of field), the shadow map is smaller and fewer pixels are drawn (the temporal pass rebuilds them): a lean profile over the chosen quality
-const QUAL_BASE = JSON.parse(JSON.stringify(QUAL));
-const CEL_LEAN = (b) => ({ ao: 0, shafts: false, dof: false, shadows: Math.min(b.shadows, 1024), mp: +(b.mp * .75).toFixed(2) });
-const STYLEHOOK = { fn: null };
-function applyStyleProfile() {
-  for (const k in QUAL) { const b = QUAL_BASE[k]; Object.assign(QUAL[k], b); if (PARAM.style === 'cel' && b.fusion) Object.assign(QUAL[k], CEL_LEAN(b)); }
-  // features this start must go without (see SAFE) win over everything
-  for (const k in QUAL) { const q = QUAL[k]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; }
-}
 async function boot() {
   const canvas = $('gl');
   const T0 = performance.now(), mark = (k) => diagNote('boot', `${k} +${Math.round(performance.now() - T0)} ms`);
@@ -35,7 +24,7 @@ async function boot() {
   // Leaving the page on purpose clears it
   try { localStorage.setItem('samay.boot', String(Date.now())); addEventListener('pagehide', () => { try { if (!UI.started) localStorage.removeItem('samay.boot'); } catch (x) { } }); } catch (e) { }
   // features this start must go without (from the link, or because the last start lost the graphics)
-  applyStyleProfile();
+  { for (const k in QUAL) { const q = QUAL[k]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; } }   // features this start must go without (see SAFE)
   // start-up is checked stage by stage: after each heavy GPU step, wait for it to finish and see whether the graphics survived. The stage
   // that did not is named in the log, and the next start goes without the likely culprit (shadows first), then at Low, instead of failing again
   const gl0 = renderer.getContext(), syncPx = new Uint8Array(4);
@@ -56,13 +45,14 @@ async function boot() {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  softenShadows();
   // fonts used inside canvas textures
   try { await Promise.race([Promise.all([document.fonts.load('800 190px "Big Shoulders Stencil Display"'), document.fonts.load('600 64px "Noto Sans Kannada"', 'ವಿಸರ್ಜನೆ'), document.fonts.load('500 30px Jost')]), new Promise(r => setTimeout(r, 2200))]); } catch (e) { }
 
   const scene = new THREE.Scene();
   const now = new Date(); S.t = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
   // coming back from a quality change: pick up where the viewer was
-  try { const r = JSON.parse(sessionStorage.getItem('samay.resume') || 'null'); sessionStorage.removeItem('samay.resume'); if (r && Date.now() - r.at < 60000) { S.t = r.t; PARAM.palette = r.palette || PARAM.palette; WX.mode = r.wx || WX.mode; } } catch (e) { }
+  try { const r = JSON.parse(sessionStorage.getItem('samay.resume') || 'null'); sessionStorage.removeItem('samay.resume'); if (r && Date.now() - r.at < 60000) { S.t = r.t; WX.mode = r.wx || WX.mode; } } catch (e) { }
   // each subsystem's objects carry its name in userData.sys, so the cost of every part of the world can be measured on its own
   const sys = (name, fn) => { const n0 = scene.children.length, r = fn(); for (let i = n0; i < scene.children.length; i++) scene.children[i].userData.sys = name; return r; };
   const TR = sys('terrain', () => buildTerrain(scene));
@@ -112,7 +102,6 @@ async function boot() {
     ctx.resize();
   };
   addEventListener('resize', ctx.resize); ctx.resize(); treeQuality(PARAM.quality);
-  STYLEHOOK.fn = () => { applyStyleProfile(); ctx.applyQuality(); try { LI.env.update(true); } catch (e) { } };   // a change of render style re-reads the profile
   setupDial(); setupControls(ctx);
   // warm-up: compile every material, upload every texture and build the post chain while the loading screen is up,
   // so no chapter stalls the first time it appears
@@ -125,7 +114,6 @@ async function boot() {
     try { await renderer.compileAsync(scene, CAM.cam); } catch (e) { try { renderer.compile(scene, CAM.cam); } catch (e2) { } }
     const seen = new Set();
     scene.traverse(o => { const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) for (const key in m) { const v = m[key]; if (v && v.isTexture && !seen.has(v)) { seen.add(v); try { renderer.initTexture(v); } catch (e) { } } } });
-    paletteLUT('poster'); updatePalette(PP, w0);
     // run every post program once (AO, shafts, depth of field) so none compiles mid-show
     const sp = PP.sp, wasSh = sp.useSh;
     if (!SAFE.post) { sp.useAO = true; sp.useSh = true; sp.needDepth = true; sp.compU.uAO.value = 1; sp.maskU.uOnA.value = sp.maskU.uOnB.value = 1; PP.dof.enabled = true; PP.dof.set(CAM.cam, 10, 2); }
@@ -195,7 +183,7 @@ async function boot() {
         if (Date.now() - at > 120000) {
           sessionStorage.setItem('samay.recover', String(Date.now()));
           const next = PARAM.quality === 'high' ? 'med' : 'low';
-          try { localStorage.setItem('samay.quality', next); sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, palette: PARAM.palette, wx: WX.mode })); } catch (x) { }
+          try { localStorage.setItem('samay.quality', next); sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, wx: WX.mode })); } catch (x) { }
           const u = new URL(location.href); u.searchParams.set('q', next); u.hash = '';
           toast(`The browser reset the graphics. Starting again at ${next === 'low' ? 'Low' : 'Medium'} quality…`, 3000);
           setTimeout(() => location.replace(u.toString()), 900); return;
@@ -336,30 +324,24 @@ async function boot() {
     const tp0 = performance.now();
     updatePeople(W, G, t, rt, dt, N, S.beat, PARAM.energy * (1 + S.pulse * .3));
     S.msPeople = lerp(S.msPeople || 0, performance.now() - tp0, .1);
-    const trailSec = (.18 + .55 * PARAM.trails) * look.ghost;
-    updateTrails(W, N, trailSec, clamp(.34 * PARAM.trails * look.ghost, 0, .8));
     updateAutos(CT, t, rt);
-    updateStreaks(SK, look, rt, S.pulse, CAM.cam, vh * IPR);
     // the chapter's mood only washes over the crowd (30%): the light does the rest, so everyone keeps their own clothes and skin
     W.bodyMat.color.setRGB(1, 1, 1).lerp(_tmpC.copy(look.pTint).multiplyScalar(1.35), .3); W.bodyMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * (1 + S.pulse * .6));
-    W.trailMat.color.setRGB(1, 1, 1).lerp(_tmpC.copy(look.pTint).multiplyScalar(1.25), .3);   // smears keep each person's colours, like the bodies W.trailMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * .75);
     // post + render
     const kd = 1 - Math.exp(-dt * 2.5);
     const kdk = CAM.snapped ? 1 : kd;
     PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
     updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
-    if (updateFusion(PP, w, CAM.cam, rt) | updateStyles(PP, look, w, CAM.cam, rt)) PP.sp.needDepth = true;   // the styled passes read the depth buffer
     if (PP.taa.enabled) {
       // temporal pass: it reads depth to reproject; grain moves after the accumulation (or it would be averaged away);
-      // clustering follows the style (painterly looks take more, the flat poster styles none); a camera cut starts afresh
-      const TQ = QUAL[PARAM.quality], st = PARAM.style;
+      // a camera cut starts afresh
+      const TQ = QUAL[PARAM.quality];
       PP.sp.needDepth = true;
-      PP.taa.O.uGrain.value = PP.grade.uniforms.uGrain.value + (st === 'neon' ? .05 : 0); PP.grade.uniforms.uGrain.value = 0;
-      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : st === 'cel' ? .2 : 0;
+      PP.taa.O.uGrain.value = PP.grade.uniforms.uGrain.value; PP.grade.uniforms.uGrain.value = 0;
+      PP.taa.U.uCluster.value = .3;
       PP.taa.O.uSharp.value = TQ.sharp || .5; PP.taa.O.uTime.value = rt;
       if (CAM.snapped) PP.taa.reset = true;
     }
-    updatePalette(PP, w);
     listenTick(dt); if (LISTEN.fade < 1) PP.grade.uniforms.uExpo.value *= LISTEN.fade * LISTEN.fade;
     health();
     PP.taa.begin(CAM.cam); PP.composer.render(dt); PP.taa.end(CAM.cam);

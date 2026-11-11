@@ -72,64 +72,56 @@ const LOOKS = [
     lift: '#0b1113', gain: '#ffe2c4', sat: 1.08, con: 1.1, vig: .6, grain: .05, paper: 0,
     stars: .45, trail: 0, milky: .1, celes: .1, corona: '#ffb070', coronaI: .25, void: 0,
     strip: '#ff6a2a', stripI: .55, fire: .9, petals: 0, dust: .1, mist: .12,
-    pTint: '#7a6a5c', pEmis: '#ff7a30', pEmisI: .06, ghost: 1.0, banner: '#9c231b', after: .12,
-    streakG: 0, streakE: 0, streakCol: '#ff4a1a', practical: '#ff8a3a', practicalI: 1.0, archGlow: 0, dream: '#8a5a3c' },
+    pTint: '#7a6a5c', pEmis: '#ff7a30', pEmisI: .06, ghost: 1.0, banner: '#9c231b', after: .12,  practical: '#ff8a3a', practicalI: 1.0, archGlow: 0, dream: '#8a5a3c' },
   { // 2 GATHERING — crimson swirl
     skyZen: '#130a0c', skyHor: '#3d1713', skyGlow: '#7a1a12', cloud: '#3a1512', cloudAmt: .25, fog: '#2a100c', fogD: .009,
     sun: '#c06050', sunI: .7, hemiS: '#3e2c48', hemiG: '#2a1408', hemiI: 1.0, bloom: .6, bloomR: .6, bloomT: .66,
     lift: '#0e070c', gain: '#ffe0bc', sat: .96, con: 1.12, vig: .65, grain: .05, paper: 0,
     stars: .3, trail: 0, milky: .05, celes: .5, corona: '#ff6040', coronaI: .3, void: .2,
     strip: '#c8452a', stripI: .7, fire: 1.0, petals: 0, dust: .05, mist: .05,
-    pTint: '#c88a68', pEmis: '#b84a2a', pEmisI: .04, ghost: 1.45, banner: '#9e2b25', after: .25,
-    streakG: .55, streakE: 0, streakCol: '#c8502e', practical: '#e08a52', practicalI: 1.3, archGlow: 0, dream: '#7a3222' },
+    pTint: '#c88a68', pEmis: '#b84a2a', pEmisI: .04, ghost: 1.45, banner: '#9e2b25', after: .25,  practical: '#e08a52', practicalI: 1.3, archGlow: 0, dream: '#7a3222' },
   { // 3 ECLIPSE — black, ice-blue rim, magenta dancers
     skyZen: '#03040a', skyHor: '#0d182c', skyGlow: '#3a5a8a', cloud: '#0a1020', cloudAmt: .12, fog: '#0b1322', fogD: .008,
     sun: '#a8c8ff', sunI: .85, hemiS: '#3a5588', hemiG: '#05060a', hemiI: .7, bloom: .55, bloomR: .45, bloomT: .6,
     lift: '#02040a', gain: '#d8e6ff', sat: .8, con: 1.25, vig: .7, grain: .06, paper: 0,
     stars: .75, trail: 0, milky: 0, celes: 1, corona: '#a8c8e8', coronaI: .6, void: .95,
     strip: '#9a5a78', stripI: .2, fire: .1, petals: 0, dust: 0, mist: .45,
-    pTint: '#3a3e4c', pEmis: '#8a5a78', pEmisI: .07, ghost: .75, banner: '#3a2436', after: .2,
-    streakG: 0, streakE: .22, streakCol: '#8fa6c8', practical: '#c07a92', practicalI: .7, archGlow: 0, dream: '#3c4a66' },
+    pTint: '#3a3e4c', pEmis: '#8a5a78', pEmisI: .07, ghost: .75, banner: '#3a2436', after: .2,  practical: '#c07a92', practicalI: .7, archGlow: 0, dream: '#3c4a66' },
   { // 4 BRAHMA MUHURTA — indigo cyanotype, star trails
     skyZen: '#0d1a34', skyHor: '#2b4068', skyGlow: '#3a5580', cloud: '#22345a', cloudAmt: .1, fog: '#1e2d4c', fogD: .0115,
     sun: '#9fb8e8', sunI: .5, hemiS: '#3b5585', hemiG: '#0a1224', hemiI: .6, bloom: .55, bloomR: .5, bloomT: .65,
     lift: '#0b1630', gain: '#c8d8ff', sat: .35, con: .95, vig: .6, grain: .075, paper: 0,
     stars: 1.0, trail: 1, milky: .85, celes: .85, corona: '#7a9ad0', coronaI: .45, void: .7,
     strip: '#5a7ad0', stripI: .1, fire: .05, petals: 0, dust: 0, mist: .85,
-    pTint: '#3a4a6a', pEmis: '#6a8ad0', pEmisI: .05, ghost: .8, banner: '#2a3350', after: .2,
-    streakG: 0, streakE: 0, streakCol: '#6a8ad0', practical: '#8aa6e0', practicalI: .6, archGlow: 0, dream: '#40597a' },
+    pTint: '#3a4a6a', pEmis: '#6a8ad0', pEmisI: .05, ghost: .8, banner: '#2a3350', after: .2,  practical: '#8aa6e0', practicalI: .6, archGlow: 0, dream: '#40597a' },
   { // 5 DIAMOND RING — white marble, gold, sunburst, petals
     skyZen: '#3474c8', skyHor: '#ffb07a', skyGlow: '#ffe2b0', cloud: '#ffb89a', cloudAmt: .55, fog: '#d2b49c', fogD: .0024,
     sun: '#fff0d0', sunI: 3.0, hemiS: '#9fc4ff', hemiG: '#b08050', hemiI: .9, bloom: .5, bloomR: .6, bloomT: .92,
     lift: '#0a0810', gain: '#fff4e0', sat: 1.14, con: 1.14, vig: .38, grain: .04, paper: 0,
     stars: 0, trail: 0, milky: 0, celes: .8, corona: '#fff4d0', coronaI: .6, void: 0,
     strip: '#ffc860', stripI: .4, fire: 0, petals: 1, dust: .3, mist: .1,
-    pTint: '#f2e4d0', pEmis: '#ffb050', pEmisI: .08, ghost: 1.2, banner: '#e8791e', after: .25,
-    streakG: 0, streakE: 0, streakCol: '#ffd070', practical: '#ffd9a0', practicalI: .3, archGlow: 1, dream: '#d49a6a' },
+    pTint: '#f2e4d0', pEmis: '#ffb050', pEmisI: .08, ghost: 1.2, banner: '#e8791e', after: .25,  practical: '#ffd9a0', practicalI: .3, archGlow: 1, dream: '#d49a6a' },
   { // 6 DISPERSAL — flat photographic daylight, concrete, red circle
     skyZen: '#7fa3c8', skyHor: '#dfe4e3', skyGlow: '#fff6e8', cloud: '#ffffff', cloudAmt: .15, fog: '#c4ccd4', fogD: .0024,
     sun: '#fff4e2', sunI: 3.2, hemiS: '#c9d8e8', hemiG: '#7a6f60', hemiI: .8, bloom: .35, bloomR: .4, bloomT: .9,
     lift: '#0a0c10', gain: '#fff8ee', sat: 1.02, con: 1.14, vig: .3, grain: .035, paper: 0,
     stars: 0, trail: 0, milky: 0, celes: .12, corona: '#ffffff', coronaI: 0, void: 0,
     strip: '#b3261e', stripI: 0, fire: 0, petals: 0, dust: .35, mist: 0,
-    pTint: '#d8d0c4', pEmis: '#000000', pEmisI: 0, ghost: .9, banner: '#b3261e', after: .05,
-    streakG: 0, streakE: 0, streakCol: '#b3261e', practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#c9c4bc' },
+    pTint: '#d8d0c4', pEmis: '#000000', pEmisI: 0, ghost: .9, banner: '#b3261e', after: .05,  practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#c9c4bc' },
   { // 7 ZERO SHADOW — parchment, sandstone, pigment specks
     skyZen: '#cfd6d6', skyHor: '#f3ecdd', skyGlow: '#fffaf0', cloud: '#fffaf0', cloudAmt: .1, fog: '#e8e0d0', fogD: .0034,
     sun: '#fff4e0', sunI: 2.6, hemiS: '#e4e8ec', hemiG: '#d0b890', hemiI: 1.15, bloom: .3, bloomR: .5, bloomT: .92,
     lift: '#2e261e', gain: '#fff6e8', sat: .88, con: 1.0, vig: .25, grain: .05, paper: .85,
     stars: 0, trail: 0, milky: 0, celes: .05, corona: '#ffffff', coronaI: 0, void: 0,
     strip: '#c0392b', stripI: 0, fire: 0, petals: 0, dust: .15, mist: 0,
-    pTint: '#e8dcc8', pEmis: '#000000', pEmisI: 0, ghost: .7, banner: '#c0392b', after: .05,
-    streakG: 0, streakE: 0, streakCol: '#c0392b', practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#d8c8b0' },
+    pTint: '#e8dcc8', pEmis: '#000000', pEmisI: 0, ghost: .7, banner: '#c0392b', after: .05,  practical: '#ffffff', practicalI: 0, archGlow: 0, dream: '#d8c8b0' },
   { // 8 RETURN — golden haze, dusty amber
     skyZen: '#4a6894', skyHor: '#f2b36a', skyGlow: '#ffc070', cloud: '#f0a060', cloudAmt: .45, fog: '#c08a62', fogD: .0058,
     sun: '#ffaa58', sunI: 2.6, hemiS: '#8c98c0', hemiG: '#3a2616', hemiI: .72, bloom: .6, bloomR: .6, bloomT: .75,
     lift: '#120c10', gain: '#ffe0b0', sat: 1.12, con: 1.1, vig: .5, grain: .06, paper: 0,
     stars: 0, trail: 0, milky: 0, celes: .15, corona: '#ffd0a0', coronaI: .1, void: 0,
     strip: '#ff8a3a', stripI: .2, fire: .2, petals: .12, dust: .65, mist: .12,
-    pTint: '#c8a888', pEmis: '#ffa050', pEmisI: .04, ghost: 1.2, banner: '#9e2b25', after: .2,
-    streakG: 0, streakE: 0, streakCol: '#ffa050', practical: '#ffa050', practicalI: .5, archGlow: 0, dream: '#e0b286' },
+    pTint: '#c8a888', pEmis: '#ffa050', pEmisI: .04, ghost: 1.2, banner: '#9e2b25', after: .2,  practical: '#ffa050', practicalI: .5, archGlow: 0, dream: '#e0b286' },
 ];
 // light + atmosphere per chapter: phys = weight of the physical sky/sun colour, mie = haze, fogG/fogH/fogS = ground fog
 // multiplier / scale height (m) / clear distance (m), scat = poster in-scatter, envI = sky ambient, ao, shaft, expo
@@ -225,15 +217,10 @@ const QPICK = (() => {
   } catch (e) { }
   return r;
 })();
-// render style: 'real' (the lit, graded render), 'fusion' (each chapter in its Fusion Series poster style), or one of the styles in
-// 75_styles.js ('sumi', 'neon', 'paint'). ?style=… in the link, else the viewer's last choice. The styled looks need Medium or High
-const STYLE_KEYS = ['real', 'fusion', 'sumi', 'neon', 'paint', 'cel'];
-const CELU = { uCel: { value: 0 } };   // 1 while the Cel style is on: the sky, the far ranges and the birds read it to draw themselves in its manner
-const STYLE0 = (() => { let v = null; try { v = new URLSearchParams(location.search).get('style') || localStorage.getItem('samay.style'); } catch (e) { } return STYLE_KEYS.includes(v) ? v : 'real'; })();
 const PARAM = {
   dayMinutes: 8, clock: false, playing: true,
-  population: 180, dream: .75, stone: 1, energy: 1.6, trails: 1, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,
-  real: 2, shafts: 1, ao: 1, dof: true, palette: 'off', style: STYLE0,
+  population: 180, dream: .75, stone: 1, energy: 1.6, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,
+  real: 2, shafts: 1, ao: 1, dof: true,
   quality: QPICK.q, qualityPinned: QPICK.pinned,
   camera: 'director', shotLen: 8, cut: false, titles: true, frame: 'fill', lbx: false,
   volume: .8, gen: 1, amb: .3,

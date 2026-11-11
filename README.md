@@ -122,7 +122,7 @@ soft limit of 100 GB a month.
 - Motion capture: [Universal Animation Library](https://quaternius.com) by Quaternius (CC0).
 - 3D engine: [three.js](https://threejs.org) (MIT).
 - Fonts: Cinzel, Jost, Big Shoulders Stencil and Noto scripts from Google Fonts (SIL Open Font License).
-- Photogrammetry scans and ground textures: [Poly Haven](https://polyhaven.com) (CC0): granite boulders and cliffs (Namaqualand, mountainside, rock faces), mossy rock beds, stumps and trunks, jacaranda, island tree, searsia, a stone fire pit; forest leaves, red laterite, dry granite, sparse grass and aerial rock textures. Optimised with [glTF-Transform](https://gltf-transform.dev) into `public/scans/`.
+- Photogrammetry scans and ground textures: [Poly Haven](https://polyhaven.com) (CC0): granite boulders and cliffs (Namaqualand, mountainside, rock faces, coastal cliffs 01, 02 and 04 on the far ranges), mossy rock beds, stumps and trunks, jacaranda, island tree, searsia, a stone fire pit; forest leaves, red laterite, dry granite, sparse grass and aerial rock textures. Optimised with [glTF-Transform](https://gltf-transform.dev) into `public/scans/`.
 - Temple photogrammetry by Akhanda Setu ([gputhige](https://sketchfab.com/gputhige) on Sketchfab), licensed CC BY 4.0, simplified and re-textured for the web:
   - "Free - 3D Scan - 12th Century Bhumija Shikara" (https://sketchfab.com/3d-models/free-3d-scan-12th-century-bhumija-shikara-da50bd1451e24c5f80c9e48f8bd5ff29): the gate shikharas
   - "Free 3DScan 9th Century Pillar" (https://sketchfab.com/3d-models/free-3dscan-9th-century-pillar-f16d9708a3d84c0d8c36376dc176a9af): the stone circle

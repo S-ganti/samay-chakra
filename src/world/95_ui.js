@@ -43,7 +43,7 @@ function bindRange(id, oid, key, fmt = (v) => v.toFixed(2), onChange) {
 }
 function setupControls(ctx) {
   bindRange('rPop', 'oPop', 'population', (v) => String(v | 0));
-  bindRange('rEnergy', 'oEnergy', 'energy'); bindRange('rTrails', 'oTrails', 'trails'); bindRange('rExpo', 'oExpo', 'exposure');
+  bindRange('rEnergy', 'oEnergy', 'energy'); bindRange('rExpo', 'oExpo', 'exposure');
   bindRange('rFog', 'oFog', 'fog'); bindRange('rGlow', 'oGlow', 'glow'); bindRange('rGrain', 'oGrain', 'grain'); bindRange('rGrade', 'oGrade', 'grade');
   bindRange('rReal', 'oReal', 'real'); bindRange('rShafts', 'oShafts', 'shafts'); bindRange('rAO', 'oAO', 'ao');
   bindRange('rSoft', 'oSoft', 'soft', (v) => Math.round(v * 3 * 60) + ' min');
@@ -54,12 +54,10 @@ function setupControls(ctx) {
   $('sQual').onchange = (e) => {
     // grass, tree density, carving detail and texture sizes are built once at load, so the world is rebuilt at the new quality
     const q = e.target.value; PARAM.quality = q; PARAM.qualityPinned = true; ctx.applyQuality();
-    try { localStorage.setItem('samay.quality', q); sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, palette: PARAM.palette, wx: WX.mode })); } catch (x) { }
+    try { localStorage.setItem('samay.quality', q); sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, wx: WX.mode })); } catch (x) { }
     toast(`Rebuilding the world at ${e.target.selectedOptions[0].textContent} quality…`, 3000);
     setTimeout(() => { try { location.reload(); } catch (x) { } }, 700);
   };
-  $('sPal').value = PARAM.palette; $('sPal').onchange = (e) => setPalette(e.target.value);
-  $('sStyle').value = PARAM.style; $('sStyle').onchange = (e) => setStyle(e.target.value, true);
   $('sWx').value = WX.mode; $('sWx').onchange = (e) => { WX.mode = e.target.value; const P = wxPlan(new Date()); toast(WX.mode === 'live' ? (P.rain.length ? `Today in Bengaluru: rain around ${P.rain.map(r => fmtH(r.s)).join(' and ')}` + (P.mist ? ', mist at dawn' : '') : P.mist ? 'Today in Bengaluru: a misty dawn, then dry' : 'Today in Bengaluru: a dry day') : 'Weather: ' + e.target.selectedOptions[0].textContent, 3600); };
   $('bListen').onclick = () => toggleListen(); $('bUnlisten').onclick = () => toggleListen(false);
   $('sSleep').onchange = (e) => { const m = +e.target.value; LISTEN.sleepAt = m ? performance.now() + m * 60000 : 0; LISTEN.fade = 1; toast(m ? `The music will fade out in ${m >= 60 ? m / 60 + (m === 60 ? ' hour' : ' hours') : m + ' minutes'}` : 'Sleep timer off', 2200); };
@@ -115,8 +113,6 @@ function setupControls(ctx) {
     else if (k === 't' || k === 'T') { PARAM.titles = !PARAM.titles; $('cTitles').checked = PARAM.titles; toast(PARAM.titles ? 'Title cards on' : 'Title cards off', 1200); }
     else if (k === 'h' || k === 'H') { if (LISTEN.on) toggleListen(false); else toggleClean(); }
     else if (k === 'l' || k === 'L') toggleListen();
-    else if (k === 'y' || k === 'Y') setStyle(STYLE_KEYS[(STYLE_KEYS.indexOf(PARAM.style) + 1) % STYLE_KEYS.length], true);
-    else if (k === 'v' || k === 'V') { const i = PAL_KEYS.indexOf(PARAM.palette); setPalette(PAL_KEYS[(i + 1) % PAL_KEYS.length], true); }
     else if (k === 'f' || k === 'F') toggleFull();
     else if (k === 'r' || k === 'R') toggleRec(ctx);
     else if (k === 'p' || k === 'P') UI.wantStill = true;
@@ -202,25 +198,6 @@ function toggleSound(force) {
   else { audioStop(); b.classList.remove('on'); b.setAttribute('aria-pressed', 'false'); }
 }
 /* ---------- pigment palettes ---------- */
-const PAL_KEYS = ['poster', 'pichwai', 'mughal', 'kalamkari', 'chola', 'bengal', 'kerala', 'off'];
-function setPalette(k, say) {
-  PARAM.palette = k; $('sPal').value = k;
-  if (say) toast(k === 'off' ? 'Pigment palette off: the raw render' : k === 'poster' ? 'Palette: each chapter’s poster' : 'Palette: ' + PALETTE_FAMILIES[k].name, 1800);
-}
-/* ---------- render style: the realistic render, or the Fusion Series poster styles ---------- */
-function setStyle(k, say) {
-  const was = PARAM.style; PARAM.style = k; $('sStyle').value = k;
-  try { localStorage.setItem('samay.style', k); } catch (e) { }
-  if (was === 'cel' && k !== 'cel' && STYLE0 === 'cel') {
-    // this start kept its textures small for Cel (and skipped the ground and range photographs): the world reloads to show the other styles at full detail
-    try { sessionStorage.setItem('samay.resume', JSON.stringify({ at: Date.now(), t: S.t, palette: PARAM.palette, wx: WX.mode })); const u = new URL(location.href); u.searchParams.delete('style'); toast('Reloading at full texture detail…', 2600); setTimeout(() => { try { location.replace(u.toString()); } catch (x) { } }, 700); } catch (x) { }
-    return;
-  }
-  if ((was === 'cel') !== (k === 'cel') && STYLEHOOK.fn) STYLEHOOK.fn();   // entering or leaving Cel swaps the quality profile
-  if (!say) return;
-  if (k !== 'real' && !QUAL[PARAM.quality].fusion) toast('Styled looks need Medium or High quality (Controls → Render quality)', 3200);
-  else toast(k === 'fusion' ? 'Style: Fusion Series, each chapter in its poster’s folk × modern style' : STYLES[k] ? `Style: ${STYLES[k].name}, ${STYLES[k].blurb}` : 'Style: realistic render', 2400);
-}
 /* ---------- listening: sound on, the interface away, long slow shots; a sleep timer fades it all out ---------- */
 const LISTEN = { on: false, prev: null, sleepAt: 0, fade: 1, asleep: false, chipT: 0 };
 function toggleListen(force) {

@@ -164,40 +164,6 @@ function buildPeople(scene, Q) {
   const stools = new THREE.InstancedMesh(stoolG, new THREE.MeshStandardMaterial({ color: '#b8322a', roughness: .6 }), Math.max(1, chaiIdx.length));
   chaiIdx.forEach((i, k) => { const bx = -Math.sin(D.cYaw[i]) * .33, bz = -Math.cos(D.cYaw[i]) * .33; stools.setMatrixAt(k, new THREE.Matrix4().makeTranslation(D.cX[i] + bx, 0, D.cZ[i] + bz)); });
   stools.castShadow = stools.receiveShadow = true; scene.add(stools);
-  // long-exposure streaks: one vertical card per trail segment (2 per person), fading along its length
-  const trailG = new THREE.BufferGeometry();
-  trailG.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, -1, 0, 1, -1, 0, 1, 0], 3));
-  trailG.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
-  trailG.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
-  trailG.setIndex([0, 1, 2, 0, 2, 3]);
-  const ramp = new THREE.InstancedBufferAttribute(new Float32Array(NMAX * 4), 2); ramp.setUsage(THREE.DynamicDrawUsage);
-  trailG.setAttribute('aRamp', ramp);
-  const trailMat = new THREE.MeshLambertMaterial({ transparent: true, opacity: .4, depthWrite: false, side: THREE.DoubleSide });
-  // each card spans its segment (instance z column = segment vector, y column = figure height) and turns around
-  // that axis to face the camera: full-height smear side-on, ground smear from above, gone from behind
-  trailMat.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aRamp; varying float vTA;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n vTA = mix(aRamp.x, aRamp.y, uv.x) * smoothstep(0.0, 0.14, uv.y) * (1.0 - smoothstep(0.7, 1.0, uv.y));')
-      .replace('#include <project_vertex>', `
-        vec3 tO = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-        vec3 tZ = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, -1.0, 0.0)).xyz;
-        float tL = length(tZ); vec3 tA = tZ / max(tL, 1e-4);
-        float tH = length((instanceMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-        vec3 tC = tO + vec3(0.0, tH * 0.5, 0.0);
-        vec3 tV = normalize(cameraPosition - tC);
-        vec3 tN = tV - dot(tV, tA) * tA; float tn = length(tN); tN = tn > 1e-3 ? tN / tn : vec3(0.0, 1.0, 0.0);
-        vec3 tB = normalize(cross(tN, tA)); if (tB.y < 0.0) tB = -tB;
-        float tE = mix(0.55, tH, abs(tB.y));
-        vec3 tW = tC + tA * (-position.z * tL) + tB * ((position.y - 0.5) * tE);
-        vec4 mvPosition = viewMatrix * vec4(tW, 1.0);
-        gl_Position = projectionMatrix * mvPosition;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTA;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.a *= vTA;');
-  };
-  const trails = new THREE.InstancedMesh(trailG, trailMat, NMAX * 2);
-  trails.frustumCulled = false; trails.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trails.renderOrder = 2;
-  for (let i = 0; i < NMAX; i++) { const o = i * 15 + (D.vari[i] <= VAR.LEHENGA ? 3 : 0); c.setRGB(D.pal[o], D.pal[o + 1], D.pal[o + 2]); trails.setColorAt(i * 2, c); trails.setColorAt(i * 2 + 1, c); }
-  scene.add(trails);
   // torches: about one in six walkers and watchers carries one after dusk and before dawn — a stick in the fist, a flame on top
   D.torchB = new Uint8Array(NMAX); D.torchLit = F();
   for (let i = 0; i < NMAX; i++) { D.torchB[i] = D.kind[i] !== 1 && D.kind[i] !== 2 && D.rnd[i] > .84 ? 1 : 0; D.torchLit[i] = .15 + .6 * ((D.rnd[i] * 13.37) % 1); }
@@ -219,7 +185,7 @@ function buildPeople(scene, Q) {
   }));
   flames.frustumCulled = false; scene.add(flames);
   const torch = { sticks, flames, U: torchU, pos: tPos, w: tW, n: 0, NT };
-  return { D, crowd, trails, trailMat, bodyMat, stools, stroll, hillToGate, gateToCity, gateDown, chaiTables, torch, beatClock: 0, orb: 0, lit: 0, frustum: new THREE.Frustum(), cam: null };
+  return { D, crowd, bodyMat, stools, stroll, hillToGate, gateToCity, gateDown, chaiTables, torch, beatClock: 0, orb: 0, lit: 0, frustum: new THREE.Frustum(), cam: null };
 }
 
 /* ---------- stations ---------- */
@@ -579,32 +545,6 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
   // panels
   for (let kk = 0; kk < NCARRY; kk++) { panelMatrix(W, gate, kk, t, _M); gate.panelIM.setMatrixAt(kk, _M); }
   gate.panelIM.instanceMatrix.needsUpdate = true;
-}
-const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);
-const _TM = new THREE.Matrix4(), _TP = V3(), _TS = V3(), _TQ = new THREE.Quaternion(), _TY = V3(0, 1, 0);
-function updateTrails(W, N, trailSec, opacity) {
-  const D = W.D, im = W.trails, ramp = im.geometry.attributes.aRamp;
-  im.visible = opacity > .01; W.trailMat.opacity = Math.min(.95, opacity);
-  if (!im.visible) return;
-  const dA = Math.max(1, Math.round(trailSec * .5 / HIST_DT)), dB = Math.max(2, Math.round(trailSec / HIST_DT));
-  const iA = ((D.histHead - Math.min(dA, HIST - 1)) % HIST + HIST) % HIST * 4, iB = ((D.histHead - Math.min(dB, HIST - 1)) % HIST + HIST) % HIST * 4;
-  for (let i = 0; i < N; i++) {
-    const j = i * 2;
-    if (D.hide[i] > .5 || D.lie[i] > .5 || D.cfade[i] < .9) { im.setMatrixAt(j, ZERO_M); im.setMatrixAt(j + 1, ZERO_M); continue; }
-    const o = i * HIST * 4, x0 = D.x[i], y0 = D.y[i] + D.bounce[i], z0 = D.z[i];
-    const x1 = D.hist[o + iA], y1 = D.hist[o + iA + 1], z1 = D.hist[o + iA + 2];
-    const x2 = D.hist[o + iB], y2 = D.hist[o + iB + 1], z2 = D.hist[o + iB + 2];
-    const l1 = Math.hypot(x1 - x0, z1 - z0), l2 = Math.hypot(x2 - x1, z2 - z1);
-    const hgt = 1.78 * D.h[i] * (1 - D.sit[i] * .3);
-    if (l1 < .05 || l1 > 25) { im.setMatrixAt(j, ZERO_M); } else {
-      _TM.set(1, 0, -(x1 - x0), x0, 0, hgt, -(y1 - y0), y0, 0, 0, -(z1 - z0), z0, 0, 0, 0, 1); im.setMatrixAt(j, _TM);
-    }
-    if (l2 < .05 || l2 > 25 || l1 < .05) { im.setMatrixAt(j + 1, ZERO_M); } else {
-      _TM.set(1, 0, -(x2 - x1), x1, 0, hgt, -(y2 - y1), y1, 0, 0, -(z2 - z1), z1, 0, 0, 0, 1); im.setMatrixAt(j + 1, _TM);
-    }
-    ramp.setXY(j, .85, .42); ramp.setXY(j + 1, .42, 0);
-  }
-  im.count = N * 2; im.instanceMatrix.needsUpdate = true; ramp.needsUpdate = true;
 }
 function updateAutos(city, t, rt) {
   const A = city.autos, L = A.autoRoute.len, tau = wrap24(t - 15);

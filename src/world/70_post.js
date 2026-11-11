@@ -237,11 +237,11 @@ const OutputGradeShader = {
   uniforms: {
     tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uExpo: { value: 1 }, uTM: { value: 1 }, uAgxPow: { value: 1.2 }, uAgxSat: { value: 1.2 },
     uLift: { value: col('#000') }, uGain: { value: col('#fff') }, uSat: { value: 1 }, uCon: { value: 1 }, uVig: { value: .5 }, uGrain: { value: .05 }, uPaper: { value: 0 }, uAmt: { value: 1 }, uAberr: { value: .0016 }, uBars: { value: 0 },
-    tLutA: { value: null }, tLutB: { value: null }, uLutW: { value: 0 }, uPal: { value: 0 }, uDream: { value: 0 }, uDreamTint: { value: col('#e8dccb') },
+    uDream: { value: 0 }, uDreamTint: { value: col('#e8dccb') },
     uShTint: { value: col('#808080') }, uHiTint: { value: col('#808080') }, uSplit: { value: 0 }, uPurk: { value: 0 }, uVigCol: { value: col('#000') },
   },
   vertexShader: FSQ_VS,
-  fragmentShader: `precision highp sampler3D; uniform sampler3D tLutA, tLutB; uniform float uLutW, uPal, uDream; uniform vec3 uDreamTint;
+  fragmentShader: `uniform float uDream; uniform vec3 uDreamTint;
     uniform vec3 uShTint, uHiTint, uVigCol; uniform float uSplit, uPurk;
     uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uTime,uExpo,uTM,uAgxPow,uAgxSat,uSat,uCon,uVig,uGrain,uPaper,uAmt,uAberr,uBars; uniform vec3 uLift,uGain; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
@@ -302,7 +302,6 @@ const OutputGradeShader = {
       }
       c = mix(c, g, uAmt);
       // repaint with the chapter's pigments (value from the render, hue and chroma from the palette)
-      if (uPal > 0.001) { vec3 lc = clamp(c, 0.0, 1.0) * 0.96875 + 0.015625; c = mix(c, mix(texture(tLutA, lc).rgb, texture(tLutB, lc).rgb, uLutW), uPal); }
       // dream: shadows lifted into the chapter's own haze colour, contrast softened, highlights bloomed to milk (a pro-mist look)
       if (uDream > 0.001) {
         vec3 t = uDreamTint; float l = dot(c, vec3(0.2126,0.7152,0.0722));
@@ -529,10 +528,10 @@ function buildPost(renderer, scene, camera, Q) {
   const smaa = new SMAAPass(256, 256); smaa.enabled = Q.smaa;
   const fxaa = new FxaaPass(); fxaa.enabled = !!Q.fxaa;
   const up = new UpscalePass();
-  const fusion = new FusionPass(sp.depth), styles = new StylePass(sp.depth), taa = new TaaPass(sp.depth); taa.enabled = !!Q.taa && !SAFE.post;
+  const taa = new TaaPass(sp.depth); taa.enabled = !!Q.taa && !SAFE.post;
   if (taa.enabled) { smaa.enabled = fxaa.enabled = false; }          // the temporal pass does the anti-aliasing and the upscale
-  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(fusion); composer.addPass(styles); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up); composer.addPass(taa);
-  return { composer, sp, dof, after, bloom, grade, fusion, styles, smaa, fxaa, up, taa, dofF: 10, dofK: 0 };
+  composer.addPass(sp); composer.addPass(dof); composer.addPass(after); composer.addPass(bloom); composer.addPass(grade); composer.addPass(smaa); composer.addPass(fxaa); composer.addPass(up); composer.addPass(taa);
+  return { composer, sp, dof, after, bloom, grade, smaa, fxaa, up, taa, dofF: 10, dofK: 0 };
 }
 const _shv = V3();
 // screen position of a world point: returns a visibility weight (0 behind the camera, fading when far off-screen)
