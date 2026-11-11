@@ -242,7 +242,9 @@ function updateFireflies(F, h, rt, dt) {
 
 function buildNature(scene, Q, SK) {
   moonRefresh(SK, true);
-  return { rain: buildRain(scene, Q), birds: buildBirds(scene), flies: buildFireflies(scene, Q) };
+  const N = { rain: buildRain(scene, Q), birds: buildBirds(scene), flies: buildFireflies(scene, Q) };
+  jt(N.rain.lines, 'hide'); jt(N.birds.im, 'hide'); jt(N.flies.pts, 'hide');   // no rain, birds or fireflies in the desert
+  return N;
 }
 function updateNature(NA, SK, cam, dt, rt, h, look) {
   moonRefresh(SK, false); moonOrient(SK, cam);

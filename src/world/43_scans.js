@@ -55,7 +55,7 @@ function scanInstances(scene, asset, id, pts, { cast = false, receive = true, ti
     _s.set(1, 1, 1);
     im.castShadow = cast; im.receiveShadow = receive; im.frustumCulled = false;   // instances span the map; per-object culling would test one sphere
     im.computeBoundingSphere(); im.frustumCulled = true;
-    im.userData.sys = 'scans'; scene.add(im); out.push(im); cullAdopt(im);
+    im.userData.sys = 'scans'; im.userData.scanId = id; scene.add(im); out.push(im); cullAdopt(im);
     SCAN.tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * pts.length;
   }
   SCAN.groups.push(...out);
@@ -84,8 +84,10 @@ function slopeAt(x, z) { const e = 1.5; _nrm.set(groundY(x - e, z) - groundY(x +
 /* ---------- texture memory: a decoded map costs width x height x 4 bytes (+1/3 for mips) of GPU memory ----------
    The stone, cliff and temple sets are 2048 px. Medium and Low keep them at a smaller size (resampled once, as each asset arrives),
    which halves the world's texture memory; that is what keeps a machine with little free RAM from losing the graphics. */
+// a start in Journey draws only the signature structures, so they take the texture budget everything else gave up: full-size stone and scans on Medium
 const TEXCAP = { low: { stone: 512, scan: 512, hero: 1024, ground: 512 }, med: { stone: 1024, scan: 1024, hero: 1536, ground: 1024 }, high: { stone: 2048, scan: 2048, hero: 2048, ground: 2048 } };
 // a start in Cel keeps every scanned texture small: the style flattens colour into washes, so the detail would only be memory (leaving Cel reloads at full size)
+if (STYLE0 === 'journey') Object.assign(TEXCAP.med, { stone: 2048, hero: 2048 });
 if (STYLE0 === 'cel') for (const q in TEXCAP) for (const k in TEXCAP[q]) TEXCAP[q][k] = Math.min(TEXCAP[q][k], k === 'hero' ? 768 : 512);
 function capTexture(t, cap) {
   const im = t.image;
@@ -305,7 +307,7 @@ function impostorForest(scene, renderer, FO, A) {
       _p.set(x, groundY(x, z) - .25, z); _q.setFromAxisAngle(V3(0, 1, 0), r() * TAU); _s.set(k2, k2, k2); setIM(im, i, _p, _q, _s);
       c.setRGB(.86 + r() * .2, .86 + r() * .2, .8 + r() * .18); im.setColorAt(i, c);
     });
-    _s.set(1, 1, 1); im.frustumCulled = false; scene.add(im); IMP.list.push(im); n += pts.length;
+    _s.set(1, 1, 1); im.frustumCulled = false; im.userData.sys = 'forest'; scene.add(im); IMP.list.push(im); n += pts.length;
     SCAN.tris += 2 * pts.length;
   });
   for (const im of [...(FO.broadIM || []), ...(FO.coniferIM || [])]) im.visible = false;   // the painted trees step aside
@@ -337,7 +339,7 @@ function heritagePlace(scene, asset, list, { cast = true } = {}) {
   for (const [g, m] of asset.parts) {
     const im = new THREE.InstancedMesh(g, heritageMaterial(m), list.length);
     list.forEach(([x, y, z, h, yaw], i) => { const k = h / asset.size.y; _p.set(x, y, z); _q.setFromAxisAngle(V3(0, 1, 0), yaw); _s.set(k, k, k); setIM(im, i, _p, _q, _s); });
-    _s.set(1, 1, 1); im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; im.userData.sys = 'scans'; scene.add(im); out.push(im); cullAdopt(im);
+    _s.set(1, 1, 1); im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; im.userData.sys = 'scans'; im.userData.scanId = 'heritage'; scene.add(im); out.push(im); cullAdopt(im);
     SCAN.tris += (g.index ? g.index.count : g.attributes.position.count) / 3 * list.length;
   }
   return out;

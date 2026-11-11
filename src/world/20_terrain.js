@@ -56,6 +56,7 @@ for (let j = 0; j <= TER.seg; j++) for (let i = 0; i <= TER.seg; i++) {
   TER.h[j * (TER.seg + 1) + i] = terrainRaw(x, z);
 }
 function groundY(x, z) {
+  if (JRN.on) return journeyGround(x, z);
   const fx = (x + TER.size / 2) / TER.step, fz = (z + TER.size / 2) / TER.step;
   if (fx < 0 || fz < 0 || fx >= TER.seg || fz >= TER.seg) return terrainRaw(x, z);
   const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, n = TER.seg + 1;
@@ -203,7 +204,7 @@ function buildTerrain(scene) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, metalness: 0 });
   groundLayers(m);
   const mesh = new THREE.Mesh(g, m);
-  mesh.receiveShadow = true;
+  mesh.receiveShadow = true; mesh.userData.j = 'hide';
   scene.add(mesh);
 
   // far mountains: a ring beyond the terrain square
@@ -235,7 +236,7 @@ function buildTerrain(scene) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer, uCel; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uCel > 0.5) { float sn = sin(vMP.x * .021) * sin(vMP.z * .017) * .5 + .5, sn2 = sin(vMP.x * .07 + vMP.z * .05) * .5 + .5, st = fract(vMP.y * .042 + sn * 1.4 + sn2 * .25); diffuseColor.rgb *= mix(.7, 1.25, smoothstep(.4, .6, st)) * vec3(4.2, 5.0, 6.6); } else if (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');
   };
-  const mm = new THREE.Mesh(mg, mMat);
+  const mm = new THREE.Mesh(mg, mMat); mm.userData.j = 'hide';
   scene.add(mm);
   return { mesh, mountains: mm };
 }

@@ -41,7 +41,7 @@ function buildStructures(scene, Q) {
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, HP + .035, 0); floor.receiveShadow = true; scene.add(floor);
   const rangoliMat = new THREE.MeshStandardMaterial({ map: toTex(texRangoli(Q.tex)), transparent: true, opacity: 0, depthWrite: false, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 });
   const rangoli = new THREE.Mesh(new THREE.CircleGeometry(34, 96), rangoliMat);
-  rangoli.rotation.x = -Math.PI / 2; rangoli.position.set(0, HP + .06, 0); rangoli.receiveShadow = true; scene.add(rangoli); out.rangoliMat = rangoliMat;
+  rangoli.rotation.x = -Math.PI / 2; rangoli.position.set(0, HP + .06, 0); rangoli.receiveShadow = true; rangoli.userData.j = 'hide'; scene.add(rangoli); out.rangoliMat = rangoliMat;
 
   /* ---------- ring stage (The Gathering) ---------- */
   const stage = new THREE.Group(); stage.position.set(0, HP, 0); scene.add(stage);
@@ -69,16 +69,16 @@ function buildStructures(scene, Q) {
       const a0 = k / 8 * TAU + (k % 2 === 0 ? .27 : .1), a1 = (k + 1) / 8 * TAU - ((k + 1) % 2 === 0 ? .27 : .1);
       for (const r of [12.12, 13.88]) { const g = new THREE.TorusGeometry(r, .06, 6, 28, a1 - a0); g.rotateZ(-a1); sg.push(g); }
     }
-    const t = new THREE.Mesh(mergeGeometries(sg), stripMat); t.rotation.x = Math.PI / 2; t.position.y = 1.37; stage.add(t); }
-  const floorStrip = new THREE.Mesh(new THREE.TorusGeometry(15.5, .05, 6, 220), stripMat); floorStrip.rotation.x = Math.PI / 2; floorStrip.position.y = .08; stage.add(floorStrip);
+    const t = new THREE.Mesh(mergeGeometries(sg), stripMat); t.rotation.x = Math.PI / 2; t.position.y = 1.37; t.userData.j = 'hide'; stage.add(t); }
+  const floorStrip = new THREE.Mesh(new THREE.TorusGeometry(15.5, .05, 6, 220), stripMat); floorStrip.rotation.x = Math.PI / 2; floorStrip.position.y = .08; floorStrip.userData.j = 'hide'; stage.add(floorStrip);
   // DJ booth
-  const plat = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.4, .5, 48), [C.band5, C.lotus, C.ashlar]); plat.position.y = .25; plat.castShadow = plat.receiveShadow = true; stage.add(plat);
-  const table = new THREE.Mesh(new THREE.BoxGeometry(2.6, .95, .9), M.wood); table.position.set(0, .5 + .475, .35); table.castShadow = true; stage.add(table);
+  const plat = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.4, .5, 48), [C.band5, C.lotus, C.ashlar]); plat.position.y = .25; plat.castShadow = plat.receiveShadow = true; plat.userData.j = 'hide'; stage.add(plat);
+  const table = new THREE.Mesh(new THREE.BoxGeometry(2.6, .95, .9), M.wood); table.position.set(0, .5 + .475, .35); table.castShadow = true; table.userData.j = 'hide'; stage.add(table);
   const knobMat = new THREE.MeshBasicMaterial({ color: '#ff5a2a' });
   const knobs = new THREE.InstancedMesh(new THREE.BoxGeometry(.05, .03, .05), knobMat, 36);
   for (let i = 0; i < 36; i++) { _p.set(-1.1 + (i % 12) * .2, 1.46, .1 + Math.floor(i / 12) * .17); _q.identity(); setIM(knobs, i, _p, _q, _s); }
-  stage.add(knobs);
-  for (const sx of [-.75, .75]) { const d = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .05, 24), new THREE.MeshStandardMaterial({ color: '#111', roughness: .4 })); d.position.set(sx, 1.47, .4); stage.add(d); }
+  knobs.userData.j = 'hide'; stage.add(knobs);
+  for (const sx of [-.75, .75]) { const d = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .05, 24), new THREE.MeshStandardMaterial({ color: '#111', roughness: .4 })); d.position.set(sx, 1.47, .4); d.userData.j = 'hide'; stage.add(d); }
   out.stage = { stripMat, knobMat };
 
   /* ---------- banners (clearing ring + booth) ---------- */
@@ -180,7 +180,7 @@ function buildStructures(scene, Q) {
   }
   bar(gx - 1.7, gy + 18.2, -8.3, gx - 1.7, gy + 18.2, 8.3, .16); bar(gx + 1.7, gy + 18.2, -8.3, gx + 1.7, gy + 18.2, 8.3, .16);
   for (let k = -6; k <= 6; k += 3) bar(gx - 1.7, gy + 18.2, k, gx + 1.7, gy + 18.2, k, .1);
-  scaf.count = Math.min(scafN, scafList.length); scaf.castShadow = true; scene.add(scaf);
+  scaf.count = Math.min(scafN, scafList.length); scaf.castShadow = true; scaf.userData.j = 'hide'; scene.add(scaf);
   out.gate = { panelIM, slotMat, NP, portalU, gateLight, scaf, scafList, group: gate, spokes, innerRing };
 
   /* ---------- steps + walls ---------- */
@@ -238,7 +238,7 @@ function buildStructures(scene, Q) {
   const cupIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.11, .07, .07, 10), M.clay, diyaPts.length);
   const fPos = new Float32Array(diyaPts.length * 3), fPh = new Float32Array(diyaPts.length);
   diyaPts.forEach(([x, y, z], i) => { _p.set(x, y, z); _q.identity(); _s.set(1, 1, 1); setIM(cupIM, i, _p, _q, _s); fPos.set([x, y + .14, z], i * 3); fPh[i] = Math.random() * 100; });
-  scene.add(cupIM);
+  cupIM.userData.j = 'hide'; scene.add(cupIM);
   const flameU = { uTime: { value: 0 }, uLit: { value: 1 }, uSize: { value: 600 }, uCol: { value: col('#ffae55') } };
   const flameG = new THREE.BufferGeometry(); flameG.setAttribute('position', new THREE.BufferAttribute(fPos, 3)); flameG.setAttribute('aPh', new THREE.BufferAttribute(fPh, 1));
   const flames = new THREE.Points(flameG, new THREE.ShaderMaterial({
@@ -250,7 +250,7 @@ function buildStructures(scene, Q) {
         float core=smoothstep(0.35,0.0,d); float halo=exp(-d*d*4.0)*0.5*(1.0-smoothstep(0.6,0.98,length(q))); float a=(core*2.4+halo)*vF; if(a<0.003) discard;
         gl_FragColor=vec4(uCol*(1.0+core*1.5)*a,1.0); }`,
   }));
-  flames.frustumCulled = false; scene.add(flames);
+  flames.frustumCulled = false; flames.userData.j = 'hide'; scene.add(flames);
   out.diyas = { flameU, flames, pts: diyaPts };
   out.floorMat = floor.material;
 
@@ -280,12 +280,12 @@ function buildStructures(scene, Q) {
   bw.add(bwPanels); { const sp = spokes.clone(); sp.traverse(o => { if (o.isMesh) o.material = C.granite; }); bw.add(sp); }
   // synth table + knobs
   const sy = groundY(GEO.SYNTH.x, GEO.SYNTH.z);
-  const stbl = new THREE.Mesh(new THREE.BoxGeometry(1.9, .72, .85), M.wood); stbl.position.set(GEO.SYNTH.x, sy + .36, GEO.SYNTH.z); stbl.castShadow = true; scene.add(stbl);
-  const synthBox = new THREE.Mesh(new THREE.BoxGeometry(1.5, .1, .55), new THREE.MeshStandardMaterial({ color: '#d9d6cf', roughness: .5 })); synthBox.position.set(GEO.SYNTH.x, sy + .77, GEO.SYNTH.z); scene.add(synthBox);
+  const stbl = new THREE.Mesh(new THREE.BoxGeometry(1.9, .72, .85), M.wood); stbl.position.set(GEO.SYNTH.x, sy + .36, GEO.SYNTH.z); stbl.castShadow = true; stbl.userData.j = 'hide'; scene.add(stbl);
+  const synthBox = new THREE.Mesh(new THREE.BoxGeometry(1.5, .1, .55), new THREE.MeshStandardMaterial({ color: '#d9d6cf', roughness: .5 })); synthBox.position.set(GEO.SYNTH.x, sy + .77, GEO.SYNTH.z); synthBox.userData.j = 'hide'; scene.add(synthBox);
   const synthKnobMat = new THREE.MeshBasicMaterial({ color: '#ffb070' });
   const sk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.025, .025, .04, 8), synthKnobMat, 24);
   for (let i = 0; i < 24; i++) { _p.set(GEO.SYNTH.x - .62 + (i % 12) * .112, sy + .84, GEO.SYNTH.z - .12 + Math.floor(i / 12) * .2); _q.identity(); setIM(sk, i, _p, _q, _s); }
-  scene.add(sk);
+  sk.userData.j = 'hide'; scene.add(sk);
   out.ridge = { synthKnobMat, stoneTops, stones, ruinIM };
 
   /* ---------- celestial ring ---------- */

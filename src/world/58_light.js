@@ -330,3 +330,26 @@ function fitShadow(SK, cam, CAM, mapSize) {
   if (sc.right !== half) { sc.left = sc.bottom = -half; sc.right = sc.top = half; sc.updateProjectionMatrix(); }
   key.shadow.normalBias = texel * 1.6; key.shadow.bias = -.00015;
 }
+
+/* ---------- soft shadows ----------
+   three's PCF-soft filter is a fixed ~2-texel kernel that ignores the light's radius, so every shadow edge was crisp. This swaps it for
+   a Vogel disc of 8 taps (one fewer than the filter it replaces) as wide as the light's shadow.radius, rotated per pixel; the rotation
+   shifts with each frame's sub-pixel jitter, so the temporal pass averages the pattern into a smooth penumbra. */
+function softenShadows() {
+  const k = 'shadowmap_pars_fragment', src = THREE.ShaderChunk[k]; if (!src || src.includes('Vogel')) return;
+  const a = src.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )'), b = src.indexOf('#elif defined( SHADOWMAP_TYPE_VSM )', a); if (a < 0 || b < 0) return;
+  THREE.ShaderChunk[k] = src.slice(0, a) + `#elif defined( SHADOWMAP_TYPE_PCF_SOFT )
+			// Vogel disc, rotated per pixel
+			vec2 texelSize = vec2( 1.0 ) / shadowMapSize;
+			float rot = fract( sin( dot( shadowCoord.xy * shadowMapSize, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 ) * 6.2831853, cs = cos( rot ), sn = sin( rot );
+			float rad = max( shadowRadius, 1.0 ) * 1.6;
+			shadow = 0.0;
+			for ( int i = 0; i < 8; i ++ ) {
+				float fi = float( i ), r = sqrt( ( fi + 0.5 ) / 8.0 ), ang = fi * 2.399963;
+				vec2 o = vec2( cos( ang ), sin( ang ) ) * r; o = vec2( o.x * cs - o.y * sn, o.x * sn + o.y * cs );
+				shadow += texture2DCompare( shadowMap, shadowCoord.xy + o * texelSize * rad, shadowCoord.z );
+			}
+			shadow *= 0.125;
+
+		` + src.slice(b);
+}

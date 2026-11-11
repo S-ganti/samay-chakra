@@ -163,7 +163,7 @@ function buildPeople(scene, Q) {
   const stoolG = mergeGeometries([new THREE.CylinderGeometry(.17, .15, .05, 10).translate(0, .445, 0), new THREE.CylinderGeometry(.13, .16, .42, 8, 1, true).translate(0, .21, 0)]);
   const stools = new THREE.InstancedMesh(stoolG, new THREE.MeshStandardMaterial({ color: '#b8322a', roughness: .6 }), Math.max(1, chaiIdx.length));
   chaiIdx.forEach((i, k) => { const bx = -Math.sin(D.cYaw[i]) * .33, bz = -Math.cos(D.cYaw[i]) * .33; stools.setMatrixAt(k, new THREE.Matrix4().makeTranslation(D.cX[i] + bx, 0, D.cZ[i] + bz)); });
-  stools.castShadow = stools.receiveShadow = true; scene.add(stools);
+  stools.castShadow = stools.receiveShadow = true; stools.userData.j = 'hide'; scene.add(stools);
   // long-exposure streaks: one vertical card per trail segment (2 per person), fading along its length
   const trailG = new THREE.BufferGeometry();
   trailG.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, -1, 0, 1, -1, 0, 1, 0], 3));
@@ -197,13 +197,13 @@ function buildPeople(scene, Q) {
   const trails = new THREE.InstancedMesh(trailG, trailMat, NMAX * 2);
   trails.frustumCulled = false; trails.instanceMatrix.setUsage(THREE.DynamicDrawUsage); trails.renderOrder = 2;
   for (let i = 0; i < NMAX; i++) { const o = i * 15 + (D.vari[i] <= VAR.LEHENGA ? 3 : 0); c.setRGB(D.pal[o], D.pal[o + 1], D.pal[o + 2]); trails.setColorAt(i * 2, c); trails.setColorAt(i * 2 + 1, c); }
-  scene.add(trails);
+  trails.userData.j = 'hide'; scene.add(trails);
   // torches: about one in six walkers and watchers carries one after dusk and before dawn — a stick in the fist, a flame on top
   D.torchB = new Uint8Array(NMAX); D.torchLit = F();
   for (let i = 0; i < NMAX; i++) { D.torchB[i] = D.kind[i] !== 1 && D.kind[i] !== 2 && D.rnd[i] > .84 ? 1 : 0; D.torchLit[i] = .15 + .6 * ((D.rnd[i] * 13.37) % 1); }
   const NT = 200;
   const sticks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.015, .021, .52, 5).translate(0, .14, 0), new THREE.MeshStandardMaterial({ color: '#3a2618', roughness: .9 }), NT);
-  sticks.frustumCulled = false; sticks.count = 0; sticks.castShadow = true; sticks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(sticks);
+  sticks.frustumCulled = false; sticks.count = 0; sticks.castShadow = true; sticks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); sticks.userData.j = 'hide'; scene.add(sticks);
   const tPos = new THREE.BufferAttribute(new Float32Array(NT * 3), 3), tW = new THREE.BufferAttribute(new Float32Array(NT), 1), tPh = new Float32Array(NT);
   tPos.setUsage(THREE.DynamicDrawUsage); tW.setUsage(THREE.DynamicDrawUsage); for (let k = 0; k < NT; k++) tPh[k] = r() * 100;
   const tG = new THREE.BufferGeometry(); tG.setAttribute('position', tPos); tG.setAttribute('aW', tW); tG.setAttribute('aPh', new THREE.BufferAttribute(tPh, 1)); tG.setDrawRange(0, 0);
@@ -217,7 +217,7 @@ function buildPeople(scene, Q) {
         float core = smoothstep(.42, 0.0, d), halo = exp(-d * d * 3.5) * .4 * (1.0 - smoothstep(.6, .98, length(q))), a = (core * 1.6 + halo) * vF; if (a < .003) discard;
         gl_FragColor = vec4(mix(vec3(1.0, .34, .07), vec3(1.0, .7, .32), core) * (1.0 + core) * a, 1.0); }`,
   }));
-  flames.frustumCulled = false; scene.add(flames);
+  flames.frustumCulled = false; flames.userData.j = 'hide'; scene.add(flames);
   const torch = { sticks, flames, U: torchU, pos: tPos, w: tW, n: 0, NT };
   return { D, crowd, trails, trailMat, bodyMat, stools, stroll, hillToGate, gateToCity, gateDown, chaiTables, torch, beatClock: 0, orb: 0, lit: 0, frustum: new THREE.Frustum(), cam: null };
 }
@@ -377,6 +377,7 @@ function panelMatrix(W, gate, kk, t, out) {
   return display(out);
 }
 function gateCompletion(W, t) {
+  if (JRN.on) return 1;                                   // Journey: the gate is whole and glowing
   const D = W.D, tau = wrap24(t - 15); let n = 0;
   for (let kk = 0; kk < NCARRY; kk++) { const d = D.d[kk + 1], arrC = .08 + .15 * d + 1.15, rel = 18.0 + .15 * (kk / NCARRY); if (tau >= arrC + .3 && tau < rel) n++; }
   return n / NCARRY;
@@ -497,7 +498,8 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
   const T = W.torch; T.n = 0;
   avoidance(D, N); const ka = Math.min(.05, dt * 2.5);
   for (let i = 0; i < NMAX; i++) {
-    if (i >= N && i > NCARRY) { D.init[i] = 0; D.hide[i] = 1; continue; }
+    // Journey: the DJ and the panel carriers stay out (the gate is whole), and only a few of the crowd walk the sand
+    if ((i >= N && i > NCARRY) || (JRN.on && (i < JRN.first || i >= JRN.first + JRN.n))) { D.init[i] = 0; D.hide[i] = 1; continue; }
     pose(W, i, t, rt, PO);
     if (!D.init[i]) { D.x[i] = PO.x; D.z[i] = PO.z; D.yaw[i] = PO.face; D.lie[i] = PO.lie; D.sit[i] = PO.sit; D.hide[i] = PO.hide; D.init[i] = 1; }
     const ox = D.x[i], oz = D.z[i];
@@ -577,7 +579,7 @@ function updatePeople(W, gate, t, rt, dt, N, beat, energy) {
     for (let i = 0; i < NMAX; i++) { const o = i * HIST * 4 + base; D.hist[o] = D.x[i]; D.hist[o + 1] = D.y[i] + D.bounce[i]; D.hist[o + 2] = D.z[i]; D.hist[o + 3] = D.yaw[i]; }
   }
   // panels
-  for (let kk = 0; kk < NCARRY; kk++) { panelMatrix(W, gate, kk, t, _M); gate.panelIM.setMatrixAt(kk, _M); }
+  for (let kk = 0; kk < NCARRY; kk++) { if (JRN.on) gate.panelIM.setMatrixAt(kk, gate.slotMat[kk]); else { panelMatrix(W, gate, kk, t, _M); gate.panelIM.setMatrixAt(kk, _M); } }
   gate.panelIM.instanceMatrix.needsUpdate = true;
 }
 const ZERO_M = new THREE.Matrix4().makeScale(0, 0, 0);

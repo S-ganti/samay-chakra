@@ -14,10 +14,12 @@ const QUAL = {
 // the Cel style does its own banded light, so while it is on the heavy passes underneath are switched off (ambient occlusion, light shafts,
 // depth of field), the shadow map is smaller and fewer pixels are drawn (the temporal pass rebuilds them): a lean profile over the chosen quality
 const QUAL_BASE = JSON.parse(JSON.stringify(QUAL));
-const CEL_LEAN = (b) => ({ ao: 0, shafts: false, dof: false, shadows: Math.min(b.shadows, 1024), mp: +(b.mp * .75).toFixed(2) });
+const CEL_LEAN = (b) => ({ ao: Math.min(b.ao, 5), shafts: false, dof: false, shadows: Math.min(b.shadows, 1536), mp: +(b.mp * .8).toFixed(2) });   // (a little contact shading stays: without it flat colour looks pasted on)
+// Journey keeps contact shading (it seats the stone on the sand); its saving is the world it doesn't draw
+const JOURNEY_LEAN = (b) => ({ dof: false });
 const STYLEHOOK = { fn: null };
 function applyStyleProfile() {
-  for (const k in QUAL) { const b = QUAL_BASE[k]; Object.assign(QUAL[k], b); if (PARAM.style === 'cel' && b.fusion) Object.assign(QUAL[k], CEL_LEAN(b)); }
+  for (const k in QUAL) { const b = QUAL_BASE[k]; Object.assign(QUAL[k], b); if (PARAM.style === 'cel' && b.fusion) Object.assign(QUAL[k], CEL_LEAN(b)); if (PARAM.style === 'journey' && b.fusion) Object.assign(QUAL[k], JOURNEY_LEAN(b)); }
   // features this start must go without (see SAFE) win over everything
   for (const k in QUAL) { const q = QUAL[k]; if (SAFE.shadows) q.shadows = 0; if (SAFE.post) { q.ao = 0; q.shafts = false; q.dof = false; } if (SAFE.grass) q.grass = 0; }
 }
@@ -56,6 +58,7 @@ async function boot() {
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, Q.pr));
   renderer.toneMapping = THREE.NoToneMapping;          // tone mapping (AgX) happens in the output pass
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  softenShadows();
   // fonts used inside canvas textures
   try { await Promise.race([Promise.all([document.fonts.load('800 190px "Big Shoulders Stencil Display"'), document.fonts.load('600 64px "Noto Sans Kannada"', 'ವಿಸರ್ಜನೆ'), document.fonts.load('500 30px Jost')]), new Promise(r => setTimeout(r, 2200))]); } catch (e) { }
 
@@ -112,7 +115,14 @@ async function boot() {
     ctx.resize();
   };
   addEventListener('resize', ctx.resize); ctx.resize(); treeQuality(PARAM.quality);
-  STYLEHOOK.fn = () => { applyStyleProfile(); ctx.applyQuality(); try { LI.env.update(true); } catch (e) { } };   // a change of render style re-reads the profile
+  // a change of render style re-reads the profile; Journey also swaps the world (dunes in, festival out)
+  STYLEHOOK.fn = () => {
+    applyStyleProfile(); ctx.applyQuality();
+    const j = PARAM.style === 'journey' && QUAL[PARAM.quality].fusion && !SAFE.post;
+    if (j && !JD.built) { try { buildDunes(scene); } catch (e) { diagNote('journey', String(e && e.message || e)); } }
+    JRN.on = j && JD.built; JSKY.uJ.value = JRN.on ? 1 : 0; JD.dirty = true; try { LI.env.update(true); } catch (e) { }
+  };
+  if (PARAM.style === 'journey') STYLEHOOK.fn();
   setupDial(); setupControls(ctx);
   // warm-up: compile every material, upload every texture and build the post chain while the loading screen is up,
   // so no chapter stalls the first time it appears
@@ -157,7 +167,7 @@ async function boot() {
   const LINFO = { celVis: 0, celPos: V3(), portalI: 0, portalPos: V3(GEO.GATE.x, WHEEL_Y, GEO.GATE.z), portalCol: col('#ff8a2a') };
   let last = performance.now(), frames = 0, fpsT = 0, slow = 0;
   const G = ST.gate, gateBase = HP;
-  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, CULL, cull: () => cullFrame(CAM.cam, SK.key, vh * IPR), SK, SIMP, simplifyGeometry, triCount, ipr: () => IPR, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
+  window.__samay = { JRN, JD, SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, CULL, cull: () => cullFrame(CAM.cam, SK.key, vh * IPR), SK, SIMP, simplifyGeometry, triCount, ipr: () => IPR, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
   const reportOnce = (key, e) => {
@@ -349,13 +359,16 @@ async function boot() {
     PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
     updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
     if (updateFusion(PP, w, CAM.cam, rt) | updateStyles(PP, look, w, CAM.cam, rt)) PP.sp.needDepth = true;   // the styled passes read the depth buffer
+    SK.key.shadow.radius = JRN.on ? 5 : 2.5;               // the penumbra's width, in shadow-map texels (see softenShadows)
+    if (JRN.on) updateJourney(look, w, CAM.cam, rt, vh * IPR);
+    if (JD.dirty || JD.nChildren !== scene.children.length) journeyApply(scene);   // (new objects arrive as the scans stream in)
     if (PP.taa.enabled) {
       // temporal pass: it reads depth to reproject; grain moves after the accumulation (or it would be averaged away);
       // clustering follows the style (painterly looks take more, the flat poster styles none); a camera cut starts afresh
       const TQ = QUAL[PARAM.quality], st = PARAM.style;
       PP.sp.needDepth = true;
       PP.taa.O.uGrain.value = PP.grade.uniforms.uGrain.value + (st === 'neon' ? .05 : 0); PP.grade.uniforms.uGrain.value = 0;
-      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : st === 'cel' ? .2 : 0;
+      PP.taa.U.uCluster.value = st === 'real' ? .3 : st === 'paint' ? .6 : st === 'sumi' ? .25 : st === 'cel' ? .2 : st === 'journey' ? .1 : 0;
       PP.taa.O.uSharp.value = TQ.sharp || .5; PP.taa.O.uTime.value = rt;
       if (CAM.snapped) PP.taa.reset = true;
     }
