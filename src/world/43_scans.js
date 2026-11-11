@@ -141,15 +141,15 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   }
   for (const d of domes) add('lod', d, T[d], { tint: GRANITE });
 
-  // 1b — the far ranges: scanned cliff faces (Poly Haven, CC0) set into the mountain ring, 60 to 130 m across, so the skyline is real
-  // rock with real strata instead of a smooth procedural ridge. Each faces the middle of the map; the east stays open for sunrise
+  // 1b — the foot of the far ranges: scanned cliff ledges (Poly Haven, CC0), 35 to 70 m across, sunk into the ground where the plain
+  // meets the mountains, so the ranges rise out of real rock. (They are wide ledges, not tall faces: on the skyline they read as slabs.)
   { const big = ['coastal_cliff_01', 'coastal_cliff_02', 'coastal_cliff_04'].filter(id => A.lod[id]), B = {}; big.forEach(b => B[b] = []);
-    const nB = PARAM.quality === 'low' ? 10 : 22;
+    const nB = PARAM.quality === 'low' ? 8 : 18;
     for (let i = 0; i < nB && big.length; i++) {
-      const a = (i / nB) * TAU + (r() - .5) * .2; if (Math.cos(a) > .7) continue;
-      const d = 255 + r() * 120, x = Math.cos(a) * d, z = Math.sin(a) * d, id = big[i % big.length], sz = A.lod[id].size;
-      const s = (60 + r() * 70) / Math.max(sz.x, sz.z), y = terrainRaw(x, z) + 30 * Math.pow(fbm(Math.cos(a) * 2.2 + 11, Math.sin(a) * 2.2 + d * .004, 5), 2.2);
-      B[id].push([x, y - sz.y * s * .3, z, s, Math.atan2(-x, -z) + (r() - .5) * .9, s * (.9 + r() * .5), .03]);
+      const a = (i / nB) * TAU + (r() - .5) * .25; if (Math.cos(a) > .7) continue;
+      const d = 196 + r() * 34, x = Math.cos(a) * d, z = Math.sin(a) * d * .97; if (scanExcl(x, z, 10) || Math.abs(x) > 234 || Math.abs(z) > 234) continue;
+      const id = big[i % big.length], sz = A.lod[id].size, s = (35 + r() * 35) / Math.max(sz.x, sz.z);
+      B[id].push([x, groundY(x, z) - sz.y * s * .42, z, s, Math.atan2(-x, -z) + (r() - .5) * .9, s * (1 + r() * .5), .03]);
     }
     for (const b of big) add('lod', b, B[b], { tint: GRANITE }); }
 
