@@ -655,12 +655,14 @@ function carveStart() {
 // every sheet the world uses, at a resolution for the render quality
 function carveRes(q) { return q === 'high' ? 1536 : q === 'low' ? 512 : 1024; }
 function buildCarving(q) {
-  const R = carveRes(q), K = {}, d = (key, kind, W, ...gen) => (K[key] = carveSheet(key, kind, W, gen));
-  d('panels', 'sandstone', R, 'panels'); d('band', 'sandstone', R, 'band'); d('spoke', 'sandstone', R >> 2, 'spoke'); d('bronze', 'bronze', R >> 2, 'spoke');
-  d('lotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('chakra', 'sandstone', R >> 1, 'medallion', 'chakra');
+  // the rings and their parts (H) are carved at twice the linear resolution of the supporting stone (R) on Medium and High:
+  // they are what the camera dwells on
+  const R = carveRes(q), H = q === 'low' ? 1024 : 2048, K = {}, d = (key, kind, W, ...gen) => (K[key] = carveSheet(key, kind, W, gen));
+  d('panels', 'sandstone', H, 'panels'); d('band', 'sandstone', H, 'band'); d('spoke', 'sandstone', H >> 1, 'spoke'); d('bronze', 'bronze', H >> 2, 'spoke');
+  d('lotus', 'sandstone', H >> 1, 'medallion', 'lotus'); d('chakra', 'sandstone', H >> 1, 'medallion', 'chakra');
   d('frieze', 'sandstone', R, 'frieze'); d('strip', 'sandstone', R, 'strip'); d('wall', 'sandstone', R >> 1, 'wall'); d('ashlar', 'sandstone', R >> 1, 'ashlar');
-  d('eclipse', 'sandstone', R, 'eclipse'); d('star', 'sandstone', R >> 1, 'medallion', 'star'); d('granite', 'sandstone', R >> 1, 'ashlar');   // every ring is cut from the portal wheel's sandstone
-  d('marble', 'sandstone', R, 'marble'); d('marbleLotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', R >> 1, 'wall'); d('konark', 'buff', R, 'konark');
+  d('eclipse', 'sandstone', H, 'eclipse'); d('star', 'sandstone', H >> 1, 'medallion', 'star'); d('granite', 'sandstone', R >> 1, 'ashlar');   // every ring is cut from the portal wheel's sandstone
+  d('marble', 'sandstone', H, 'marble'); d('marbleLotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', R >> 1, 'wall'); d('konark', 'buff', H, 'konark');
   return K;
 }
 // a standard material on a sheet (textures are clones: own repeat, shared image and GPU memory)

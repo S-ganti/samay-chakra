@@ -7,7 +7,7 @@
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
 const QUAL = {
   low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { taa: true, sharp: .8, pr: 2, mp: 1.2, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
+  med: { taa: true, sharp: .9, pr: 2, mp: 1.8, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
   high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190 },
 };
 async function boot() {
@@ -76,7 +76,7 @@ async function boot() {
   const ctx = { canvas, renderer, CAM, resize: null, applyQuality: null };
   let vw = 1, vh = 1;
   // dynamic resolution: scale multiplies the quality's pixel budget; the frame-time controller in step() moves it
-  const DR = { scale: .85, base: 1, cool: 2.5, ft: 1000 / 60, miss: 0, vsync: 1000 / 60, hist: [], n: 0, slowT: 0, upT: 0, upWait: 2, lastUp: -99, atMin: 0, min: .55, cap30: false, dts: 0 };
+  const DR = { scale: 1, base: 1, cool: 2.5, ft: 1000 / 60, miss: 0, vsync: 1000 / 60, hist: [], n: 0, slowT: 0, upT: 0, upWait: 2, lastUp: -99, atMin: 0, min: .7, cap30: false, dts: 0 };
   const outPR = () => Math.min(devicePixelRatio || 1, QUAL[PARAM.quality].pr);
   let IPR = 1, outKey = '';                                                  // IPR: pixel ratio the picture is drawn at
   ctx.resize = () => {
