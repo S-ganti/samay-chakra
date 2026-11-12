@@ -116,12 +116,12 @@ function buildDecor(scene, Q, ST, TE) {
     return m; });
   const tapG = new THREE.PlaneGeometry(4.2, 3.15, 1, 6);
   const tapPoles = [];
-  [1.35, 1.95, 2.55, 3.15, 3.75, 4.35].forEach((a, k) => {
+  [].forEach((a, k) => {   // (cut: the printed boards read as blank slabs beside the carved stone)
     const x = GEO.R.x + Math.cos(a) * 19.2, z = GEO.R.z + Math.sin(a) * 19.2, gy = groundY(x, z), face = Math.atan2(GEO.R.x - x, GEO.R.z - z);
     const m = new THREE.Mesh(tapG, tapMats[k % 2]); m.position.set(x, gy + 1.75, z); m.rotation.y = face; m.castShadow = true; scene.add(m);
     for (const sd of [-1, 1]) tapPoles.push([x + Math.cos(face) * 2.2 * sd, gy, z - Math.sin(face) * 2.2 * sd]);
   });
-  const tpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.05, .06, 3.6, 6).translate(0, 1.8, 0), ST.M.pole, tapPoles.length);
+  const tpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.05, .06, 3.6, 6).translate(0, 1.8, 0), ST.M.pole, Math.max(1, tapPoles.length)); tpIM.count = tapPoles.length;
   tapPoles.forEach(([x, y, z], k) => { p3.set(x, y, z); q.identity(); s3.set(1, 1, 1); m4.compose(p3, q, s3); tpIM.setMatrixAt(k, m4); }); scene.add(tpIM);
 
   /* ---------- meshes ---------- */
@@ -133,12 +133,12 @@ function buildDecor(scene, Q, ST, TE) {
   leafG.setAttribute('position', new THREE.Float32BufferAttribute([0, .16, 0, .045, 0, 0, 0, -.18, 0, -.045, 0, 0], 3));
   leafG.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], 3)); leafG.setIndex([0, 1, 2, 0, 2, 3]);
   const leafMat = new THREE.MeshStandardMaterial({ color: '#3f7a2c', roughness: .7, side: THREE.DoubleSide });
-  const bulbU = { uTime: { value: 0 }, uLit: { value: 0 }, uSize: { value: 600 } };
+  const bulbU = { uTime: { value: 0 }, uLit: { value: 0 }, uSize: { value: 600 }, uTint: { value: new THREE.Color(1, .8, .5) } };
   const bulbMat = new THREE.ShaderMaterial({
     uniforms: bulbU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-    vertexShader: `attribute vec3 aCol; attribute float aK; uniform float uTime, uLit, uSize; varying vec3 vC;
+    vertexShader: `attribute vec3 aCol; attribute float aK; uniform float uTime, uLit, uSize; uniform vec3 uTint; varying vec3 vC;
       void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); float tw = .8 + .2 * sin(uTime * 2.2 - aK * .45);
-        vC = aCol * tw * uLit; gl_PointSize = uSize * .09 / max(-mv.z, 1.0) + 1.5; gl_Position = projectionMatrix * mv; }`,
+        vC = mix(aCol, uTint * (.75 + .5 * fract(aK * .37)), .78) * tw * uLit; gl_PointSize = uSize * .09 / max(-mv.z, 1.0) + 1.5; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `varying vec3 vC; void main(){ vec2 p = gl_PointCoord * 2.0 - 1.0; float d = dot(p, p);
         float a = (smoothstep(.35, 0.0, d) * 1.6 + exp(-d * 4.0) * .5) * (1.0 - smoothstep(.55, 1.0, d)); if (a * max(vC.r, max(vC.g, vC.b)) < .004) discard;
         gl_FragColor = vec4(vC * a, 1.0); }`,

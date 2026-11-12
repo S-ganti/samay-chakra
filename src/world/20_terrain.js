@@ -236,10 +236,10 @@ function buildTerrain(scene) {
   // Ragamala: the ranges are three flat planes of colour stepping from the near-range to the far-range colour of the hour,
   // with only a breath of form from the key light. The haze (the horizon colour) does the rest
   const mMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  const rangeU = { uNear: { value: col('#3d2f4f') }, uFar: { value: col('#7a5a7d') }, uKeyDir: { value: V3(0, 1, 0) } };
+  const rangeU = { uNear: { value: col('#3d2f4f') }, uFar: { value: col('#7a5a7d') }, uKeyDir: { value: V3(0, 1, 0) }, uHaze: { value: col('#f2a65a') } };
   mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, rangeU);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aD; varying float vD; varying vec3 vRN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvD = aD; vRN = normalize(mat3(modelMatrix) * normal);');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uNear, uFar, uKeyDir; varying float vD; varying vec3 vRN;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float st = min(floor(vD * 3.4), 2.0) / 2.0; float form = .88 + .2 * clamp(dot(normalize(vRN), uKeyDir), -.3, 1.0); diffuseColor.rgb = mix(uNear, uFar, st) * form; }');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aD; varying float vD; varying float vRY; varying vec3 vRN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvD = aD; vRY = position.y; vRN = normalize(mat3(modelMatrix) * normal);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uNear, uFar, uKeyDir, uHaze; varying float vD; varying float vRY; varying vec3 vRN;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float st = min(floor(vD * 3.4), 2.0) / 2.0; float form = .88 + .2 * clamp(dot(normalize(vRN), uKeyDir), -.3, 1.0); diffuseColor.rgb = mix(mix(uNear, uFar, st) * form, uHaze, (1.0 - smoothstep(4.0, 95.0, vRY)) * (.22 + .3 * st)); }');
   };
   mMat.userData.U = rangeU;
   const mm = new THREE.Mesh(mg, mMat);

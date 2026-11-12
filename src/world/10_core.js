@@ -164,8 +164,8 @@ const RAGA = [
 // radius in radians, haloR/haloI = a ring around the light of the hour, halo2 = a second outer ring, moonS = the moon's size
 const SPECT = [
   { band: 1, discR: .02, haloR: .2, haloI: .4, halo2: 0, moonS: 1.8 },      // Enter: afterglow in bands, the moon rising in a ring
-  { band: .7, discR: .02, haloR: .3, haloI: .5, halo2: 0, moonS: 2.4 },    // Gathering: a great moon in its halo
-  { band: .4, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Eclipse: the dark wheel is the ring
+  { band: .35, discR: .02, haloR: .3, haloI: .38, halo2: 0, moonS: 2.4 },    // Gathering: a great moon in its halo
+  { band: .25, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },     // Eclipse: the dark wheel is the ring
   { band: .5, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Brahma Muhurta: the star wheel
   { band: .8, discR: .03, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Diamond Ring: the sun through the wheel
   { band: .8, discR: .034, haloR: .38, haloI: .5, halo2: 0, moonS: 1 },    // Dispersal: a halo round the morning sun

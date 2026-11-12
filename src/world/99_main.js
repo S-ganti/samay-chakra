@@ -278,11 +278,11 @@ async function boot() {
     else { S.beatPos += dt * S.bpm / 60; if (S.beatAud >= 0) { let e = S.beatAud - S.beatPos; e -= Math.round(e / 4) * 4; S.beatPos += e * Math.min(1, dt * 3); } }
     // camera, sky, lights
     updateCamera(CAM, W, dt, rt, t);
-    if (GR) { GR.update(CAM.cam, rt); GR.mesh.material.emissive.copy(look.ground).multiplyScalar(.45); }
+    if (GR) { GR.update(CAM.cam, rt); GR.mesh.material.emissive.copy(look.ground).multiplyScalar(.45); GR.mesh.visible = h > 6.4 && h < 17.6; }   // grass is a daylight detail: by lamp and moon its blades read as dark needles
     updateSky(SK, ST, t, rt, look, w, CAM.cam);
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);
-    { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); }
+    { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); RU.uHaze.value.copy(look.skyHor); }
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;
     fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows);
@@ -317,7 +317,8 @@ async function boot() {
     const night = clamp(1 - smooth(6.0, 7.2, h) + smooth(17.8, 19.0, h), 0, 1);
     CT.facade.uNight.value = night; CT.lamps.headMat.color.setRGB(1, .7, .4).multiplyScalar(.15 + night * 2.2); CT.lamps.lampGlowU.uI.value = night * .9;
     POOLU.uPoolB.value.setScalar(0);
-    DE.bulbU.uLit.value = night; DE.bulbU.uTime.value = rt;
+    DE.bulbU.uLit.value = night; DE.bulbU.uTime.value = rt; DE.bulbU.uTint.value.copy(look.accent).lerp(look.hilite, .45);
+    STONE.U.uRim.value.copy(look.hilite).multiplyScalar(.55);
     for (const m of CT.shopSigns) m.emissiveIntensity = night * .35;
     DE.uvU.value = night * (w[2] * 1.7 + w[1] * .7 + w[3] * .6 + w[0] * .35);
     FO.windU.uTime.value = rt; FO.windU.uFrame.value = (FO.windU.uFrame.value + 1) % 4096;

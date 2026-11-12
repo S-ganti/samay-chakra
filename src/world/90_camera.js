@@ -6,9 +6,9 @@ const gy = (x, z, o = 0) => groundY(x, z) + o;
 const SY = GEO.SYNTH, RR = GEO.R, PP_ = GEO.P, CH = GEO.CHAI;
 // the sky shot: low on the ground, the hero standing between the lens and the light of the hour (sun by day, moon by night), so
 // every chapter opens on its sky event with the hero against it. The higher the light, the closer the camera tucks in under the hero
-const skyShot = (hx, hy, hz, dist, name, fov = 58, eye = 1.5) => (rt) => {
+const skyShot = (hx, hy, hz, dist, name, fov = 58, eye = 1.5, side = 0) => (rt) => {
   const d = S.scatDir, hl = Math.hypot(d.x, d.z), ux = hl > .2 ? d.x / hl : .6, uz = hl > .2 ? d.z / hl : .8;
-  const k = clamp(1 - d.y * .75, .3, 1) * dist, px = hx - ux * k + 1.2 * Math.sin(rt * .03), pz = hz - uz * k;
+  const k = clamp(1 - d.y * .75, .3, 1) * dist, px = hx - ux * k + 1.2 * Math.sin(rt * .03) - uz * side, pz = hz - uz * k + ux * side;
   return { p: [px, groundY(px, pz) + eye, pz], l: [hx + d.x * 30, hy + Math.max(d.y, .05) * 30, hz + d.z * 30], fov, name };
 };
 const SHOTS = [

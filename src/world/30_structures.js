@@ -272,7 +272,7 @@ function buildStructures(scene, Q) {
   }
   _s.set(1, 1, 1); ruinIM.castShadow = ruinIM.receiveShadow = true; scene.add(ruinIM);
   const ruinWall = new THREE.Mesh(boxUV(new THREE.BoxGeometry(1.1, 3.2, 5.5), 3.2, 3.2), [C.granite, C.star, C.granite, C.granite, C.granite, C.granite]);
-  ruinWall.position.set(GEO.R.x - 9, RH + 1.3, GEO.R.z + 1); ruinWall.rotation.y = .5; ruinWall.castShadow = true; scene.add(ruinWall);
+  ruinWall.position.set(GEO.R.x - 9, RH + 1.3, GEO.R.z + 1); ruinWall.rotation.y = .5; ruinWall.castShadow = true;   // (cut: a blank slab beside the carved stones)
   // broken upright wheel
   const bw = new THREE.Group(); bw.position.set(GEO.R.x + 7.5, RH + 3.3, GEO.R.z - 3); bw.rotation.y = -.9; bw.scale.setScalar(.38); scene.add(bw);
   const bwPanels = new THREE.InstancedMesh(panelG, C.granite, NP - 7); let bj = 0;
@@ -310,7 +310,7 @@ function buildStructures(scene, Q) {
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
     fragmentShader: `uniform float uA,uI; uniform vec3 uCol; varying vec2 vUv;
       void main(){ float r=length(vUv*2.0-1.0);
-        float g = pow(r,5.0)*0.5 + 0.10*exp(-pow((r-0.64)/0.010,2.0)) + 0.07*exp(-pow((r-0.40)/0.008,2.0));
+        float g = pow(r,4.0)*0.26 + 0.10*exp(-pow((r-0.64)/0.010,2.0)) + 0.07*exp(-pow((r-0.40)/0.008,2.0));
         gl_FragColor=vec4(vec3(0.004,0.006,0.012) + uCol*g*uI, max(uA*(0.92+0.08*r), g*uI*0.9)); }` }));
   voidM.position.z = -2; voidM.renderOrder = -1; cel.add(voidM);
   // around the wheel, in layers: a hot fine rim, an inner lip line, streamers in the hour's accent, a wide cool aura in the
@@ -322,12 +322,12 @@ function buildStructures(scene, Q) {
       float n(float a){return 0.5+0.5*sin(a*13.0+uTime*.2)*sin(a*29.0-uTime*.13);}
       float n2(float a){return 0.5+0.5*sin(a*7.0-uTime*.11)*sin(a*41.0+uTime*.07);}
       void main(){ vec2 p=(vUv*2.0-1.0)*220.0; float r=length(p); float a=atan(p.y,p.x);
-        float rim = exp(-pow((r-114.6)/2.0,2.0))*2.4;
-        float lip = exp(-pow((r-93.6)/1.8,2.0))*1.1;
+        float rim = exp(-pow((r-114.6)/2.2,2.0))*1.5;
+        float lip = exp(-pow((r-93.6)/1.8,2.0))*0.8;
         float rays = step(113.0,r) * exp(-(r-113.0)/(16.0+34.0*n(a))) * (0.3+0.7*n2(a));
-        float aura = exp(-pow((r-122.0)/60.0,2.0))*0.26;
+        float aura = exp(-pow((r-118.0)/78.0,2.0))*0.34;
         float far = exp(-pow((r-168.0)/1.3,2.0))*0.4;
-        vec3 c = uCol*(rim+lip) + uCol2*rays*1.1 + uCol3*aura*2.2 + mix(uCol,uCol2,0.5)*far;
+        vec3 c = uCol*(rim+lip) + uCol2*rays*0.62 + uCol3*aura*2.2 + mix(uCol,uCol2,0.5)*far*0.7;
         gl_FragColor=vec4(c*uI*smoothstep(220.0,190.0,r),1.0);} ` }));
   corona.position.z = -14; cel.add(corona);
   out.celestial = { group: cel, celMat, celBlockMat, ros, voidU, corU, angR: 0 };

@@ -280,8 +280,8 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   cel.group.visible = presence > .01;
   cel.celMat.opacity = cel.celBlockMat.opacity = presence; cel.ros.material[1].opacity = presence;
   cel.corU.uI.value = (look.coronaI + dawn * hidden * 1.4 + flash * 2) * presence;
-  cel.corU.uCol.value.copy(look.corona); cel.corU.uCol2.value.copy(look.accent); cel.corU.uCol3.value.copy(look.skyHor); cel.corU.uTime.value = rt;
-  cel.voidU.uCol.value.copy(look.accent); cel.voidU.uI.value = presence * (w[1] * .9 + w[2] * .8 + w[3] * .5 + w[0] * .5);
+  cel.corU.uCol.value.copy(look.corona); cel.corU.uCol.value.lerp(look.skyHor, .22); cel.corU.uCol2.value.copy(look.accent).lerp(look.skyHor, .42); cel.corU.uCol3.value.copy(look.skyHor); cel.corU.uTime.value = rt;
+  cel.voidU.uCol.value.copy(look.accent).lerp(look.skyHor, .45); cel.voidU.uI.value = presence * (w[1] * .9 + w[2] * .8 + w[3] * .5 + w[0] * .5);
   // flare on the sun (diamond ring + low sun glare)
   const sunVis = smooth(-.03, .03, S.sunDir.y) * (1 - hidden * dawn);
   SK.flare.position.copy(cam.position).addScaledVector(S.sunDir, 800);

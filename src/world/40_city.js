@@ -93,6 +93,7 @@ function buildCity(scene, Q) {
   out.wheelMat = wheelMat;
   flat(new THREE.CircleGeometry(17, 160), wheelMat, P.x, P.z, .08);
   const rim = new THREE.Mesh(torusFriezeUV(new THREE.TorusGeometry(17, .32, 10, 220), 10), CARVE.by.band ? carvedMaterial(CARVE.by.band) : new THREE.MeshStandardMaterial({ color: '#cdb892', roughness: .9 })); rim.rotation.x = Math.PI / 2; rim.position.set(P.x, .12, P.z); scene.add(rim);
+  { const kerb = new THREE.Mesh(torusFriezeUV(new THREE.TorusGeometry(33, .42, 10, 320), 20), rim.material); kerb.rotation.x = Math.PI / 2; kerb.position.set(P.x, .1, P.z); kerb.receiveShadow = true; scene.add(kerb); }
   const court = CARVE.by.ashlar ? carvedMaterial(CARVE.by.ashlar, { repeat: [14, 14] }) : paving;   // the court round the wheel is dressed stone, not blank paving
   flat(new THREE.RingGeometry(17, 25, 160, 1), court, P.x, P.z, .05);
   flat(new THREE.RingGeometry(25, 33, 160, 1), court, P.x, P.z, .03);

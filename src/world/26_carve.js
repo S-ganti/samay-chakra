@@ -678,7 +678,7 @@ function carvedMaterial(sh, { repeat = [1, 1], normalScale = 1, ...extra } = {})
    monuments carry it: grime settled in the recesses, rain streaks down the faces, lichen on the tops. */
 // monolithic surfaces only (masonry scans would print brick courses across carved stone)
 const STONE_TEX = { sandstone: 'stone/sandstone_cracks', buff: 'stone/sandstone_cracks', marble: 'stone/marble_rock_02', granite: 'tex/rock_boulder_dry', laterite: 'stone/rock_boulder_cracked', slate: 'tex/rock_boulder_dry' };
-const STONE = { sets: {}, U: { uStoneOn: { value: PARAM.stone === undefined ? 1 : PARAM.stone } } };
+const STONE = { sets: {}, U: { uStoneOn: { value: PARAM.stone === undefined ? 1 : PARAM.stone }, uRim: { value: new THREE.Color(0, 0, 0) } } };
 const _flatARM = () => { const t = new THREE.DataTexture(new Uint8Array([255, 200, 0, 255]), 1, 1); t.needsUpdate = true; return t; };
 function stoneSet(kind) {
   const id = STONE_TEX[kind]; if (!id) return null;
@@ -705,10 +705,12 @@ function stoneDetail(m, kind) {
         #endif
           vSW = (modelMatrix * swp).xyz; vSN = normalize(mat3(modelMatrix) * snn); }`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D tD, tN, tA; uniform float uOn, uStoneOn, uSScale, uLichen; uniform vec3 uMean; varying vec3 vSW; varying vec3 vSN;
+      uniform sampler2D tD, tN, tA; uniform float uOn, uStoneOn, uSScale, uLichen; uniform vec3 uMean, uRim; varying vec3 vSW; varying vec3 vSN;
       vec3 sBW() { vec3 b = pow(abs(normalize(vSN)), vec3(4.0)); return b / (b.x + b.y + b.z); }
       vec4 tri(sampler2D t, float k) { vec3 b = sBW(); vec3 p = vSW * uSScale * k; return texture2D(t, p.zy) * b.x + texture2D(t, p.xz) * b.y + texture2D(t, p.xy) * b.z; }
       float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); float a = fract(sin(dot(i, vec2(12.9898, 78.233))) * 43758.5453), b = fract(sin(dot(i + vec2(1, 0), vec2(12.9898, 78.233))) * 43758.5453), c = fract(sin(dot(i + vec2(0, 1), vec2(12.9898, 78.233))) * 43758.5453), d = fract(sin(dot(i + vec2(1, 1), vec2(12.9898, 78.233))) * 43758.5453); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        { float rimK = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 3.0); totalEmissiveRadiance += uRim * rimK * diffuseColor.rgb; }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       float sOn = uOn * uStoneOn;
       if (sOn > 0.5) {
