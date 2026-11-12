@@ -181,6 +181,7 @@ LOOKS.forEach((L, i) => {
     far, near, ground, accent, strip: accent, banner: accent,
     phys: 0, scat: L.scat * .5, fogD: night ? .0055 : i === 0 ? .0042 : i === 7 ? .0034 : i === 4 ? .0036 : .0033,
     sunI: i === 2 ? 1.5 : i === 1 ? 1.1 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
+    corona: ['#ffc98a', '#ffd9a0', '#efe4ff', '#c4d6ff', '#fff4d0', '#ffffff', '#ffffff', '#ffd0a0'][i], coronaI: Math.max(L.coronaI, night ? .6 : L.coronaI),
     ...SPECT[i], hemiI: night ? 1.25 : L.hemiI, lift: night ? mixHex(shade, '#000000', .72) : i === 6 ? '#0a0806' : L.lift,
     practical: i === 1 ? '#ffb060' : accent, practicalI: i === 1 ? L.practicalI * .4 : L.practicalI, pEmisI: 0,
     grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1),

@@ -26,7 +26,7 @@ const SHOTS = [
     (rt) => ({ p: [-30, HP + 3.2, -9 + .6 * Math.sin(rt * .03)], l: [-47, HP + 7.2, 0], fov: 28, name: 'Rim by firelight', dof: 1.6 }),
   ],
   [ // 3 Eclipse — the dark wheel over the stone circle
-    (rt) => ({ p: [RR.x - 17, RH + 3, RR.z + 7 + 1.5 * Math.sin(rt * .03)], l: [RR.x + 40, RH + 16, RR.z - 4], fov: 66, name: 'Under the ring' }),
+    (rt) => ({ p: [RR.x - 17, RH + 4.4, RR.z + 7 + 1.5 * Math.sin(rt * .03)], l: [RR.x + 40, RH + 16, RR.z - 4], fov: 66, name: 'Under the ring' }),
     (rt) => ({ p: [10, HP + 22, 16], l: [RR.x + 20, RH + 18, RR.z - 4], fov: 46, name: 'From the clearing' }),
   ],
   [ // 4 Brahma Muhurta — star wheel, sleepers, one figure at the synth

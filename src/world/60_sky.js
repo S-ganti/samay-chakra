@@ -211,7 +211,7 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   cel.group.position.copy(Rp).addScaledVector(_rd, celD);
   cel.group.lookAt(Rp); cel.group.rotateZ(rt * .004);
   cel.angR = Math.atan(113 / celD);
-  if (cel.celMat.emissive) { _pc3.set('#2a3a58').multiplyScalar(.32 * eclW + .08 * w[3]); cel.celMat.emissive.copy(_pc3); cel.celBlockMat.emissive.copy(_pc3); }
+  { _pc3.copy(look.corona).lerp(look.hilite, .5).multiplyScalar(.5 * eclW + .42 * w[1] + .3 * w[3] + .2 * w[0]); cel.celMat.emissive.copy(_pc3); cel.celBlockMat.emissive.copy(_pc3); }
   const mAz = hdiff(t, 1.5) * 6;
   dirFrom(rEl + 1.5 * Math.cos(hdiff(t, 1.5) * .4), mAz, S.moonDir);
   const moonUp = smooth(-.06, .04, S.moonDir.y) * (1 - smooth(-.05, .1, S.sunDir.y));
@@ -280,7 +280,8 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   cel.group.visible = presence > .01;
   cel.celMat.opacity = cel.celBlockMat.opacity = presence; cel.ros.material[1].opacity = presence;
   cel.corU.uI.value = (look.coronaI + dawn * hidden * 1.4 + flash * 2) * presence;
-  cel.corU.uCol.value.copy(look.corona); cel.corU.uTime.value = rt;
+  cel.corU.uCol.value.copy(look.corona); cel.corU.uCol2.value.copy(look.accent); cel.corU.uCol3.value.copy(look.skyHor); cel.corU.uTime.value = rt;
+  cel.voidU.uCol.value.copy(look.accent); cel.voidU.uI.value = presence * (w[1] * .9 + w[2] * .8 + w[3] * .5 + w[0] * .5);
   // flare on the sun (diamond ring + low sun glare)
   const sunVis = smooth(-.03, .03, S.sunDir.y) * (1 - hidden * dawn);
   SK.flare.position.copy(cam.position).addScaledVector(S.sunDir, 800);

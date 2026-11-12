@@ -278,7 +278,7 @@ async function boot() {
     else { S.beatPos += dt * S.bpm / 60; if (S.beatAud >= 0) { let e = S.beatAud - S.beatPos; e -= Math.round(e / 4) * 4; S.beatPos += e * Math.min(1, dt * 3); } }
     // camera, sky, lights
     updateCamera(CAM, W, dt, rt, t);
-    if (GR) GR.update(CAM.cam, rt);
+    if (GR) { GR.update(CAM.cam, rt); GR.mesh.material.emissive.copy(look.ground).multiplyScalar(.45); }
     updateSky(SK, ST, t, rt, look, w, CAM.cam);
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);

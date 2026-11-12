@@ -301,19 +301,34 @@ function buildStructures(scene, Q) {
   for (let i = 0; i < 40; i++) { const a = i / 40 * TAU; _p.set(Math.cos(a) * 110, Math.sin(a) * 110, 0); _q.setFromAxisAngle(V3(0, 0, 1), a); setIM(cb, i, _p, _q, _s); }
   for (let i = 0; i < 20; i++) { const a = (i + .5) / 20 * TAU; _p.set(Math.cos(a) * 105, Math.sin(a) * 105, 9); _q.setFromAxisAngle(V3(1, 0, 0), Math.PI / 2); setIM(ros, i, _p, _q, _s); }
   cel.add(cb, ros);
-  const voidU = { uA: { value: 0 } };
+  // the carving of the sky wheel glows by its own relief: the light of the hour is laid through the carved colour, so the
+  // figures and medallions read at night instead of sinking into a flat silhouette
+  for (const m of [celMat, celBlockMat, celStar]) { m.emissiveMap = m.map; m.emissive = col('#000000'); }
+  // inside the wheel: the dark of the eclipse, warmed toward the rim by the hour's accent, with two fine inscribed circles
+  const voidU = { uA: { value: 0 }, uCol: { value: col('#ff3d9a') }, uI: { value: 0 } };
   const voidM = new THREE.Mesh(new THREE.CircleGeometry(96, 96), new THREE.ShaderMaterial({ uniforms: voidU, transparent: true, depthWrite: false, fog: false,
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: 'uniform float uA; varying vec2 vUv; void main(){ float r=length(vUv*2.0-1.0); gl_FragColor=vec4(vec3(0.004,0.006,0.012), uA*(0.92+0.08*r)); }' }));
+    fragmentShader: `uniform float uA,uI; uniform vec3 uCol; varying vec2 vUv;
+      void main(){ float r=length(vUv*2.0-1.0);
+        float g = pow(r,5.0)*0.5 + 0.10*exp(-pow((r-0.64)/0.010,2.0)) + 0.07*exp(-pow((r-0.40)/0.008,2.0));
+        gl_FragColor=vec4(vec3(0.004,0.006,0.012) + uCol*g*uI, max(uA*(0.92+0.08*r), g*uI*0.9)); }` }));
   voidM.position.z = -2; voidM.renderOrder = -1; cel.add(voidM);
-  const corU = { uI: { value: 0 }, uCol: { value: col('#a8d0ff') }, uTime: { value: 0 } };
-  const corona = new THREE.Mesh(new THREE.PlaneGeometry(380, 380), new THREE.ShaderMaterial({ uniforms: corU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+  // around the wheel, in layers: a hot fine rim, an inner lip line, streamers in the hour's accent, a wide cool aura in the
+  // sky's own hue, and one thin far circle. Three colours, so the ring has contrast against any night
+  const corU = { uI: { value: 0 }, uCol: { value: col('#a8d0ff') }, uCol2: { value: col('#ff3d9a') }, uCol3: { value: col('#33206a') }, uTime: { value: 0 } };
+  const corona = new THREE.Mesh(new THREE.PlaneGeometry(440, 440), new THREE.ShaderMaterial({ uniforms: corU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     vertexShader: 'varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-    fragmentShader: `uniform float uI,uTime; uniform vec3 uCol; varying vec2 vUv;
+    fragmentShader: `uniform float uI,uTime; uniform vec3 uCol,uCol2,uCol3; varying vec2 vUv;
       float n(float a){return 0.5+0.5*sin(a*13.0+uTime*.2)*sin(a*29.0-uTime*.13);}
-      void main(){ vec2 p=(vUv*2.0-1.0)*190.0; float r=length(p); float a=atan(p.y,p.x);
-        float g=exp(-pow((r-114.0)/6.0,2.0))*1.4 + exp(-pow((r-116.0)/26.0,2.0))*(0.35+0.35*n(a)) + exp(-pow((r-92.0)/5.0,2.0))*0.5;
-        gl_FragColor=vec4(uCol*g*uI,1.0);} ` }));
+      float n2(float a){return 0.5+0.5*sin(a*7.0-uTime*.11)*sin(a*41.0+uTime*.07);}
+      void main(){ vec2 p=(vUv*2.0-1.0)*220.0; float r=length(p); float a=atan(p.y,p.x);
+        float rim = exp(-pow((r-114.6)/2.0,2.0))*2.4;
+        float lip = exp(-pow((r-93.6)/1.8,2.0))*1.1;
+        float rays = step(113.0,r) * exp(-(r-113.0)/(16.0+34.0*n(a))) * (0.3+0.7*n2(a));
+        float aura = exp(-pow((r-122.0)/60.0,2.0))*0.26;
+        float far = exp(-pow((r-168.0)/1.3,2.0))*0.4;
+        vec3 c = uCol*(rim+lip) + uCol2*rays*1.1 + uCol3*aura*2.2 + mix(uCol,uCol2,0.5)*far;
+        gl_FragColor=vec4(c*uI*smoothstep(220.0,190.0,r),1.0);} ` }));
   corona.position.z = -14; cel.add(corona);
   out.celestial = { group: cel, celMat, celBlockMat, ros, voidU, corU, angR: 0 };
   return out;
