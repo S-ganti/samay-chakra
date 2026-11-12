@@ -4,6 +4,13 @@
    ========================================================================= */
 const gy = (x, z, o = 0) => groundY(x, z) + o;
 const SY = GEO.SYNTH, RR = GEO.R, PP_ = GEO.P, CH = GEO.CHAI;
+// the sky shot: low on the ground, the hero standing between the lens and the light of the hour (sun by day, moon by night), so
+// every chapter opens on its sky event with the hero against it. The higher the light, the closer the camera tucks in under the hero
+const skyShot = (hx, hy, hz, dist, name, fov = 58, eye = 1.5) => (rt) => {
+  const d = S.scatDir, hl = Math.hypot(d.x, d.z), ux = hl > .2 ? d.x / hl : .6, uz = hl > .2 ? d.z / hl : .8;
+  const k = clamp(1 - d.y * .75, .3, 1) * dist, px = hx - ux * k + 1.2 * Math.sin(rt * .03), pz = hz - uz * k;
+  return { p: [px, groundY(px, pz) + eye, pz], l: [hx + d.x * 30, hy + Math.max(d.y, .05) * 30, hz + d.z * 30], fov, name };
+};
 const SHOTS = [
   [ // 1 Enter the Ring — procession up the lamp-lit steps into the glowing portal
     (rt) => ({ p: [-85 + 1.5 * Math.sin(rt * .03), FORE_H + 1.7, 8.6], l: [-47, HP + 6.4, -1], fov: 50, name: 'Ascent' }),
@@ -13,6 +20,7 @@ const SHOTS = [
     (rt) => ({ p: [-37.5, HP + 4.6, 5.2 + .5 * Math.sin(rt * .03)], l: [-47, HP + 6.6, 0], fov: 24, name: 'Hub', dof: 2.2 }),
   ],
   [ // 2 The Gathering — the swirling red mehfil around the ring stage
+    skyShot(0, HP + 3, 0, 34, 'Moonrise'),
     (rt) => { const a = rt * .03 + .6; return { p: [Math.cos(a) * 36, HP + 27, Math.sin(a) * 36], l: [0, HP + 1, 0], fov: 50, name: 'Mehfil' }; },
     (rt) => { const a = rt * .055; return { p: [Math.cos(a) * 21.5, HP + 1.7, Math.sin(a) * 21.5], l: [Math.cos(a + 1) * 9, HP + 1.8, Math.sin(a + 1) * 9], fov: 50, name: 'In the orbit', dof: 1.8, fd: 13 }; },
     (rt) => ({ p: [-30, HP + 3.2, -9 + .6 * Math.sin(rt * .03)], l: [-47, HP + 7.2, 0], fov: 28, name: 'Rim by firelight', dof: 1.6 }),
@@ -32,16 +40,19 @@ const SHOTS = [
     (rt) => ({ p: [RR.x + 16, RH + 4.5, RR.z + 3], l: [RR.x + 120, RH + 12, RR.z], fov: 56, name: 'Diamond' }),
   ],
   [ // 6 Dispersal — chai on the pavement, autos, the pillar with the ring
+    skyShot(PP_.x, 11, PP_.z, 30, 'Halo'),
     (rt) => ({ p: [15, 15, 57], l: [2, 3, 88], fov: 48, name: 'Down to the wheel' }),
     (rt) => ({ p: [PP_.x - 26 + Math.sin(rt * .02), 5.5, PP_.z - 24], l: [PP_.x, 5.2, PP_.z], fov: 35, name: 'Pillar' }),
     (rt) => ({ p: [PP_.x + 15, 1.3, PP_.z + 12 + .5 * Math.sin(rt * .03)], l: [PP_.x, 2.4, PP_.z], fov: 30, name: 'Across the carving', dof: 1.6 }),
   ],
   [ // 7 Zero Shadow — straight down on the great wheel
+    skyShot(PP_.x, 11, PP_.z, 22, 'Zenith ring', 72, 1.2),
     (rt) => { const a = rt * .008; return { p: [PP_.x + 9 * Math.cos(a), 80, PP_.z + 9 * Math.sin(a) + .01], l: [PP_.x + 9 * Math.cos(a), 0, PP_.z + 9 * Math.sin(a)], fov: 30, name: 'Mandala' }; },
     (rt) => { const a = -rt * .05; return { p: [PP_.x + Math.cos(a) * 27.5, 1.6, PP_.z + Math.sin(a) * 27.5], l: [PP_.x, 1.4, PP_.z], fov: 55, name: 'Pradakshina', dof: 1.3 }; },
     (rt) => ({ p: [PP_.x - 42, 27, PP_.z - 40], l: [PP_.x, 0, PP_.z], fov: 44, name: 'Rooftop' }),
   ],
   [ // 8 Return — carriers climbing with the pieces; the ring rebuilt
+    skyShot(-47, HP + 6.4, 0, 62, 'Sun wheel', 26, 2.4),
     (rt) => ({ p: [-82, FORE_H + 5, 15], l: [-47, HP + 6.8, 0], fov: 46, name: 'Rebuilding' }),
     // late light: from the gate, west down the steps into the low sun, the crowd and the leaves backlit
     (rt, h) => (h !== undefined && h < 16.7) ? null : ({ p: [-52.5, HP + 1.45, 3.6 + .5 * Math.sin(rt * .04)], l: [-98, FORE_H + 6, -5], fov: 48, name: 'Into the sun', dof: 1, fd: 30 }),

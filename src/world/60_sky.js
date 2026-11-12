@@ -4,6 +4,7 @@
 const SKY_VS = `varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }`;
 const SKY_FS = `
 uniform vec3 uZen,uHor,uGlow,uFog,uCloud,uSunDir,uPole,uMwN,uFogSun,uScatDir,uSunT,uCloudP,uGround;
+uniform vec3 uHaloDir,uHaloCol,uDiscCol; uniform vec4 uHalo; uniform float uBand,uDiscR;
 uniform float uSunI,uSunVis,uStars,uTrail,uMilky,uCloudAmt,uTime,uRot,uNight,uPhysW,uPhysK,uFogScat;
 uniform sampler2D uLUT;
 varying vec3 vDir;
@@ -21,6 +22,8 @@ void main(){
   float el = d.y;
   // poster sky: two-colour gradient, sun glow, horizon warmth on the sun side
   float t = pow(clamp(el,0.0,1.0), 0.42);
+  // Ragamala: the sky is laid in flat bands, like the washes of a miniature (the ranges step the same way)
+  { float tb = floor(t * 11.0 + 0.5) / 11.0; t = mix(t, mix(t, tb, 0.6), uBand); }
   vec3 c = mix(uHor, uZen, t);
   float sd = max(dot(d,uSunDir),0.0);
   float sunUp = smoothstep(-0.3, 0.05, uSunDir.y);
@@ -72,8 +75,16 @@ void main(){
     c += (vec3(0.85,0.9,1.0)*acc*1.6 + vec3(0.55,0.62,0.85)*mw*0.55) * uStars * hz;
   }
   // sun disc, reddened by the air it shines through
-  float disc = smoothstep(0.99955, 0.99985, dot(d,uSunDir));
-  c += mix(vec3(1.0,0.96,0.88), uSunT, uPhysW) * disc * 9.0 * uSunVis;
+  // the sun: a small bright disc by default; where the hour calls for it, a great flat painted disc, cut by bands of sky toward its foot
+  float sa = acos(clamp(dot(d,uSunDir), -1.0, 1.0)), big = smoothstep(0.02, 0.06, uDiscR);
+  float disc = 1.0 - smoothstep(uDiscR * 0.97, uDiscR, sa);
+  float sdn = clamp((uSunDir.y - el) / max(uDiscR, 1e-4), 0.0, 1.0);
+  disc *= mix(1.0, step(sdn * 0.6, fract(sdn * 4.5)), big);
+  c = mix(c, mix(vec3(1.0,0.96,0.88) * 9.0, uDiscCol, big), disc * uSunVis);
+  // a ring in every sky: a halo around the light of the hour (and a fainter outer one where asked)
+  { float ha = acos(clamp(dot(d,uHaloDir), -1.0, 1.0));
+    float ring = exp(-pow((ha - uHalo.x) / uHalo.w, 2.0)) + uHalo.y * exp(-pow((ha - uHalo.x * 2.0) / (uHalo.w * 1.5), 2.0));
+    c += uHaloCol * ring * uHalo.z * smoothstep(-0.02, 0.1, el); }
 #endif
   // the horizon melts into the same sun-lit fog the ground uses
   vec3 fc = mix(uFog, uFogSun, pow(max(dot(d, uScatDir), 0.0), 6.0) * uFogScat);
@@ -98,6 +109,7 @@ function buildSky(scene, Q) {
     uSunDir: { value: V3(1, 0, 0) }, uPole: { value: V3(0, Math.sin(.227), -Math.cos(.227)).normalize() }, uMwN: { value: V3(.35, .6, .72).normalize() },
     uSunI: { value: 1 }, uSunVis: { value: 1 }, uStars: { value: 0 }, uTrail: { value: 0 }, uMilky: { value: 0 }, uCloudAmt: { value: 0 }, uTime: { value: 0 }, uRot: { value: 0 }, uNight: { value: 0 },
     uFogSun: { value: col('#000') }, uScatDir: { value: V3(0, 1, 0) }, uSunT: { value: col('#fff') }, uCloudP: { value: col('#fff') }, uGround: { value: col('#000') },
+    uHaloDir: { value: V3(0, 1, 0) }, uHaloCol: { value: col('#fff') }, uDiscCol: { value: col('#fff') }, uHalo: { value: new THREE.Vector4(.38, 0, 0, .012) }, uBand: { value: 0 }, uDiscR: { value: .02 },
     uPhysW: { value: 0 }, uPhysK: { value: 1 }, uFogScat: { value: 0 }, uLUT: { value: null },
   };
   const sky = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), new THREE.ShaderMaterial({ uniforms: U, vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, fog: false }));
@@ -243,7 +255,9 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   HFOG.hfSunDir.value.copy(S.scatDir);
   // sky uniforms
   U.uZen.value.copy(look.skyZen); U.uHor.value.copy(look.skyHor); U.uGlow.value.copy(look.skyGlow); U.uFog.value.copy(SK.fog.color); U.uCloud.value.copy(look.cloud);
-  U.uSunDir.value.copy(S.sunDir); U.uSunI.value = look.sunI; U.uSunVis.value = smooth(-.02, .02, S.sunDir.y);
+  U.uSunDir.value.copy(S.sunDir); U.uSunI.value = look.sunI; U.uSunVis.value = smooth(-.02 - look.discR, .02, S.sunDir.y);
+  U.uBand.value = look.band; U.uDiscR.value = look.discR; U.uHaloDir.value.copy(S.scatDir); U.uHaloCol.value.copy(look.sun); U.uDiscCol.value.copy(look.accent).lerp(look.sun, .35).multiplyScalar(1.9); U.uHalo.value.set(look.haloR, look.halo2, look.haloI * scatVis, .011);
+  SK.moon.scale.setScalar(52 * look.moonS); SK.moonGlow.scale.setScalar(260 * look.moonS);
   U.uStars.value = look.stars * (1 - dayF); U.uTrail.value = look.trail; U.uMilky.value = look.milky; U.uCloudAmt.value = look.cloudAmt;
   U.uTime.value = rt; U.uRot.value = t / 24 * TAU;
   U.uPhysW.value = physW; U.uPhysK.value = K; U.uSunT.value.copy(S.sunT); U.__mie = look.mie;

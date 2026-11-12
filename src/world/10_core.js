@@ -160,6 +160,18 @@ const RAGA = [
   ['#2f7fc8', '#bfe0ee', '#a9bfc0', '#8f9a78', '#e6d3a3', '#fff4d6', '#b59a6a', '#e9b43b'],   // Zero Shadow, 12:00, Bhimpalasi
   ['#4a8ac0', '#f3e2c0', '#b9a8a0', '#8a7a62', '#d4b07a', '#f6d7a0', '#9a6f4f', '#f0a060'],   // Return, 15:00, Marwa
 ];
+// the sky event of each hour (a ring in every sky): band = how flat the sky's washes are, discR = the painted sun's
+// radius in radians, haloR/haloI = a ring around the light of the hour, halo2 = a second outer ring, moonS = the moon's size
+const SPECT = [
+  { band: 1, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1.6 },     // Enter: afterglow laid in bands
+  { band: .7, discR: .02, haloR: .3, haloI: .5, halo2: 0, moonS: 2.4 },    // Gathering: a great moon in its halo
+  { band: .4, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Eclipse: the dark wheel is the ring
+  { band: .5, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Brahma Muhurta: the star wheel
+  { band: .8, discR: .03, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Diamond Ring: the sun through the wheel
+  { band: .8, discR: .034, haloR: .38, haloI: .5, halo2: 0, moonS: 1 },    // Dispersal: a halo round the morning sun
+  { band: .8, discR: .034, haloR: .38, haloI: .8, halo2: .45, moonS: 1 },  // Zero Shadow: a double ring at the zenith
+  { band: 1, discR: .085, haloR: .19, haloI: .32, halo2: 0, moonS: 1 },    // Return: the great banded sun
+];
 const mixHex = (a, b, f) => '#' + col(a).lerp(col(b), f).getHexString();
 LOOKS.forEach((L, i) => {
   const [top, hor, far, near, ground, lit, shade, accent] = RAGA[i], night = i >= 1 && i <= 3;
@@ -169,6 +181,7 @@ LOOKS.forEach((L, i) => {
     far, near, ground, accent, practical: accent, strip: accent, banner: accent,
     phys: 0, scat: L.scat * .5, fogD: night ? .0055 : i === 0 ? .0042 : i === 7 ? .0034 : i === 4 ? .0036 : .0033,
     sunI: i === 2 ? 1.5 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
+    ...SPECT[i], hemiI: i === 2 ? 1.1 : L.hemiI,
     grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1), lift: i === 6 ? '#0a0806' : L.lift,
   });
 });
