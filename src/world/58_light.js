@@ -238,12 +238,12 @@ function buildLight(renderer, scene, SK, ST, CT, TR, Q) {
       // the sky only drifts: ~3 refreshes a second is plenty, and each one is a cube render plus a PMREM pass (a visible hitch if frequent)
       // and only when the sky has actually changed: comparing a few of its uniforms is far cheaper than a refresh nobody can see
       this.frame++;
-      if (!force && this.frame - this.lastF < (S.travel ? 6 : 20)) return;
+      if (!force && this.frame - this.lastF < (S.travel ? 30 : 480)) return;   // each refresh is a cube render plus a blur chain: a dropped frame or two. With the day turning in 24 minutes the sky is always changing, so this is rationed to once in ~8 s
       const u = SK.U, c = this.cur, sd = u.uSunDir.value, zn = u.uZen.value, hz = u.uHor.value;
       c[0] = sd.x; c[1] = sd.y; c[2] = sd.z; c[3] = zn.r; c[4] = zn.g; c[5] = zn.b; c[6] = hz.r; c[7] = hz.g; c[8] = hz.b; c[9] = u.uPhysW.value; c[10] = u.uCloudAmt.value;
       if (!force && this.has && this.frame - this.lastF < 300) {
         let dd = 0; for (let i = 0; i < 11; i++) dd = Math.max(dd, Math.abs(c[i] - this.sig[i]));
-        if (dd < .006) return;
+        if (dd < .03) return;
       }
       this.sig.set(c); this.has = true; this.lastF = this.frame;
       cubeCam.update(renderer, envScene);

@@ -156,9 +156,9 @@ const RAGA = [
   ['#130628', '#4c2278', '#32185a', '#1f0e40', '#1c0e34', '#c8aaf0', '#3a1e62', '#ff3d9a'],   // Eclipse, 00:00, Malkauns
   ['#0b1638', '#3b5596', '#243a6c', '#15264e', '#101c38', '#a6bcea', '#2a4074', '#7fa2e6'],   // Brahma Muhurta, 03:00, Lalit
   ['#4a6fa8', '#ffd9a0', '#c79a9a', '#7a6480', '#5a4a52', '#ffe2b0', '#8a6a70', '#ffc247'],   // Diamond Ring, 06:00, Bhairav
-  ['#5f9fd0', '#dcebf0', '#9fb8c4', '#6f8f86', '#c9b48f', '#f2e3c4', '#a08a72', '#d8342b'],   // Dispersal, 09:00, Todi
-  ['#2f7fc8', '#bfe0ee', '#a9bfc0', '#8f9a78', '#e6d3a3', '#fff4d6', '#b59a6a', '#e9b43b'],   // Zero Shadow, 12:00, Bhimpalasi
-  ['#4a8ac0', '#f3e2c0', '#b9a8a0', '#8a7a62', '#d4b07a', '#f6d7a0', '#9a6f4f', '#f0a060'],   // Return, 15:00, Marwa
+  ['#1f8fa8', '#c4f0e2', '#74b9aa', '#2f7a68', '#e6bc8c', '#fff1d8', '#80688c', '#e23a2b'],   // Dispersal, 09:00, Todi
+  ['#1552c4', '#8fd0f5', '#7fa4d8', '#3c6a4c', '#f2d27a', '#fff6d8', '#8c6a38', '#ffb400'],   // Zero Shadow, 12:00, Bhimpalasi
+  ['#5a409c', '#ffb070', '#b46a8c', '#5c3052', '#bc6a3c', '#ffdaa2', '#7c3f5c', '#ff6a2a'],   // Return, 15:00, Marwa
 ];
 // the sky event of each hour (a ring in every sky): band = how flat the sky's washes are, discR = the painted sun's
 // radius in radians, haloR/haloI = a ring around the light of the hour, halo2 = a second outer ring, moonS = the moon's size
@@ -172,18 +172,20 @@ const SPECT = [
   { band: .8, discR: .034, haloR: .38, haloI: .8, halo2: .45, moonS: 1 },  // Zero Shadow: a double ring at the zenith
   { band: 1, discR: .085, haloR: .19, haloI: .32, halo2: 0, moonS: 1 },    // Return: the great banded sun
 ];
+// the second colour of each hour: the accent's partner, for flags and kites (so every scene carries a contrasting pair)
+const ACCENT2 = ['#7a5ad0', '#2fb8a8', '#ffc860', '#f2e6c8', '#e2548a', '#f4f0e4', '#d6247a', '#8a4ad8'];
 const mixHex = (a, b, f) => '#' + col(a).lerp(col(b), f).getHexString();
 LOOKS.forEach((L, i) => {
   const [top, hor, far, near, ground, lit, shade, accent] = RAGA[i], night = i >= 1 && i <= 3;
   Object.assign(L, {
     skyZen: top, skyHor: hor, fog: hor, skyGlow: mixHex(hor, lit, .5), cloud: night ? far : lit, cloudAmt: Math.min(L.cloudAmt, .3),
-    sun: i === 1 ? '#a8d8e0' : lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: lit,
-    far, near, ground, accent, strip: accent, banner: accent,
+    sun: i === 1 ? '#a8d8e0' : i === 2 ? '#f0e2ff' : lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: i === 2 ? '#ffd08a' : lit,
+    far, near, ground, accent, accent2: ACCENT2[i], strip: accent, banner: accent,
     phys: 0, scat: L.scat * .5, fogD: night ? .0055 : i === 0 ? .0042 : i === 7 ? .0034 : i === 4 ? .0036 : .0033,
-    sunI: i === 2 ? 1.5 : i === 1 ? 1.1 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
+    sunI: i === 2 ? 2.1 : i === 1 ? 1.1 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
     corona: ['#ffc98a', '#ffd9a0', '#efe4ff', '#c4d6ff', '#fff4d0', '#ffffff', '#ffffff', '#ffd0a0'][i], coronaI: Math.max(L.coronaI, night ? .6 : L.coronaI),
     ...SPECT[i], hemiI: night ? 1.25 : L.hemiI, lift: night ? mixHex(shade, '#000000', .72) : i === 6 ? '#0a0806' : L.lift,
-    practical: i === 1 ? '#ffb060' : accent, practicalI: i === 1 ? L.practicalI * .4 : L.practicalI, pEmisI: 0,
+    practical: i === 1 ? '#ffb060' : i === 2 ? '#ffc070' : accent, practicalI: i === 1 ? L.practicalI * .4 : i === 2 ? 1.5 : L.practicalI, pEmisI: 0,
     grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1),
   });
 });

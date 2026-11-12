@@ -7,7 +7,7 @@
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
 const QUAL = {
   low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { taa: true, sharp: .8, pr: 2, mp: 1.5, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
+  med: { taa: true, sharp: .8, pr: 2, mp: 1.2, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
   high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190 },
 };
 async function boot() {

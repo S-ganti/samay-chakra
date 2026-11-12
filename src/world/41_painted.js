@@ -185,7 +185,15 @@ function buildPainted(scene, Q, FO) {
                  : 'float body = smoothstep(.62, .5, max(abs(p.x) * 1.5, abs(p.y + .1))); float glow = exp(-dot(p, p) * 2.6) * .55; float a = (body * (1.0 + .6 * (0.5 - p.y)) + glow) * (.8 + .2 * sin(uTime * 3.0 + vS * 60.0)) * vA * uI; if (a < .004) discard; gl_FragColor = vec4(mix(uCol, uCol2, .35 + .4 * body) * a, 1.0);'} }` });
     const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 4; scene.add(pts); return { pts, U };
   };
-  out.lanterns = mkPoints(90, false); out.kites = mkPoints(22, true);
+  out.lanterns = mkPoints(90, false); out.kites = mkPoints(46, true);
+  /* tall festival flags round the plaza court, in the hour's two colours */
+  { const NF = 28, poleG = new THREE.CylinderGeometry(.05, .07, 7, 6).translate(0, 3.5, 0), flagG = new THREE.PlaneGeometry(1.15, 3.6).translate(.62, 5.1, 0);
+    const poles = new THREE.InstancedMesh(poleG, new THREE.MeshBasicMaterial({ color: '#2a2018' }), NF);
+    out.flagMats = [new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })];
+    const flags = out.flagMats.map(m => new THREE.InstancedMesh(flagG, m, NF / 2));
+    for (let i = 0; i < NF; i++) { const a = (i + .5) / NF * TAU, x = GEO.P.x + Math.cos(a) * 35.2, z = GEO.P.z + Math.sin(a) * 35.2;
+      _p.set(x, groundY(x, z) - .1, z); _q.setFromAxisAngle(V3(0, 1, 0), -a + Math.PI / 2 + (r() - .5) * .5); _s.set(1, .9 + r() * .25, 1); setIM(poles, i, _p, _q, _s); setIM(flags[i % 2], i >> 1, _p, _q, _s); }
+    _s.set(1, 1, 1); scene.add(poles, flags[0], flags[1]); }
   return out;
 }
 const _pa1 = new THREE.Color();
@@ -203,5 +211,6 @@ function updatePainted(PA, SK, look, w, rt, px) {
   }
   const night = w[0] * .6 + w[1] + w[2] * .7 + w[3] * .35, day = w[5] + w[6] + w[7] * .7 + w[4] * .5;
   const L = PA.lanterns.U; L.uTime.value = rt; L.uI.value = night; L.uPx.value = px; L.uCol.value.copy(look.accent); L.uCol2.value.copy(look.hilite); PA.lanterns.pts.visible = night > .02;
-  const K = PA.kites.U; K.uTime.value = rt; K.uI.value = clamp(day, 0, 1); K.uPx.value = px; K.uCol.value.copy(look.accent); K.uCol2.value.copy(look.hilite); PA.kites.pts.visible = day > .02;
+  const K = PA.kites.U; K.uTime.value = rt; K.uI.value = clamp(day, 0, 1); K.uPx.value = px; K.uCol.value.copy(look.accent); K.uCol2.value.copy(look.accent2); PA.kites.pts.visible = day > .02;
+  PA.flagMats[0].color.copy(look.accent).multiply(PAINT.light); PA.flagMats[1].color.copy(look.accent2).multiply(PAINT.light);
 }
