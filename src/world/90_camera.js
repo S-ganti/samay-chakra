@@ -8,26 +8,22 @@ const SHOTS = [
   [ // 1 Enter the Ring — procession up the lamp-lit steps into the glowing portal
     (rt) => ({ p: [-85 + 1.5 * Math.sin(rt * .03), FORE_H + 1.7, 8.6], l: [-47, HP + 6.4, -1], fov: 50, name: 'Ascent' }),
     (rt) => ({ p: [-22, HP + 2.4, 10 + 2 * Math.sin(rt * .04)], l: [-47, HP + 5.6, 0], fov: 50, name: 'Through the portal', dof: 1.3 }),
-    // from the top of the steps, back down at the torches climbing out of the afterglow
-    (rt, h, st = 0) => ({ p: [-50.5, HP + 2.3, -2.6 + .8 * Math.sin(rt * .05)], l: [-86, FORE_H + 1.2, 1.5], fov: 44, name: 'Procession', dof: 1.4, fd: 9 + 5 * ease((st - 4) / 10) }),
     (rt) => ({ p: [-88 + 8 * Math.sin(rt * .02), HP + 30, 56], l: [-44, HP + 3, 0], fov: 50, name: 'Canopy' }),
+    // detail: the carved hub and spokes, close, the lamps soft behind
+    (rt) => ({ p: [-37.5, HP + 4.6, 5.2 + .5 * Math.sin(rt * .03)], l: [-47, HP + 6.6, 0], fov: 24, name: 'Hub', dof: 2.2 }),
   ],
   [ // 2 The Gathering — the swirling red mehfil around the ring stage
     (rt) => { const a = rt * .03 + .6; return { p: [Math.cos(a) * 36, HP + 27, Math.sin(a) * 36], l: [0, HP + 1, 0], fov: 50, name: 'Mehfil' }; },
-    (rt) => { const a = rt * .055; return { p: [Math.cos(a) * 21.5, HP + 1.7, Math.sin(a) * 21.5], l: [Math.cos(a + 1) * 9, HP + 1.8, Math.sin(a + 1) * 9], fov: 62, name: 'In the orbit', dof: 1.8, fd: 13 }; },
-    // rack focus: the DJ's hands, then the floor behind, then back
-    (rt, h, st = 0) => ({ p: [3.2 + Math.sin(rt * .1) * .6, HP + 2.3, 5.4], l: [0, HP + 1.6, -.3], fov: 44, name: 'Booth', dof: 2.8, fd: 6.2 + 7 * (ease((st - 6) / 2.5) - ease((st - 14) / 2.5)) }),
+    (rt) => { const a = rt * .055; return { p: [Math.cos(a) * 21.5, HP + 1.7, Math.sin(a) * 21.5], l: [Math.cos(a + 1) * 9, HP + 1.8, Math.sin(a + 1) * 9], fov: 50, name: 'In the orbit', dof: 1.8, fd: 13 }; },
+    (rt) => ({ p: [-30, HP + 3.2, -9 + .6 * Math.sin(rt * .03)], l: [-47, HP + 7.2, 0], fov: 28, name: 'Rim by firelight', dof: 1.6 }),
   ],
   [ // 3 Eclipse — the dark wheel over the stone circle
     (rt) => ({ p: [RR.x - 17, RH + 3, RR.z + 7 + 1.5 * Math.sin(rt * .03)], l: [RR.x + 40, RH + 16, RR.z - 4], fov: 66, name: 'Under the ring' }),
-    (rt) => { const a = rt * .045; return { p: [RR.x + Math.cos(a) * 19.5, RH + 1.8, RR.z + Math.sin(a) * 19.5], l: [RR.x, RH + 2.6, RR.z], fov: 56, name: 'Among the stones', dof: 1.3 }; },
     (rt) => ({ p: [10, HP + 22, 16], l: [RR.x + 20, RH + 18, RR.z - 4], fov: 46, name: 'From the clearing' }),
   ],
   [ // 4 Brahma Muhurta — star wheel, sleepers, one figure at the synth
     (rt) => ({ p: [RR.x + 1, RH + 1.45, RR.z + 10], l: [RR.x - 3, RH + 16, RR.z - 40], fov: 64, name: 'Star wheel' }),
     (rt) => ({ p: [RR.x - 30 + 3 * Math.sin(rt * .02), RH + 5, RR.z + 24], l: [-120, 6, -130], fov: 46, name: 'Valley mist' }),
-    (rt) => ({ p: [SY.x + 2.3, gy(SY.x, SY.z) + 1.35, SY.z + 1.7], l: [SY.x, gy(SY.x, SY.z) + .95, SY.z - .5], fov: 40, name: 'Synth', dof: 3.2 }),
-    // the torch-bearers at the eastern edge, waiting for first light (only once they're there)
     (rt, h) => (h !== undefined && h < 5.62) ? null : ({ p: [RR.x - 1 + Math.sin(rt * .04), RH + 1.65, RR.z + 5], l: [RR.x + 60, RH + 5, RR.z - 6], fov: 52, name: 'First light', dof: 1.2, fd: 11 }),
   ],
   [ // 5 Diamond Ring — arms up under the white-gold arches; the flash
@@ -36,9 +32,9 @@ const SHOTS = [
     (rt) => ({ p: [RR.x + 16, RH + 4.5, RR.z + 3], l: [RR.x + 120, RH + 12, RR.z], fov: 56, name: 'Diamond' }),
   ],
   [ // 6 Dispersal — chai on the pavement, autos, the pillar with the ring
-    (rt, h, st = 0) => ({ p: [CH.x - .1, 1.1, CH.z + .95], l: [PP_.x + 2, 3.2, PP_.z], fov: 44, name: 'Chai', dof: 3, fd: .75 + 7 * (ease((st - 7) / 3) - ease((st - 15) / 3)) }),
-    (rt) => ({ p: [15, 15, 57], l: [2, 3, 88], fov: 48, name: 'Down the road' }),
-    (rt) => { const s = (rt * 1.3) % 90; return { p: [-80 + s, 1.7, PP_.z + 6.7], l: [-60 + s, 1.6, PP_.z + 4.6], fov: 55, name: 'Street', dof: 1.2, fd: 9, cutKey: Math.floor(rt * 1.3 / 90) }; },
+    (rt) => ({ p: [15, 15, 57], l: [2, 3, 88], fov: 48, name: 'Down to the wheel' }),
+    (rt) => ({ p: [PP_.x - 26 + Math.sin(rt * .02), 5.5, PP_.z - 24], l: [PP_.x, 5.2, PP_.z], fov: 35, name: 'Pillar' }),
+    (rt) => ({ p: [PP_.x + 15, 1.3, PP_.z + 12 + .5 * Math.sin(rt * .03)], l: [PP_.x, 2.4, PP_.z], fov: 30, name: 'Across the carving', dof: 1.6 }),
   ],
   [ // 7 Zero Shadow — straight down on the great wheel
     (rt) => { const a = rt * .008; return { p: [PP_.x + 9 * Math.cos(a), 80, PP_.z + 9 * Math.sin(a) + .01], l: [PP_.x + 9 * Math.cos(a), 0, PP_.z + 9 * Math.sin(a)], fov: 30, name: 'Mandala' }; },
@@ -47,8 +43,6 @@ const SHOTS = [
   ],
   [ // 8 Return — carriers climbing with the pieces; the ring rebuilt
     (rt) => ({ p: [-82, FORE_H + 5, 15], l: [-47, HP + 6.8, 0], fov: 46, name: 'Rebuilding' }),
-    null, // follow a carrier (filled at runtime)
-    (rt) => ({ p: [-132, 28, 104], l: [-78, 3, 46], fov: 44, name: 'Hillside' }),
     // late light: from the gate, west down the steps into the low sun, the crowd and the leaves backlit
     (rt, h) => (h !== undefined && h < 16.7) ? null : ({ p: [-52.5, HP + 1.45, 3.6 + .5 * Math.sin(rt * .04)], l: [-98, FORE_H + 6, -5], fov: 48, name: 'Into the sun', dof: 1, fd: 30 }),
   ],

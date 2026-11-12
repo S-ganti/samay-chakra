@@ -167,8 +167,9 @@ LOOKS.forEach((L, i) => {
     skyZen: top, skyHor: hor, fog: hor, skyGlow: mixHex(hor, lit, .5), cloud: night ? far : lit, cloudAmt: Math.min(L.cloudAmt, .3),
     sun: lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: lit,
     far, near, ground, accent, practical: accent, strip: accent, banner: accent,
-    phys: 0, scat: L.scat * .5, fogD: night || i === 0 ? .0069 : i === 7 ? .004 : i === 4 ? .0036 : .0033,
-    grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, .9), lift: i === 6 ? '#0a0806' : L.lift,
+    phys: 0, scat: L.scat * .5, fogD: night ? .0055 : i === 0 ? .0042 : i === 7 ? .0034 : i === 4 ? .0036 : .0033,
+    sunI: i === 2 ? 1.5 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
+    grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1), lift: i === 6 ? '#0a0806' : L.lift,
   });
 });
 // convert hex strings to THREE.Color once
@@ -247,7 +248,7 @@ const PARAM = {
   population: 0, dream: 0, stone: 1, energy: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
   real: 2, shafts: 1, ao: 1, dof: true,
   quality: QPICK.q, qualityPinned: QPICK.pinned,
-  camera: 'director', shotLen: 8, cut: false, titles: true, frame: 'fill', lbx: false,
+  camera: 'director', shotLen: 16, cut: false, titles: true, frame: 'fill', lbx: false,
   volume: .8, gen: 1, amb: .3,
 };
 const BPM = CHAPTERS.map(c => c.bpm);

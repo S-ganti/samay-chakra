@@ -411,8 +411,9 @@ function buildForest(scene, Q) {
   out.coniferIM = mk(cPts, [[K.conifer.trunk, M.bark, null, 0, true], [K.conifer.cones, M.cone, null, 0]], '#ffffff', '#c4c0a8', Q.treeShadows);
   // street trees: rain trees, with the avenue's planted tabebuias and gulmohars among them
   const streetFlora = () => { const u = r(); const B_ = u < .3 ? RAIN_BLOOM : u < .5 ? BLOOMS[0] : u < .65 ? BLOOMS[1] : u < .75 ? BLOOMS[2] : null; if (!B_) return null; const a = bloomFor(B_); return a ? { c: B_.c, a } : null; };
-  mk(rPts, [[K.rain.trunk, M.bark, null, 0, true], [K.rain.core, M.core, null, 0], [K.rain.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#e0d6a8', true, streetFlora);
-  mk(kPts, [[K.bush.core, M.core, null, 0], [K.bush.cards, M.cards, null, 1]], '#ffffff', '#c0b890', false);
+  // the round street trees and bushes are cut with the city
+  if (0) mk(rPts, [[K.rain.trunk, M.bark, null, 0, true], [K.rain.core, M.core, null, 0], [K.rain.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#e0d6a8', true, streetFlora);
+  if (0) mk(kPts, [[K.bush.core, M.core, null, 0], [K.bush.cards, M.cards, null, 1]], '#ffffff', '#c0b890', false);
   out.windU = TREE_U; out.mats = M;
   out.pts = { broad: bPts, conifer: cPts };
   out.counts = { broad: bPts.length, conifer: cPts.length, rain: rPts.length, bush: kPts.length };

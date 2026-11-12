@@ -133,7 +133,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
     const a = r() * TAU, d = 128 + r() * 100, x = Math.cos(a) * d, z = Math.sin(a) * d * .95 + 10;
     if (scanExcl(x, z, 8) || Math.abs(x) > 232 || Math.abs(z) > 232) continue; tor(x, z, 7 + r() * 9); i++;
   }
-  for (let i = 0; i < N.sky; i++) {    // silhouettes on the mountain ring: the monoliths the Deccan is known for
+  for (let i = 0; i < 0; i++) {    // (cut: the ranges are flat painted planes now, lit rock on them reads as floating) silhouettes on the mountain ring: the monoliths the Deccan is known for
     const a = (i / N.sky) * TAU + r() * .4, d = 270 + r() * 90, x = Math.cos(a) * d, z = Math.sin(a) * d;
     if (Math.cos(a) > .62) continue;       // keep the eastern sunrise horizon clear
     const s = 22 + r() * 22, y = terrainRaw(x, z) + 8 + 60 * Math.pow(fbm(Math.cos(a) * 2.2 + 11, Math.sin(a) * 2.2 + d * .004, 5), 2.2) * .5;

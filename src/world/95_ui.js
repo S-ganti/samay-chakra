@@ -4,6 +4,7 @@
    ========================================================================= */
 const $ = (id) => document.getElementById(id);
 const UI = { lastCh: -1, cardTimer: 0, toastTimer: 0, rec: null, DL: null, wantStill: false };
+try { UI.debug = new URLSearchParams(location.search).get('debug') === '1'; } catch (e) { }
 const JUMP = [18.5, 21.7, .85, 3.75, 6.2, 9.42, 12.75, 15.85];
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
@@ -105,12 +106,11 @@ function setupControls(ctx) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
     if (k >= '1' && k <= '8') { goChapter(+k - 1); }
-    else if (k === ' ') { e.preventDefault(); if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); togglePlay(); }
+    else if (k === ' ' && UI.debug) { e.preventDefault(); if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); togglePlay(); }
     else if (k === 'ArrowRight' && e.target.id !== 'dial') travelTo(S.t + .25, 1.2);
     else if (k === 'ArrowLeft' && e.target.id !== 'dial') travelTo(S.t - .25, 1.2);
-    else if (k === ']' || k === '[') { const opts = [8, 24, 48, 120, 720]; let i = opts.indexOf(PARAM.dayMinutes); i = clamp(i + (k === ']' ? -1 : 1), 0, opts.length - 1); PARAM.dayMinutes = opts[i]; setClock(false); toast(`One day in ${opts[i] >= 60 ? opts[i] / 60 + ' h' : opts[i] + ' min'}`, 1400); }
-    else if (k === 'c' || k === 'C') { const m = ['director', 'orbit', 'follow', 'top']; setCam(m[(m.indexOf(PARAM.camera) + 1) % 4]); }
-    else if (k === 'n' || k === 'N') { setCam('follow'); ctx.CAM.follow = 1 + Math.floor(Math.random() * (PARAM.population - 1)); }
+    else if ((k === ']' || k === '[') && UI.debug) { const opts = [8, 24, 48, 120, 720]; let i = opts.indexOf(PARAM.dayMinutes); i = clamp(i + (k === ']' ? -1 : 1), 0, opts.length - 1); PARAM.dayMinutes = opts[i]; setClock(false); toast(`One day in ${opts[i] >= 60 ? opts[i] / 60 + ' h' : opts[i] + ' min'}`, 1400); }
+    else if (k === 'c' || k === 'C') { setCam(PARAM.camera === 'director' ? 'orbit' : 'director'); }
     else if (k === 's' || k === 'S') toggleSound();
     else if (k === 't' || k === 'T') { PARAM.titles = !PARAM.titles; $('cTitles').checked = PARAM.titles; toast(PARAM.titles ? 'Title cards on' : 'Title cards off', 1200); }
     else if (k === 'h' || k === 'H') { if (LISTEN.on) toggleListen(false); else toggleClean(); }
@@ -212,7 +212,7 @@ function toggleListen(force) {
     $('card').classList.remove('show'); a.classList.remove('carding'); togglePanel(false);
     a.classList.add('clean', 'listening'); UI.quiet = true; stir(true);
   } else {
-    const p = LISTEN.prev || {}; PARAM.titles = p.titles !== undefined ? p.titles : PARAM.titles; PARAM.shotLen = p.shotLen || 8; PARAM.cut = !!p.cut;
+    const p = LISTEN.prev || {}; PARAM.titles = p.titles !== undefined ? p.titles : PARAM.titles; PARAM.shotLen = p.shotLen || 16; PARAM.cut = !!p.cut;
     a.classList.remove('listening', 'stir'); if (!p.clean) a.classList.remove('clean');
     UI.quiet = false; $('listenChip').classList.remove('show'); wake();
   }

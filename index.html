@@ -147,6 +147,7 @@ select.btn option{background:#181512;color:var(--bone);}
 #loading{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:#050505;transition:opacity 1.2s ease;pointer-events:none;}
 #loading.done{opacity:0;}
 #loading.ready{background:rgba(5,5,5,.55);pointer-events:auto;}
+#app:has(#loading.ready) #card,#app:has(#loading.ready) #hud,#app:has(#loading.ready) #dock{visibility:hidden;}
 #loading>div{display:flex;flex-direction:column;align-items:center;gap:18px;}
 #bEnter{height:42px;padding:0 22px;border-color:var(--chap);}
 #bQuiet{background:none;border:0;color:var(--bone-2);font:400 11px/1 var(--f-sans);letter-spacing:.2em;text-transform:uppercase;text-decoration:underline;text-underline-offset:4px;}
@@ -309,10 +310,10 @@ html:not(.debug) .dbg{display:none!important}
         <h3>Live keys</h3>
         <div class="keys">
           <kbd>1–8</kbd><span>Travel to a chapter</span>
-          <kbd>Space</kbd><span>Pause or play time</span>
+          
           <kbd>← →</kbd><span>Move 15 minutes</span>
           
-          <kbd>C</kbd><span>Next camera</span>
+          <kbd>C</kbd><span>Director or free orbit</span>
           
           <kbd>S</kbd><span>Sound on or off</span>
           <kbd>T</kbd><span>Title cards on or off</span>

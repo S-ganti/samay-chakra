@@ -50,9 +50,10 @@ function playlistClear() {
 }
 function setupPlaylist() {
   const card = $('plist'), b = $('bList'), inp = $('plUrl');
-  const open = (on) => { card.classList.toggle('open', on); b.classList.toggle('on', on); b.setAttribute('aria-expanded', String(on)); if (on && !PL.url) inp.focus(); };
+  const open = (on) => { card.classList.toggle('open', on); b.classList.toggle('on', on); b.setAttribute('aria-expanded', String(on)); if (on) { togglePanel(false); if (!PL.url) inp.focus(); } };
   b.onclick = () => open(!card.classList.contains('open'));
   $('plClose').onclick = () => open(false);
+  $('bPanel').addEventListener('click', () => open(false));   // one card at a time
   $('plForm').addEventListener('submit', (e) => { e.preventDefault(); if (playlistLoad(inp.value)) inp.value = ''; });
   $('plBack').onclick = playlistClear;
   // keys typed in the field are not world shortcuts
