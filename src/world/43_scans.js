@@ -346,6 +346,7 @@ const _imc = new THREE.Color();
 const HERITAGE = { base: 'scans/heritage/', ready: false, parts: {} };
 function heritageMaterial(m) {
   const s = new THREE.MeshStandardMaterial({ map: m.map || null, color: '#ffffff', roughness: .88, metalness: 0, normalMap: m.normalMap || null });
+  try { stoneDetail(s, 'granite'); } catch (e) { }   // the temple scans stop at 2048: the same fine stone grain as the carvings carries them through close shots
   if (s.map) s.map.colorSpace = THREE.SRGBColorSpace;
   if (s.fog) { s.userData.hf = 1; chainHook(s, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); }
   return s;

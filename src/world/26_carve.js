@@ -666,7 +666,7 @@ function buildCarving(q) {
   return K;
 }
 // a standard material on a sheet (textures are clones: own repeat, shared image and GPU memory)
-function carvedMaterial(sh, { repeat = [1, 1], normalScale = 1, ...extra } = {}) {
+function carvedMaterial(sh, { repeat = [1, 1], normalScale = 1.4, ...extra } = {}) {   // deeper relief: the carving reads from further away
   const set = (t) => { const c = t.clone(); c.repeat.set(repeat[0], repeat[1]); c.needsUpdate = true; sh.texs.push(c); return c; };
   const orm = set(sh.orm);
   const m = new THREE.MeshStandardMaterial({ map: set(sh.map), normalMap: set(sh.normalMap), normalScale: new THREE.Vector2(normalScale, normalScale), roughnessMap: orm, metalnessMap: orm, aoMap: orm, aoMapIntensity: 1, roughness: 1, metalness: 1, ...extra });
@@ -717,11 +717,15 @@ function stoneDetail(m, kind) {
       float sOn = uOn * uStoneOn;
       if (sOn > 0.5) {
         vec3 sd = tri(tD, 1.0).rgb, sd2 = tri(tD, .23).rgb;
+        // a third, fine octave of the stone scan for the close shots: pores and tool marks at a few centimetres, fading out by 45 m
+        float nearK = 1.0 - smoothstep(8.0, 45.0, length(vViewPosition));
+        vec3 sd3 = tri(tD, 4.3).rgb;
         vec3 grain = (sd * .65 + sd2 * .35) / max(uMean, vec3(.02));
+        grain *= mix(vec3(1.0), clamp(sd3 / max(uMean, vec3(.02)), 0.5, 1.6), .5 * nearK);
         diffuseColor.rgb *= mix(vec3(1.0), clamp(grain, 0.45, 1.7), .55);
         #ifdef USE_AOMAP
           float cav = texture2D(aoMap, vAoMapUv).r;
-          diffuseColor.rgb *= mix(.55, 1.0, smoothstep(.25, .95, cav));   // grime settles in the recesses
+          diffuseColor.rgb *= mix(.44, 1.0, smoothstep(.25, .95, cav));   // grime settles in the recesses
         #endif
         float streak = sN(vec2((vSW.x + vSW.z) * 2.3, vSW.y * .18)) * sN(vec2((vSW.x - vSW.z) * 5.1, vSW.y * .4));
         diffuseColor.rgb *= 1.0 - .22 * smoothstep(.25, .6, streak) * (1.0 - abs(normalize(vSN).y));   // rain streaks down the faces
@@ -735,7 +739,10 @@ function stoneDetail(m, kind) {
         vec3 b = sBW(), p = vSW * uSScale, n = normalize(vSN);
         vec3 tx = texture2D(tN, p.zy).xyz * 2. - 1., ty = texture2D(tN, p.xz).xyz * 2. - 1., tz = texture2D(tN, p.xy).xyz * 2. - 1.;
         vec3 wn = normalize(vec3(0., tx.y, tx.x) * b.x + vec3(ty.x, 0., ty.y) * b.y + vec3(tz.x, tz.y, 0.) * b.z);
-        normal = normalize(normal + (mat3(viewMatrix) * wn) * .55);
+        float nearN = 1.0 - smoothstep(8.0, 45.0, length(vViewPosition));
+        vec3 p4 = p * 4.3; vec3 fx = texture2D(tN, p4.zy).xyz * 2. - 1., fy = texture2D(tN, p4.xz).xyz * 2. - 1., fz = texture2D(tN, p4.xy).xyz * 2. - 1.;
+        vec3 wf = normalize(vec3(0., fx.y, fx.x) * b.x + vec3(fy.x, 0., fy.y) * b.y + vec3(fz.x, fz.y, 0.) * b.z);
+        normal = normalize(normal + (mat3(viewMatrix) * wn) * .55 + (mat3(viewMatrix) * wf) * .5 * nearN);
       }`);
   });
   return m;

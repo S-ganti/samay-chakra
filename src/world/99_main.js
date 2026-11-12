@@ -7,7 +7,7 @@
 // errPx: how far (in pixels) a simplified copy may sit from the real surface.
 const QUAL = {
   low: { taa: false, pr: 1, mp: .8, tex: 1024, shadows: 0, trees: .55, treeShadows: false, smaa: false, fxaa: false, dens: 12, errPx: 3, ao: 0, shafts: false, dof: false, grass: 0 },
-  med: { taa: true, sharp: .9, pr: 2, mp: 1.8, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
+  med: { taa: true, sharp: .95, pr: 2, mp: 2.6, tex: 1024, shadows: 2048, trees: .85, treeShadows: false, smaa: false, fxaa: true, dens: 5, errPx: 1.5, ao: 8, shafts: true, dof: true, grass: 124 },
   high: { taa: true, sharp: .7, pr: 2, mp: 4, tex: 2048, shadows: 4096, trees: 1, treeShadows: true, smaa: true, fxaa: false, dens: 2.4, errPx: .9, ao: 12, shafts: true, dof: true, grass: 190 },
 };
 async function boot() {
@@ -337,7 +337,7 @@ async function boot() {
     // post + render
     const kd = 1 - Math.exp(-dt * 2.5);
     const kdk = CAM.snapped ? 1 : kd;
-    PP.dofK = lerp(PP.dofK, CAM.dofK * vh * IPR / 1080, kdk); PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
+    PP.dofK = lerp(PP.dofK, CAM.dofK * .5 * vh * IPR / 1080, kdk);   // a lighter depth of field: the stone stays sharp PP.dofF = lerp(PP.dofF, CAM.dofF, kdk);
     updatePost(PP, look, rt, vw * IPR, vh * IPR, CAM.cam, LINFO);
     if (PP.taa.enabled) {
       // temporal pass: it reads depth to reproject; grain moves after the accumulation (or it would be averaged away);
