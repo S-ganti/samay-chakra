@@ -102,7 +102,7 @@ async function boot() {
     ctx.resize();
   };
   addEventListener('resize', ctx.resize); ctx.resize(); treeQuality(PARAM.quality);
-  setupDial(); setupControls(ctx);
+  setupDial(); setupControls(ctx); setupPlaylist();
   // warm-up: compile every material, upload every texture and build the post chain while the loading screen is up,
   // so no chapter stalls the first time it appears
   {
@@ -145,7 +145,7 @@ async function boot() {
   const LINFO = { celVis: 0, celPos: V3(), portalI: 0, portalPos: V3(GEO.GATE.x, WHEEL_Y, GEO.GATE.z), portalCol: col('#ff8a2a') };
   let last = performance.now(), frames = 0, fpsT = 0, slow = 0;
   const G = ST.gate, gateBase = HP;
-  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, CULL, cull: () => cullFrame(CAM.cam, SK.key, vh * IPR), SK, SIMP, simplifyGeometry, triCount, ipr: () => IPR, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
+  window.__samay = { SCAN, IMP, HERITAGE, S, PARAM, DE, FO, GR, ST, CARVE, NA, WX, MOON, AMB, UI, LISTEN, CULL, cull: () => cullFrame(CAM.cam, SK.key, vh * IPR), SK, SIMP, simplifyGeometry, triCount, ipr: () => IPR, step: (ms) => step(ms), scene, setTime: (hh) => { S.t = wrap24(hh); S.travel = null; PARAM.clock = false; }, W, CAM, AUD, DR, renderer, lots: CT.lots, poseAt: (i, tt, r, orb) => { const o0 = W.orb; if (orb !== undefined) W.orb = orb; pose(W, i, tt, r, PO); W.orb = o0; return [PO.x, PO.z, PO.act]; }, PP, LI, TONE, QUAL, LOOKS, HFOG, ctx };
   // one failing step must never freeze the scene: report it once, keep the loop alive
   UI.errs = UI.errs || {};
   const reportOnce = (key, e) => {
@@ -264,6 +264,8 @@ async function boot() {
     if (S.travel) { const f = (S.rt - S.travel.t0) / S.travel.dur; if (f >= 1) { S.t = wrap24(S.travel.to); S.travel = null; } else S.t = wrap24(lerp(S.travel.from, S.travel.to, easeIO(f))); }
     else if (PARAM.clock) { const d = new Date(); S.t = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600 + d.getMilliseconds() / 3.6e6; }
     else if (PARAM.playing) S.t = wrap24(S.t + dt * 24 / (PARAM.dayMinutes * 60));
+    // a visitor who moved the dial is brought back to the present after a minute of leaving it alone
+    if (!PARAM.clock && !S.travel && !UI.debug && !window.__fixedDt) { if (UI.returning) { UI.returning = false; setClock(true); } else if (rt0() - (UI.awayAt || 0) > 60) { const d = new Date(); travelTo(d.getHours() + d.getMinutes() / 60, 5); UI.returning = true; } }
     const t = S.t, h = wrap24(t), rt = S.rt;
     const w = chapterWeights(t, PARAM.soft), look = blendLook(w);
     updateWeather(dt, h); applyWeather(look);
@@ -280,12 +282,13 @@ async function boot() {
     updateSky(SK, ST, t, rt, look, w, CAM.cam);
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);
+    { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); }
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;
     fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows);
     cullFrame(CAM.cam, SK.key, vh * IPR);               // only the scanned pieces the camera or the shadow box can see, at the right detail
     // portal gate
-    const comp = gateCompletion(W, t);
+    const comp = 1;                                      // the ring stands whole: nobody carries it away any more
     const dusk = h > 12 ? smooth(17.2, 18.3, h) : 1 - smooth(5.6, 7.0, h);
     const portalI = comp * dusk * (.3 + .7 * (w[0] + w[1] * .55 + w[7] * .8 + w[2] * .4)) * (1 + S.pulse * .25);
     G.portalU.uI.value = portalI; G.portalU.uTime.value = rt; G.portalU.uCol.value.copy(look.practical).lerp(AMBER, w[0] * .6);
@@ -307,13 +310,13 @@ async function boot() {
     ST.ridge.synthKnobMat.color.setRGB(1, .6, .3).multiplyScalar(.6 + (w[2] + w[3]) * 2 + S.pulse);
     ST.rangoliMat.opacity = smooth(5.6, 6.6, h) * (1 - smooth(10.5, 12, h)) * .9;
     // scaffolding while the ring is rebuilt
-    const scafAmt = smooth(14.3, 15.0, h) * (1 - smooth(17.9, 18.5, h));
+    const scafAmt = 0;
     G.scaf.visible = scafAmt > .005;
     if (G.scaf.visible) { G.scafList.forEach((b, j) => { scafP.copy(b.mid); scafP.y = gateBase + (b.mid.y - gateBase) * scafAmt; scafS.copy(b.s); scafS.y *= scafAmt; scafM.compose(scafP, b.q, scafS); G.scaf.setMatrixAt(j, scafM); }); G.scaf.instanceMatrix.needsUpdate = true; }
     // city lights
     const night = clamp(1 - smooth(6.0, 7.2, h) + smooth(17.8, 19.0, h), 0, 1);
     CT.facade.uNight.value = night; CT.lamps.headMat.color.setRGB(1, .7, .4).multiplyScalar(.15 + night * 2.2); CT.lamps.lampGlowU.uI.value = night * .9;
-    POOLU.uPoolB.value.copy(LAMP).multiplyScalar(night * 3.2);
+    POOLU.uPoolB.value.setScalar(0);
     DE.bulbU.uLit.value = night; DE.bulbU.uTime.value = rt;
     for (const m of CT.shopSigns) m.emissiveIntensity = night * .35;
     DE.uvU.value = night * (w[2] * 1.7 + w[1] * .7 + w[3] * .6 + w[0] * .35);
@@ -322,9 +325,7 @@ async function boot() {
     const N = Math.min(NMAX, PARAM.population);
     W.lit = dusk; W.torch.U.uTime.value = rt;
     const tp0 = performance.now();
-    updatePeople(W, G, t, rt, dt, N, S.beat, PARAM.energy * (1 + S.pulse * .3));
     S.msPeople = lerp(S.msPeople || 0, performance.now() - tp0, .1);
-    updateAutos(CT, t, rt);
     // the chapter's mood only washes over the crowd (30%): the light does the rest, so everyone keeps their own clothes and skin
     W.bodyMat.color.setRGB(1, 1, 1).lerp(_tmpC.copy(look.pTint).multiplyScalar(1.35), .3); W.bodyMat.emissive.copy(look.pEmis).multiplyScalar(look.pEmisI * (1 + S.pulse * .6));
     // post + render
@@ -350,7 +351,7 @@ async function boot() {
     if ((UI.frameN = (UI.frameN || 0) + 1) % 180 === 0 && !window.__fixedDt) { try { blackCheck(); } catch (e) { } }
     if (UI.wantStill) { UI.wantStill = false; grabStill(canvas); }
     if (UI.wantCard) { UI.wantCard = false; try { grabPostcard(canvas); } catch (e) { reportOnce('card', e); } }
-    if (!UI.started) { UI.started = true; try { localStorage.removeItem('samay.boot'); } catch (e) { } mark('first frame'); if (SAFE.lvl) setTimeout(() => toast(SAFE.lvl === 1 ? 'The graphics reset while starting, so this start runs without shadows. Add ?safe=0 to the link to try again with them.' : 'The graphics reset while starting, so this start runs at Low quality. Add ?safe=0 to the link to try again.', 9000), 1800); else if (QPICK.stepped) setTimeout(() => toast('The last start did not finish, so this one runs at a lighter quality. You can change it under Controls → Render quality.', 8000), 1800); $('loading').classList.add('done'); setTimeout(() => { if (!AUD.on && !QPICK.stepped && !SAFE.lvl) toast('Press Sound (or S) for the raga music · keys 1–8 travel between chapters', 5200); }, 3200); }
+    if (!UI.started) { UI.started = true; try { localStorage.removeItem('samay.boot'); } catch (e) { } mark('first frame'); if (SAFE.lvl) setTimeout(() => toast(SAFE.lvl === 1 ? 'The graphics reset while starting, so this start runs without shadows. Add ?safe=0 to the link to try again with them.' : 'The graphics reset while starting, so this start runs at Low quality. Add ?safe=0 to the link to try again.', 9000), 1800); else if (QPICK.stepped) setTimeout(() => toast('The last start did not finish, so this one runs at a lighter quality. You can change it under Controls → Render quality.', 8000), 1800); enterReady(); }
     updateHUD(ch);
   }
   rafId = requestAnimationFrame((ms) => { last = ms; frame(ms); });

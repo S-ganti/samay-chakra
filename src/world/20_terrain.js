@@ -213,7 +213,7 @@ function buildTerrain(scene) {
 
   // far mountains: a ring beyond the terrain square
   const rings = 22, segs = 180, r0 = 225, r1 = 640;
-  const mg = new THREE.BufferGeometry(), mp = [], mc = [], mi = [];
+  const mg = new THREE.BufferGeometry(), mp = [], mc = [], mi = [], md = [];
   const cM1 = col('#6a5f4a'), cM2 = col('#8a7c68'), cSnow = col('#a89e90');   // weathered granite and dry scrub, not a dark silhouette
   for (let j = 0; j <= rings; j++) for (let i = 0; i <= segs; i++) {
     const a = i / segs * TAU, r = lerp(r0, r1, Math.pow(j / rings, 1.3));
@@ -223,7 +223,7 @@ function buildTerrain(scene) {
     const y = terrainRaw(x, z) + envl * (20 + 150 * Math.pow(peak, 2.2)) - (j === 0 ? .6 : 0);
     mp.push(x, y, z);
     const cc = cM1.clone().lerp(cM2, smooth(40, 120, y)).lerp(cSnow, smooth(120, 170, y));
-    mc.push(cc.r, cc.g, cc.b);
+    mc.push(cc.r, cc.g, cc.b); md.push(j / rings);
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < segs; i++) {
     const a = j * (segs + 1) + i, b = a + 1, c2 = a + segs + 1, d = c2 + 1;
@@ -231,15 +231,17 @@ function buildTerrain(scene) {
   }
   mg.setAttribute('position', new THREE.Float32BufferAttribute(mp, 3));
   mg.setAttribute('color', new THREE.Float32BufferAttribute(mc, 3));
+  mg.setAttribute('aD', new THREE.Float32BufferAttribute(md, 1));
   mg.setIndex(mi); mg.computeVertexNormals();
-  const mMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  // the far ranges wear an aerial scan of rock and scrub, projected from above at the scale of a hillside
-  const aerU = { tAer: { value: null }, uAer: { value: 0 } };
-  new THREE.TextureLoader().load('scans/tex/aerial_rocks_02_Diffuse.webp', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = PARAM.quality === 'low' ? 4 : 8; capTexture(t, TEXCAP[PARAM.quality].ground).then(() => { aerU.tAer.value = t; aerU.uAer.value = 1; }); }, undefined, () => { });
-  mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, aerU);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvMP = (modelMatrix * vec4(position, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tAer; uniform float uAer; varying vec3 vMP;').replace('#include <color_fragment>', '#include <color_fragment>\nif (uAer > 0.5) { vec3 aer = mix(texture2D(tAer, vMP.xz / 60.0).rgb, texture2D(tAer, vMP.xz / 190.0 + .3).rgb, .5); diffuseColor.rgb *= aer * 2.6; }');
+  // Ragamala: the ranges are three flat planes of colour stepping from the near-range to the far-range colour of the hour,
+  // with only a breath of form from the key light. The haze (the horizon colour) does the rest
+  const mMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+  const rangeU = { uNear: { value: col('#3d2f4f') }, uFar: { value: col('#7a5a7d') }, uKeyDir: { value: V3(0, 1, 0) } };
+  mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, rangeU);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aD; varying float vD; varying vec3 vRN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvD = aD; vRN = normalize(mat3(modelMatrix) * normal);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uNear, uFar, uKeyDir; varying float vD; varying vec3 vRN;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float st = min(floor(vD * 3.4), 2.0) / 2.0; float form = .88 + .2 * clamp(dot(normalize(vRN), uKeyDir), -.3, 1.0); diffuseColor.rgb = mix(uNear, uFar, st) * form; }');
   };
+  mMat.userData.U = rangeU;
   const mm = new THREE.Mesh(mg, mMat);
   scene.add(mm);
   return { mesh, mountains: mm };

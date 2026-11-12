@@ -13,6 +13,7 @@ const hAng = (h) => h / 24 * TAU - Math.PI / 2;
 function toast(msg, ms = 2600) { if (UI.quiet && ms < 6000) return; const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(UI.toastTimer); UI.toastTimer = setTimeout(() => t.classList.remove('show'), ms); }
 
 function travelTo(h, dur) {
+  if (PARAM.clock) { PARAM.clock = false; } UI.awayAt = S.rt + 6; UI.returning = false;
   const from = S.t, d = hdiff(h, from);
   S.travel = { from, to: from + d, t0: S.rt, dur: dur || clamp(2.4 + Math.abs(d) * .32, 2.4, 6.5) };
 }
@@ -26,7 +27,7 @@ function setupDial() {
   UI.needleDot = svgEl('circle', { cx: 50, cy: 8, r: 3, fill: '#ff7a2f' }, svg);
   svgEl('circle', { cx: 50, cy: 50, r: 2.4, fill: '#ede3d1' }, svg);
   let drag = false;
-  const setFromEvent = (e) => { const b = svg.getBoundingClientRect(); const x = e.clientX - b.left - b.width / 2, y = e.clientY - b.top - b.height / 2; let a = Math.atan2(y, x) + Math.PI / 2; if (a < 0) a += TAU; S.t = a / TAU * 24; S.travel = null; if (PARAM.clock) setClock(false); };
+  const setFromEvent = (e) => { const b = svg.getBoundingClientRect(); const x = e.clientX - b.left - b.width / 2, y = e.clientY - b.top - b.height / 2; let a = Math.atan2(y, x) + Math.PI / 2; if (a < 0) a += TAU; S.t = a / TAU * 24; S.travel = null; setClock(false); };
   svg.addEventListener('pointerdown', (e) => { drag = true; svg.setPointerCapture(e.pointerId); setFromEvent(e); });
   svg.addEventListener('pointermove', (e) => { if (drag) setFromEvent(e); });
   svg.addEventListener('pointerup', () => { drag = false; });
@@ -35,7 +36,8 @@ function setupDial() {
   UI.chips = CHAPTERS.map((c, k) => { const b = document.createElement('button'); b.textContent = c.n; b.style.setProperty('--c', c.key); b.title = `${c.title} · ${chapterSpan(c)}`; b.setAttribute('aria-label', `Travel to ${c.title}`); b.onclick = () => goChapter(k); chips.appendChild(b); return b; });
 }
 function goChapter(k) { if (PARAM.clock) setClock(false); travelTo(JUMP[k]); toast(`Travelling to ${CHAPTERS[k].title}`, 1600); }
-function setClock(on) { PARAM.clock = on; $('sSpeed').value = on ? 'clock' : String(PARAM.dayMinutes); if (on) { S.travel = null; } }
+const rt0 = () => S.rt;
+function setClock(on) { PARAM.clock = on; if (!on) { UI.awayAt = S.rt; UI.returning = false; } $('sSpeed').value = on ? 'clock' : String(PARAM.dayMinutes); if (on) { S.travel = null; } }
 
 function bindRange(id, oid, key, fmt = (v) => v.toFixed(2), onChange) {
   const r = $(id), o = $(oid); r.value = PARAM[key]; o.textContent = fmt(+r.value);
@@ -316,4 +318,16 @@ function updateHUD(ch) {
   UI.needleDot.setAttribute('cx', 50 + Math.cos(a) * 44); UI.needleDot.setAttribute('cy', 50 + Math.sin(a) * 44);
   UI.needleDot.setAttribute('fill', c.key);
   $('dial').setAttribute('aria-valuenow', h.toFixed(2)); $('dial').setAttribute('aria-valuetext', fmtH(h) + ', ' + c.title);
+}
+
+/* ---------- arrival: the world is shown behind a veil with one button; sound starts on that press ---------- */
+function enterReady() {
+  const L = $('loading');
+  try { UI.debug = new URLSearchParams(location.search).get('debug') === '1'; } catch (e) { }
+  if (UI.debug || window.__fixedDt) { L.classList.add('done'); return; }
+  const c = CHAPTERS[chapterAt(S.t)];
+  $('loadTxt').innerHTML = ''; $('loadTxt').append('The Ring · Samay Chakra', document.createElement('br'), `${c.title} · Raga ${c.raga}`);
+  L.classList.add('ready'); const b = $('bEnter'); b.hidden = false; try { b.focus(); } catch (e) { }
+  const go = (sound) => { if (sound) toggleSound(true); L.classList.remove('ready'); L.classList.add('done'); b.hidden = true; $('bQuiet').hidden = true; };
+  b.onclick = () => go(true); $('bQuiet').hidden = false; $('bQuiet').onclick = () => go(false);
 }

@@ -107,7 +107,7 @@ function capGltfTextures(root, cap) {
 async function loadScans(scene, Q, renderer, FO, ST) {
   const N = SCAN_Q[PARAM.quality] || SCAN_Q.med;
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'coastal_cliff_01', 'coastal_cliff_02', 'coastal_cliff_04', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
+  const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
     full: N.hero ? ['namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_cliff_01', 'rock_face_01', 'tree_stump_01', 'dead_tree_trunk_02', 'stone_fire_pit'] : [] };   // the moss beds (60k triangles each) stay at their LOD
   want.full.push('jacaranda_tree', 'island_tree_02'); if (N.trees) want.full.push('searsia_lucida');   // the two trees also become the forest's impostors
   SCAN.total = want.lod.length + want.full.length;
@@ -163,7 +163,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
     for (const b of big) add('lod', b, B[b], { tint: GRANITE }); }
 
   // 2 — outcrops on the slopes around the plateau and the ridge, faces turned downhill
-  const cliffs = ['namaqualand_cliff_01', 'namaqualand_cliff_02', 'mountainside', 'rock_face_01', 'rock_face_02'], C = {}; cliffs.forEach(c => C[c] = []);
+  const cliffs = ['namaqualand_cliff_01', 'namaqualand_cliff_02', 'rock_face_01', 'rock_face_02'], C = {}; cliffs.forEach(c => C[c] = []);
   for (let i = 0, tries = 0; i < N.cliffs && tries < 4000; tries++) {
     const aroundRidge = r() < .45, a = r() * TAU, d = aroundRidge ? 21 + r() * 45 : 46 + r() * 70;
     const x = (aroundRidge ? GEO.R.x : 0) + Math.cos(a) * d, z = (aroundRidge ? GEO.R.z : 0) + Math.sin(a) * d;

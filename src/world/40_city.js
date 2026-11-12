@@ -94,7 +94,10 @@ function buildCity(scene, Q) {
   flat(new THREE.CircleGeometry(17, 160), wheelMat, P.x, P.z, .08);
   const rim = new THREE.Mesh(torusFriezeUV(new THREE.TorusGeometry(17, .32, 10, 220), 10), CARVE.by.band ? carvedMaterial(CARVE.by.band) : new THREE.MeshStandardMaterial({ color: '#cdb892', roughness: .9 })); rim.rotation.x = Math.PI / 2; rim.position.set(P.x, .12, P.z); scene.add(rim);
   flat(new THREE.RingGeometry(17, 25, 160, 1), paving, P.x, P.z, .05);
-  flat(new THREE.RingGeometry(25, 33, 160, 1), asphalt, P.x, P.z, .03);
+  flat(new THREE.RingGeometry(25, 33, 160, 1), paving, P.x, P.z, .03);
+  // the city (roads, blocks, shops, lamps, autos) is cut: it is still built so the rest of the code keeps its handles,
+  // but into a group that is never added to the world, so nothing of it is drawn, compiled or uploaded
+  const world = scene; scene = new THREE.Group();
   // roads
   const roadW = 11;
   flat(new THREE.PlaneGeometry(80, roadW), asphalt, -69, P.z, Y);
@@ -110,6 +113,7 @@ function buildCity(scene, Q) {
   [[-69, P.z - 7.5, 80, 4], [-69, P.z + 7.5, 80, 4], [77, P.z - 7.5, 80, 4], [77, P.z + 7.5, 80, 4]].forEach(([x, z, w, d], i) => { _p.set(x, .09, z); _q.identity(); _s.set(w, .18, d); setIM(kerbs, i, _p, _q, _s); });
   kerbs.count = 4; kerbs.receiveShadow = true; scene.add(kerbs); _s.set(1, 1, 1);
 
+  scene = world;
   // pillar with the ring on top (poster 6 roundabout)
   const pil = [];
   const cyl = (r0, r1, h, y) => { const g = new THREE.CylinderGeometry(r0, r1, h, 28); g.translate(0, y + h / 2, 0); pil.push(g); return y + h; };
@@ -120,6 +124,7 @@ function buildCity(scene, Q) {
   for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; _p.set(P.x + Math.cos(a) * 3.3, .38, P.z + Math.sin(a) * 3.3); _q.setFromAxisAngle(V3(Math.cos(a), 0, Math.sin(a)).cross(V3(0, 1, 0)).normalize(), -Math.PI / 2); setIM(redDots, i, _p, _q, _s); }
   scene.add(redDots);
 
+  scene = new THREE.Group();
   // buildings
   const fac = facadeMaterial('#c9c2b4'); out.facade = fac.U;
   const lots = []; const r = rng(2026);

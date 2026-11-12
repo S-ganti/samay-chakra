@@ -146,6 +146,31 @@ const LOOKG = [
   { shade: '#5a5aa0', hilite: '#ffbc68', split: .34, purk: 0 },     // return: violet shade, golden hour
 ];
 LOOKS.forEach((L, i) => Object.assign(L, LOOKX[i], LOOKG[i]));
+/* ---------- RAGAMALA: the art direction. One palette of eight colours per prahar, in the manner of a ragamala miniature:
+   sky top, horizon (which is also the haze: distance always fades to the sky's own colour), far range, near range, ground,
+   stone in light, stone in shade, and the one accent of the hour. Everything above is re-keyed from these, so sky, haze,
+   light, ranges and practical lights can never disagree. ---------- */
+const RAGA = [
+  ['#2b2f5e', '#f2a65a', '#7a5a7d', '#3d2f4f', '#2a2233', '#e8b98a', '#6b4a55', '#ff8a3d'],   // Enter the Ring, 18:00, Yaman
+  ['#0e1230', '#2a2350', '#1a1c3a', '#12122a', '#151022', '#c9794f', '#3a2233', '#e0332a'],   // The Gathering, 21:00, Bihag
+  ['#05060f', '#151a3a', '#0c1026', '#080a1a', '#0a0a14', '#8fa0c8', '#1c2240', '#ff3d9a'],   // Eclipse, 00:00, Malkauns
+  ['#0b1430', '#3b4f86', '#24335f', '#152044', '#101830', '#9fb4dc', '#2a3a66', '#7fa2e6'],   // Brahma Muhurta, 03:00, Lalit
+  ['#4a6fa8', '#ffd9a0', '#c79a9a', '#7a6480', '#5a4a52', '#ffe2b0', '#8a6a70', '#ffc247'],   // Diamond Ring, 06:00, Bhairav
+  ['#5f9fd0', '#dcebf0', '#9fb8c4', '#6f8f86', '#c9b48f', '#f2e3c4', '#a08a72', '#d8342b'],   // Dispersal, 09:00, Todi
+  ['#2f7fc8', '#bfe0ee', '#a9bfc0', '#8f9a78', '#e6d3a3', '#fff4d6', '#b59a6a', '#e9b43b'],   // Zero Shadow, 12:00, Bhimpalasi
+  ['#4a8ac0', '#f3e2c0', '#b9a8a0', '#8a7a62', '#d4b07a', '#f6d7a0', '#9a6f4f', '#f0a060'],   // Return, 15:00, Marwa
+];
+const mixHex = (a, b, f) => '#' + col(a).lerp(col(b), f).getHexString();
+LOOKS.forEach((L, i) => {
+  const [top, hor, far, near, ground, lit, shade, accent] = RAGA[i], night = i >= 1 && i <= 3;
+  Object.assign(L, {
+    skyZen: top, skyHor: hor, fog: hor, skyGlow: mixHex(hor, lit, .5), cloud: night ? far : lit, cloudAmt: Math.min(L.cloudAmt, .3),
+    sun: lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: lit,
+    far, near, ground, accent, practical: accent, strip: accent, banner: accent,
+    phys: 0, scat: L.scat * .5, fogD: night || i === 0 ? .0069 : i === 7 ? .004 : i === 4 ? .0036 : .0033,
+    grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, .9), lift: i === 6 ? '#0a0806' : L.lift,
+  });
+});
 // convert hex strings to THREE.Color once
 const LOOK_KEYS = Object.keys(LOOKS[0]);
 const LOOKC = LOOKS.map(L => { const o = {}; for (const k of LOOK_KEYS) o[k] = typeof L[k] === 'string' ? col(L[k]) : L[k]; return o; });
@@ -218,8 +243,8 @@ const QPICK = (() => {
   return r;
 })();
 const PARAM = {
-  dayMinutes: 8, clock: false, playing: true,
-  population: 180, dream: .75, stone: 1, energy: 1.6, exposure: 1, fog: 1, glow: 1, grain: 0, grade: 1, soft: .6,
+  dayMinutes: 1440, clock: true, playing: true,           // the world keeps the visitor's own time
+  population: 0, dream: 0, stone: 1, energy: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
   real: 2, shafts: 1, ao: 1, dof: true,
   quality: QPICK.q, qualityPinned: QPICK.pinned,
   camera: 'director', shotLen: 8, cut: false, titles: true, frame: 'fill', lbx: false,

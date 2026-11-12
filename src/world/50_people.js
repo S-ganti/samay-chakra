@@ -75,6 +75,7 @@ const SKIN = ['#e0b08a', '#d4a07a', '#c48f68', '#b07a52', '#9c6844', '#8a5a3a', 
 const PAL_HAIR = ['#1a1412', '#15110f', '#241a14', '#2b211a', '#1f1814'];
 
 function buildPeople(scene, Q) {
+  scene = new THREE.Group();                             // the crowd is cut: nothing of it joins the world
   const r = rng(1729);
   const pick = (arr, w) => { let s = 0; for (const x of w) s += x; let v = r() * s; for (let i = 0; i < arr.length; i++) { v -= w[i]; if (v <= 0) return arr[i]; } return arr[0]; };
   const F = (n = NMAX) => new Float32Array(n);
