@@ -659,8 +659,8 @@ function buildCarving(q) {
   d('panels', 'sandstone', R, 'panels'); d('band', 'sandstone', R, 'band'); d('spoke', 'sandstone', R >> 2, 'spoke'); d('bronze', 'bronze', R >> 2, 'spoke');
   d('lotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('chakra', 'sandstone', R >> 1, 'medallion', 'chakra');
   d('frieze', 'sandstone', R, 'frieze'); d('strip', 'sandstone', R, 'strip'); d('wall', 'sandstone', R >> 1, 'wall'); d('ashlar', 'sandstone', R >> 1, 'ashlar');
-  d('eclipse', 'granite', R, 'eclipse'); d('star', 'granite', R >> 1, 'medallion', 'star'); d('granite', 'granite', R >> 1, 'ashlar');
-  d('marble', 'marble', R, 'marble'); d('marbleLotus', 'marble', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', R >> 1, 'wall'); d('konark', 'buff', R, 'konark');
+  d('eclipse', 'sandstone', R, 'eclipse'); d('star', 'sandstone', R >> 1, 'medallion', 'star'); d('granite', 'sandstone', R >> 1, 'ashlar');   // every ring is cut from the portal wheel's sandstone
+  d('marble', 'sandstone', R, 'marble'); d('marbleLotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', R >> 1, 'wall'); d('konark', 'buff', R, 'konark');
   return K;
 }
 // a standard material on a sheet (textures are clones: own repeat, shared image and GPU memory)

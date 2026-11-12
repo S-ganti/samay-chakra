@@ -152,9 +152,9 @@ LOOKS.forEach((L, i) => Object.assign(L, LOOKX[i], LOOKG[i]));
    light, ranges and practical lights can never disagree. ---------- */
 const RAGA = [
   ['#2b2f5e', '#f2a65a', '#7a5a7d', '#3d2f4f', '#2a2233', '#e8b98a', '#6b4a55', '#ff8a3d'],   // Enter the Ring, 18:00, Yaman
-  ['#0e1230', '#2a2350', '#1a1c3a', '#12122a', '#151022', '#c9794f', '#3a2233', '#e0332a'],   // The Gathering, 21:00, Bihag
-  ['#05060f', '#151a3a', '#0c1026', '#080a1a', '#0a0a14', '#8fa0c8', '#1c2240', '#ff3d9a'],   // Eclipse, 00:00, Malkauns
-  ['#0b1430', '#3b4f86', '#24335f', '#152044', '#101830', '#9fb4dc', '#2a3a66', '#7fa2e6'],   // Brahma Muhurta, 03:00, Lalit
+  ['#06202e', '#236070', '#174858', '#0d3040', '#0c222c', '#f2b272', '#1a4050', '#ff5a2a'],   // The Gathering, 21:00, Bihag
+  ['#130628', '#4c2278', '#32185a', '#1f0e40', '#1c0e34', '#c8aaf0', '#3a1e62', '#ff3d9a'],   // Eclipse, 00:00, Malkauns
+  ['#0b1638', '#3b5596', '#243a6c', '#15264e', '#101c38', '#a6bcea', '#2a4074', '#7fa2e6'],   // Brahma Muhurta, 03:00, Lalit
   ['#4a6fa8', '#ffd9a0', '#c79a9a', '#7a6480', '#5a4a52', '#ffe2b0', '#8a6a70', '#ffc247'],   // Diamond Ring, 06:00, Bhairav
   ['#5f9fd0', '#dcebf0', '#9fb8c4', '#6f8f86', '#c9b48f', '#f2e3c4', '#a08a72', '#d8342b'],   // Dispersal, 09:00, Todi
   ['#2f7fc8', '#bfe0ee', '#a9bfc0', '#8f9a78', '#e6d3a3', '#fff4d6', '#b59a6a', '#e9b43b'],   // Zero Shadow, 12:00, Bhimpalasi
@@ -163,7 +163,7 @@ const RAGA = [
 // the sky event of each hour (a ring in every sky): band = how flat the sky's washes are, discR = the painted sun's
 // radius in radians, haloR/haloI = a ring around the light of the hour, halo2 = a second outer ring, moonS = the moon's size
 const SPECT = [
-  { band: 1, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1.6 },     // Enter: afterglow laid in bands
+  { band: 1, discR: .02, haloR: .2, haloI: .4, halo2: 0, moonS: 1.8 },      // Enter: afterglow in bands, the moon rising in a ring
   { band: .7, discR: .02, haloR: .3, haloI: .5, halo2: 0, moonS: 2.4 },    // Gathering: a great moon in its halo
   { band: .4, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Eclipse: the dark wheel is the ring
   { band: .5, discR: .02, haloR: .38, haloI: 0, halo2: 0, moonS: 1 },      // Brahma Muhurta: the star wheel
@@ -177,12 +177,13 @@ LOOKS.forEach((L, i) => {
   const [top, hor, far, near, ground, lit, shade, accent] = RAGA[i], night = i >= 1 && i <= 3;
   Object.assign(L, {
     skyZen: top, skyHor: hor, fog: hor, skyGlow: mixHex(hor, lit, .5), cloud: night ? far : lit, cloudAmt: Math.min(L.cloudAmt, .3),
-    sun: lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: lit,
-    far, near, ground, accent, practical: accent, strip: accent, banner: accent,
+    sun: i === 1 ? '#a8d8e0' : lit, hemiS: mixHex(top, hor, .5), hemiG: ground, shade, hilite: lit,
+    far, near, ground, accent, strip: accent, banner: accent,
     phys: 0, scat: L.scat * .5, fogD: night ? .0055 : i === 0 ? .0042 : i === 7 ? .0034 : i === 4 ? .0036 : .0033,
-    sunI: i === 2 ? 1.5 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
-    ...SPECT[i], hemiI: i === 2 ? 1.1 : L.hemiI,
-    grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1), lift: i === 6 ? '#0a0806' : L.lift,
+    sunI: i === 2 ? 1.5 : i === 1 ? 1.1 : L.sunI, expo: i === 2 ? 1.45 : L.expo,
+    ...SPECT[i], hemiI: night ? 1.25 : L.hemiI, lift: night ? mixHex(shade, '#000000', .72) : i === 6 ? '#0a0806' : L.lift,
+    practical: i === 1 ? '#ffb060' : accent, practicalI: i === 1 ? L.practicalI * .4 : L.practicalI, pEmisI: 0,
+    grain: .03, paper: 0, vig: Math.min(L.vig, .4), sat: Math.max(L.sat, 1.05), con: Math.max(L.con, 1.1),
   });
 });
 // convert hex strings to THREE.Color once

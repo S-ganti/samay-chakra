@@ -25,7 +25,7 @@ function drawMoonPhase(c, e) {
   for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
     const px = (i + .5 - m) / R, py = (j + .5 - m) / R, r2 = px * px + py * py; if (r2 > 1) continue;
     const pz = Math.sqrt(1 - r2), lit = px * se - pz * ce, k = smooth(-.05, .07, lit), shade = .045 + .955 * k, o = (j * S + i) * 4;
-    d[o] *= shade; d[o + 1] *= shade; d[o + 2] *= shade * (1 + (1 - k) * .25);      // earthshine is a touch bluer
+    d[o] *= shade; d[o + 1] *= shade; d[o + 2] *= shade * (1 + (1 - k) * .25); d[o + 3] *= .1 + .9 * k;   // the unlit side lets the sky through, so a young moon is a clean crescent in its halo      // earthshine is a touch bluer
   }
   x.putImageData(img, 0, 0);
 }

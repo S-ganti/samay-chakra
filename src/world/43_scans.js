@@ -37,7 +37,7 @@ function jacarandaBloom(m) {
 }
 function scanMaterial(m, id) {
   m.envMapIntensity = .8;
-  if (m.alphaTest > 0 || m.transparent) { m.side = THREE.DoubleSide; m.transparent = false; m.alphaTest = Math.max(m.alphaTest, .45); }
+  if (m.alphaTest > 0 || m.transparent) { m.side = THREE.DoubleSide; m.transparent = false; m.alphaTest = .2; }
   if (id === 'jacaranda_tree') jacarandaBloom(m);
   return m;
 }
@@ -255,7 +255,7 @@ function bakeImpostor(renderer, asset, { W = 192, H = 256, lilac = false } = {})
   for (const [g, m] of asset.parts) {
     // unlit albedo with a soft sky-to-ground gradient and a leaf-facing term (the world's own chunks are patched for its lights, so the bake stays independent of them)
     const leaf = m.alphaTest > 0 || m.transparent;
-    const lm = new THREE.MeshBasicMaterial({ map: m.map || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1), alphaTest: leaf ? .5 : 0, side: THREE.DoubleSide });
+    const lm = new THREE.MeshBasicMaterial({ map: m.map || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1), alphaTest: leaf ? .22 : 0, side: THREE.DoubleSide });
     lm.onBeforeCompile = (sh) => {
       sh.uniforms.uHt = { value: sz0.y };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vHy; varying vec3 vNw;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHy = position.y; vNw = normal;');
@@ -282,7 +282,7 @@ function bakeImpostor(renderer, asset, { W = 192, H = 256, lilac = false } = {})
   return { tex: rtg.texture, rt: rtg, w: half * 2, h: hgt };
 }
 function impostorMaterial(imp) {
-  const m = new THREE.MeshBasicMaterial({ color: '#ffffff', alphaTest: .5, side: THREE.DoubleSide });
+  const m = new THREE.MeshBasicMaterial({ color: '#ffffff', alphaTest: .3, side: THREE.DoubleSide });
   const U = { tImp: { value: imp.tex }, uImp: { value: new THREE.Vector3(imp.w, imp.h, IMP.F) }, uLight: { value: IMP.light } };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);

@@ -217,7 +217,7 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   const moonUp = smooth(-.06, .04, S.moonDir.y) * (1 - smooth(-.05, .1, S.sunDir.y));
   SK.moon.position.copy(Rp).addScaledVector(S.moonDir, 900); SK.moonGlow.position.copy(SK.moon.position);
   SK.moon.material.opacity = moonUp; SK.moonGlow.material.opacity = moonUp * .6 * (.2 + .8 * MOON.illum) * (1 - WX.cloud * .8);
-  SK.moon.material.color.copy(look.skyGlow).lerp(MOONW, .7);
+  SK.moon.material.color.copy(look.sun).lerp(MOONW, .6);
   // key light: sun by day, moon by night
   const dayF = smooth(-.12, .06, S.sunDir.y);
   S.keyDir.copy(S.moonDir).lerp(S.sunDir, dayF);
