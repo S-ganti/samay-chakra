@@ -660,9 +660,9 @@ function buildCarving(q) {
   const R = carveRes(q), H = q === 'low' ? 1024 : 2048, K = {}, d = (key, kind, W, ...gen) => (K[key] = carveSheet(key, kind, W, gen));
   d('panels', 'sandstone', H, 'panels'); d('band', 'sandstone', H, 'band'); d('spoke', 'sandstone', H >> 1, 'spoke'); d('bronze', 'bronze', H >> 2, 'spoke');
   d('lotus', 'sandstone', H >> 1, 'medallion', 'lotus'); d('chakra', 'sandstone', H >> 1, 'medallion', 'chakra');
-  d('frieze', 'sandstone', R, 'frieze'); d('strip', 'sandstone', R, 'strip'); d('wall', 'sandstone', R >> 1, 'wall'); d('ashlar', 'sandstone', R >> 1, 'ashlar');
-  d('eclipse', 'sandstone', H, 'eclipse'); d('star', 'sandstone', H >> 1, 'medallion', 'star'); d('granite', 'sandstone', R >> 1, 'ashlar');   // every ring is cut from the portal wheel's sandstone
-  d('marble', 'sandstone', H, 'marble'); d('marbleLotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', R >> 1, 'wall'); d('konark', 'buff', H, 'konark');
+  d('frieze', 'sandstone', H, 'frieze'); d('strip', 'sandstone', H, 'strip'); d('wall', 'sandstone', H >> 1, 'wall'); d('ashlar', 'sandstone', H >> 1, 'ashlar');   // the arena's walls, friezes and steps too
+  d('eclipse', 'sandstone', H, 'eclipse'); d('star', 'sandstone', H >> 1, 'medallion', 'star'); d('granite', 'sandstone', H >> 1, 'ashlar');   // every ring is cut from the portal wheel's sandstone
+  d('marble', 'sandstone', H, 'marble'); d('marbleLotus', 'sandstone', R >> 1, 'medallion', 'lotus'); d('laterite', 'laterite', H >> 1, 'wall'); d('konark', 'buff', H, 'konark');
   return K;
 }
 // a standard material on a sheet (textures are clones: own repeat, shared image and GPU memory)

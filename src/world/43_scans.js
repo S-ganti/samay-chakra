@@ -99,7 +99,7 @@ function capGltfTextures(root, cap) {
   const seen = new Set(), jobs = [];
   root.traverse((o) => {
     const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
-    for (const m of ms) for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) { const t = m[key]; if (t && !seen.has(t)) { seen.add(t); jobs.push(capTexture(t, cap)); } }
+    for (const m of ms) for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) { const t = m[key]; if (t && !seen.has(t)) { seen.add(t); t.anisotropy = 16; jobs.push(capTexture(t, cap)); } }
   });
   return Promise.all(jobs);
 }

@@ -37,7 +37,7 @@ function buildStructures(scene, Q) {
   out.C = C; out.reflect = [C.bronze];
 
   /* ---------- clearing floor + rangoli ---------- */
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(45.5, 96), new THREE.MeshStandardMaterial({ map: toTex(texFlagstones(Q.tex)), color: '#c4b8a2', roughness: .95 }));
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(45.5, 96), new THREE.MeshStandardMaterial({ map: toTex(texFlagstones(PARAM.quality === 'low' ? Q.tex : 2048), { aniso: 16 }), color: '#c4b8a2', roughness: .95 }));
   floor.rotation.x = -Math.PI / 2; floor.position.set(0, HP + .035, 0); floor.receiveShadow = true; scene.add(floor);
   const rangoliMat = new THREE.MeshStandardMaterial({ map: toTex(texRangoli(Q.tex)), transparent: true, opacity: 0, depthWrite: false, roughness: .9, polygonOffset: true, polygonOffsetFactor: -2 });
   const rangoli = new THREE.Mesh(new THREE.CircleGeometry(34, 96), rangoliMat);
