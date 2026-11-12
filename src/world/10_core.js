@@ -259,7 +259,7 @@ const QPICK = (() => {
   return r;
 })();
 const PARAM = {
-  dayMinutes: 1440, clock: true, playing: true,           // the world keeps the visitor's own time
+  dayMinutes: 24, clock: false, live: false, playing: true,   // the day turns in 24 minutes (three per chapter), from dusk
   population: 0, dream: 0, stone: 1, energy: 1, exposure: 1, fog: 1, glow: 1, grain: 1, grade: 1, soft: .6,
   real: 2, shafts: 1, ao: 1, dof: true,
   quality: QPICK.q, qualityPinned: QPICK.pinned,

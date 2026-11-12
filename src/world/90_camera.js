@@ -3,18 +3,19 @@
    orbit / follow / top modes. Everything glides (or cuts, for capture).
    ========================================================================= */
 const gy = (x, z, o = 0) => groundY(x, z) + o;
+const SCAT = S.scatDir;                    // the light of the hour (shotClearance sweeps it)
 const SY = GEO.SYNTH, RR = GEO.R, PP_ = GEO.P, CH = GEO.CHAI;
 // the sky shot: low on the ground, the hero standing between the lens and the light of the hour (sun by day, moon by night), so
 // every chapter opens on its sky event with the hero against it. The higher the light, the closer the camera tucks in under the hero
-const skyShot = (hx, hy, hz, dist, name, fov = 58, eye = 1.5, side = 0) => (rt) => {
+const skyShot = (hx, hy, hz, dist, name, fov = 58, eye = 1.5, side = 0) => { const f = (rt) => {
   const d = S.scatDir, hl = Math.hypot(d.x, d.z), ux = hl > .2 ? d.x / hl : .6, uz = hl > .2 ? d.z / hl : .8;
   const k = clamp(1 - d.y * .75, .3, 1) * dist, px = hx - ux * k + 1.2 * Math.sin(rt * .03) - uz * side, pz = hz - uz * k + ux * side;
   return { p: [px, groundY(px, pz) + eye, pz], l: [hx + d.x * 30, hy + Math.max(d.y, .05) * 30, hz + d.z * 30], fov, name };
-};
+}; f.sky = true; return f; };
 const SHOTS = [
   [ // 1 Enter the Ring — procession up the lamp-lit steps into the glowing portal
     (rt) => ({ p: [-85 + 1.5 * Math.sin(rt * .03), FORE_H + 1.7, 8.6], l: [-47, HP + 6.4, -1], fov: 50, name: 'Ascent' }),
-    (rt) => ({ p: [-22, HP + 2.4, 10 + 2 * Math.sin(rt * .04)], l: [-47, HP + 5.6, 0], fov: 50, name: 'Through the portal', dof: 1.3 }),
+    (rt) => ({ p: [-21, HP + 2.6, 3.5 + 1.5 * Math.sin(rt * .04)], l: [-47, HP + 6, 0], fov: 50, name: 'Through the portal', dof: 1.3 }),
     (rt) => ({ p: [-88 + 8 * Math.sin(rt * .02), HP + 30, 56], l: [-44, HP + 3, 0], fov: 50, name: 'Canopy' }),
     // detail: the carved hub and spokes, close, the lamps soft behind
     (rt) => ({ p: [-37.5, HP + 4.6, 5.2 + .5 * Math.sin(rt * .03)], l: [-47, HP + 6.6, 0], fov: 24, name: 'Hub', dof: 2.2 }),
@@ -27,11 +28,10 @@ const SHOTS = [
   ],
   [ // 3 Eclipse — the dark wheel over the stone circle
     (rt) => ({ p: [RR.x - 17, RH + 4.4, RR.z + 7 + 1.5 * Math.sin(rt * .03)], l: [RR.x + 40, RH + 16, RR.z - 4], fov: 66, name: 'Under the ring' }),
-    (rt) => ({ p: [10, HP + 22, 16], l: [RR.x + 20, RH + 18, RR.z - 4], fov: 46, name: 'From the clearing' }),
+    (rt) => ({ p: [RR.x - 6 + Math.sin(rt * .03), RH + 1.7, RR.z + 9], l: [RR.x + 30, RH + 15, RR.z - 4], fov: 58, name: 'Among the dancers' }),
   ],
   [ // 4 Brahma Muhurta — star wheel, sleepers, one figure at the synth
     (rt) => ({ p: [RR.x + 1, RH + 1.45, RR.z + 10], l: [RR.x - 3, RH + 16, RR.z - 40], fov: 64, name: 'Star wheel' }),
-    (rt) => ({ p: [RR.x - 30 + 3 * Math.sin(rt * .02), RH + 5, RR.z + 24], l: [-120, 6, -130], fov: 46, name: 'Valley mist' }),
     (rt, h) => (h !== undefined && h < 5.62) ? null : ({ p: [RR.x - 1 + Math.sin(rt * .04), RH + 1.65, RR.z + 5], l: [RR.x + 60, RH + 5, RR.z - 6], fov: 52, name: 'First light', dof: 1.2, fd: 11 }),
   ],
   [ // 5 Diamond Ring — arms up under the white-gold arches; the flash
@@ -48,7 +48,7 @@ const SHOTS = [
   [ // 7 Zero Shadow — straight down on the great wheel
     skyShot(PP_.x, 11, PP_.z, 22, 'Zenith ring', 72, 1.2),
     (rt) => { const a = rt * .008; return { p: [PP_.x + 9 * Math.cos(a), 80, PP_.z + 9 * Math.sin(a) + .01], l: [PP_.x + 9 * Math.cos(a), 0, PP_.z + 9 * Math.sin(a)], fov: 30, name: 'Mandala' }; },
-    (rt) => { const a = -rt * .05; return { p: [PP_.x + Math.cos(a) * 27.5, 1.6, PP_.z + Math.sin(a) * 27.5], l: [PP_.x, 1.4, PP_.z], fov: 55, name: 'Pradakshina', dof: 1.3 }; },
+    (rt) => { const a = -rt * .05; return { p: [PP_.x + Math.cos(a) * 31.5, 3.6, PP_.z + Math.sin(a) * 31.5], l: [PP_.x, 3.2, PP_.z], fov: 55, name: 'Pradakshina', dof: 1.3 }; },
     (rt) => ({ p: [PP_.x - 42, 27, PP_.z - 40], l: [PP_.x, 0, PP_.z], fov: 44, name: 'Rooftop' }),
   ],
   [ // 8 Return — carriers climbing with the pieces; the ring rebuilt

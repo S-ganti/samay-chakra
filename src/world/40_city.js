@@ -327,13 +327,16 @@ function shotClearance() {
       const k = jj * N + ii; if (y < low[k]) low[k] = y; if (y > high[k]) high[k] = y;
     }
   };
-  for (const list of SHOTS) for (const fn of list) {
-    if (!fn) continue;
+  const keep = SCAT.clone(), sweep = [];
+  for (let i = 0; i < 8; i++) for (const e of [.12, .45, .85]) { const az = i / 8 * TAU, ce = Math.sqrt(1 - e * e); sweep.push([Math.cos(az) * ce, e, Math.sin(az) * ce]); }
+  for (const list of SHOTS) for (const fn of list) for (const dir of (fn && fn.sky ? sweep : [null])) {
+    if (!fn) continue; if (dir) SCAT.set(dir[0], dir[1], dir[2]);
     for (let rt = 0; rt < 420; rt += 1.5) {
       const sh = fn(rt), [px, py, pz] = sh.p, [lx, ly, lz] = sh.l, dx = lx - px, dy = ly - py, dz = lz - pz, L = Math.hypot(dx, dy, dz) || 1, reach = Math.min(32, L * .8);
       for (let d = 0; d <= reach; d += 1.5) { const x = px + dx / L * d, y = py + dy / L * d, z = pz + dz / L * d; mark(x, z, y - groundY(x, z)); }
     }
   }
+  SCAT.copy(keep);
   const cells = (x, z, R, fn) => {
     const i0 = Math.max(0, Math.floor((x - R + off) / S)), i1 = Math.min(N - 1, Math.floor((x + R + off) / S)), j0 = Math.max(0, Math.floor((z - R + off) / S)), j1 = Math.min(N - 1, Math.floor((z + R + off) / S));
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (fn(j * N + i)) return true;
@@ -409,8 +412,8 @@ function buildForest(scene, Q) {
     return ims;
   };
   const broadFlora = () => { let u = r(); for (const B_ of BLOOMS) { if (u < B_.w) { const a = bloomFor(B_); return a ? { c: B_.c, a } : null; } u -= B_.w; } return null; };
-  out.broadIM = mk(bPts, [[K.broad.trunk, M.bark, null, 0, true], [K.broad.core, M.core, null, 0], [K.broad.cards, M.cards, M.cardsDepth, 1]], '#ffffff', '#d8cba0', Q.treeShadows, broadFlora);
-  out.coniferIM = mk(cPts, [[K.conifer.trunk, M.bark, null, 0, true], [K.conifer.cones, M.cone, null, 0]], '#ffffff', '#c4c0a8', Q.treeShadows);
+  out.broadIM = [];   // trees are painted cards now (41_painted.js): these placements are what it draws
+  out.coniferIM = [];
   // street trees: rain trees, with the avenue's planted tabebuias and gulmohars among them
   const streetFlora = () => { const u = r(); const B_ = u < .3 ? RAIN_BLOOM : u < .5 ? BLOOMS[0] : u < .65 ? BLOOMS[1] : u < .75 ? BLOOMS[2] : null; if (!B_) return null; const a = bloomFor(B_); return a ? { c: B_.c, a } : null; };
   // the round street trees and bushes are cut with the city

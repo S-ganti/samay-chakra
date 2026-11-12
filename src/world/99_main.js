@@ -50,7 +50,7 @@ async function boot() {
   try { await Promise.race([Promise.all([document.fonts.load('800 190px "Big Shoulders Stencil Display"'), document.fonts.load('600 64px "Noto Sans Kannada"', 'ವಿಸರ್ಜನೆ'), document.fonts.load('500 30px Jost')]), new Promise(r => setTimeout(r, 2200))]); } catch (e) { }
 
   const scene = new THREE.Scene();
-  const now = new Date(); S.t = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  S.t = 18.02;                                           // every visit begins at the first chapter, Enter the Ring, at dusk
   // coming back from a quality change: pick up where the viewer was
   try { const r = JSON.parse(sessionStorage.getItem('samay.resume') || 'null'); sessionStorage.removeItem('samay.resume'); if (r && Date.now() - r.at < 60000) { S.t = r.t; WX.mode = r.wx || WX.mode; } } catch (e) { }
   // each subsystem's objects carry its name in userData.sys, so the cost of every part of the world can be measured on its own
@@ -59,6 +59,7 @@ async function boot() {
   const ST = sys('structures', () => buildStructures(scene, Q));
   const CT = sys('city', () => buildCity(scene, Q));
   const FO = sys('forest', () => buildForest(scene, Q));
+  const PA = sys('painted', () => buildPainted(scene, Q, FO));
   const TE = sys('temple', () => buildTemple(scene, Q, ST));
   const DE = sys('decor', () => buildDecor(scene, Q, ST, TE));
   const GR = sys('grass', () => buildGrass(scene, Q));
@@ -265,7 +266,7 @@ async function boot() {
     else if (PARAM.clock) { const d = new Date(); S.t = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600 + d.getMilliseconds() / 3.6e6; }
     else if (PARAM.playing) S.t = wrap24(S.t + dt * 24 / (PARAM.dayMinutes * 60));
     // a visitor who moved the dial is brought back to the present after a minute of leaving it alone
-    if (!PARAM.clock && !S.travel && !UI.debug && !window.__fixedDt) { if (UI.returning) { UI.returning = false; setClock(true); } else if (rt0() - (UI.awayAt || 0) > 60) { const d = new Date(); travelTo(d.getHours() + d.getMinutes() / 60, 5); UI.returning = true; } }
+    if (PARAM.live && !PARAM.clock && !S.travel && !UI.debug && !window.__fixedDt) { if (UI.returning) { UI.returning = false; setClock(true); } else if (rt0() - (UI.awayAt || 0) > 60) { const d = new Date(); travelTo(d.getHours() + d.getMinutes() / 60, 5); UI.returning = true; } }
     const t = S.t, h = wrap24(t), rt = S.rt;
     const w = chapterWeights(t, PARAM.soft), look = blendLook(w);
     updateWeather(dt, h); applyWeather(look);
@@ -282,6 +283,7 @@ async function boot() {
     updateSky(SK, ST, t, rt, look, w, CAM.cam);
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);
+    updatePainted(PA, SK, look, w, rt, vh * IPR);
     { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); RU.uHaze.value.copy(look.skyHor); }
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;

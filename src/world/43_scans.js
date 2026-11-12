@@ -109,7 +109,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   const L = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const want = { lod: ['namaqualand_boulder_02', 'namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_boulders_01', 'namaqualand_boulder_05', 'namaqualand_cliff_01', 'namaqualand_cliff_02', 'rock_face_01', 'rock_face_02', 'rock_moss_set_01', 'rock_moss_set_02', 'tree_stump_01', 'dead_tree_trunk_02'],
     full: N.hero ? ['namaqualand_boulder_03', 'namaqualand_boulder_06', 'namaqualand_cliff_01', 'rock_face_01', 'tree_stump_01', 'dead_tree_trunk_02', 'stone_fire_pit'] : [] };   // the moss beds (60k triangles each) stay at their LOD
-  want.full.push('jacaranda_tree', 'island_tree_02'); if (N.trees) want.full.push('searsia_lucida');   // the two trees also become the forest's impostors
+  // (the scanned trees are gone: trees are painted cards now, see 41_painted.js)   // the two trees also become the forest's impostors
   SCAN.total = want.lod.length + want.full.length;
   const A = { lod: {}, full: {} };
   const get = async (kind, id) => { try { const gltf = await L.loadAsync(SCAN.base + (kind === 'lod' ? 'lod/' : '') + id + '.glb'); await capGltfTextures(gltf.scene, TEXCAP[PARAM.quality].scan); A[kind][id] = scanParts(gltf); } catch (e) { diagNote && diagNote('scan', `${id} failed: ${e.message || e}`); } SCAN.loaded++; };
@@ -217,7 +217,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   const J = [];
   const jSpots = [[-104, -21], [-104, 22], [-66, -19], [-64, 20], [-14, 80], [22, 80], [44, 96], [-26, 96]];
   for (const [x, z] of jSpots.slice(0, N.jac)) J.push([x, groundY(x, z) - .3, z, .62 + r() * .12, r() * TAU]);
-  add('full', 'jacaranda_tree', J, { cast: PARAM.quality === 'high' });
+  if (A.full.jacaranda_tree) add('full', 'jacaranda_tree', J, { cast: PARAM.quality === 'high' });
   const tS = [], tI = [];
   for (let i = 0, tries = 0; i < N.trees && tries < 2000; tries++) {
     const R0 = r() < .6 ? ROUTES.hill : ROUTES.ridge, p = routeAt(R0, r()); if (!p) break;
@@ -226,7 +226,7 @@ async function loadScans(scene, Q, renderer, FO, ST) {
     const s = 1.8 + r() * 1.2; if (inLens(x, z, 2.5 * s, .3 * s, 3.5 * s, .2 * s)) continue;
     (i % 2 ? tI : tS).push([x, groundY(x, z) - .1, z, s, r() * TAU]); i++;
   }
-  if (N.trees) { add('full', 'searsia_lucida', tS, { cast: PARAM.quality === 'high' }); add('full', 'island_tree_02', tI, { cast: PARAM.quality === 'high' }); }
+  if (N.trees && A.full.searsia_lucida && A.full.island_tree_02) { add('full', 'searsia_lucida', tS, { cast: PARAM.quality === 'high' }); add('full', 'island_tree_02', tI, { cast: PARAM.quality === 'high' }); }
 
   try { if (ST) await loadHeritage(scene, ST); } catch (e) { diagNote && diagNote('scan', 'heritage failed: ' + (e.message || e)); }
   try { SCAN.imps = renderer ? impostorForest(scene, renderer, FO, A) : 0; } catch (e) { diagNote && diagNote('scan', 'impostors failed: ' + (e.message || e)); }

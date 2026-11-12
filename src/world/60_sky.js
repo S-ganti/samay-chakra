@@ -213,7 +213,7 @@ function updateSky(SK, ST, t, rt, look, w, cam) {
   cel.angR = Math.atan(113 / celD);
   { _pc3.copy(look.corona).lerp(look.hilite, .5).multiplyScalar(.5 * eclW + .42 * w[1] + .3 * w[3] + .2 * w[0]); cel.celMat.emissive.copy(_pc3); cel.celBlockMat.emissive.copy(_pc3); }
   const mAz = hdiff(t, 1.5) * 6;
-  dirFrom(rEl + 1.5 * Math.cos(hdiff(t, 1.5) * .4), mAz, S.moonDir);
+  dirFrom(rEl + 1.5 * Math.cos(hdiff(t, 1.5) * .4) + 22 * w[0], mAz + 15 * w[0], S.moonDir);   // at dusk the moon stands clear of the portal wheel, in its ring
   const moonUp = smooth(-.06, .04, S.moonDir.y) * (1 - smooth(-.05, .1, S.sunDir.y));
   SK.moon.position.copy(Rp).addScaledVector(S.moonDir, 900); SK.moonGlow.position.copy(SK.moon.position);
   SK.moon.material.opacity = moonUp; SK.moonGlow.material.opacity = moonUp * .6 * (.2 + .8 * MOON.illum) * (1 - WX.cloud * .8);
