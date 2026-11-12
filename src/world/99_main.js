@@ -284,10 +284,13 @@ async function boot() {
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);
     updatePainted(PA, SK, look, w, rt, vh * IPR);
+    { const gk = .75 * (w[5] + w[6] + w[7]) + .3 * w[4], gm = Math.max(look.ground.r, look.ground.g, look.ground.b, 1e-3); _tmpC.copy(look.ground).multiplyScalar(1 / gm); _tmpC.r = lerp(1, _tmpC.r, gk); _tmpC.g = lerp(1, _tmpC.g, gk); _tmpC.b = lerp(1, _tmpC.b, gk); TR.mesh.material.color.copy(_tmpC); if (CT.court && CT.court.color) CT.court.color.copy(_tmpC); }
     { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); RU.uHaze.value.copy(look.skyHor); }
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;
-    fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows);
+    // the shadow map is redrawn every other frame (it is close to half the triangles of a frame, and the sun moves slowly); the
+    // light's frame is only refitted on those frames, so shadows stay locked to the picture in between
+    { const shF = ((UI.frameN | 0) % 2 === 0) || CAM.snapped || !!window.__fixedDt; if (shF) fitShadow(SK, CAM.cam, CAM, QUAL[PARAM.quality].shadows); SK.key.shadow.autoUpdate = false; SK.key.shadow.needsUpdate = shF; }
     cullFrame(CAM.cam, SK.key, vh * IPR);               // only the scanned pieces the camera or the shadow box can see, at the right detail
     // portal gate
     const comp = 1;                                      // the ring stands whole: nobody carries it away any more
