@@ -4,7 +4,7 @@
    Everything here is a camera-facing card tinted by the hour's palette and faded by the same haze as the
    rest of the world, so the drawings sit in the scene instead of on top of it. Cheap to draw: a few thousand quads.
    ========================================================================= */
-const PAINT = { light: new THREE.Color(1, 1, 1), shade: new THREE.Color(), lit: new THREE.Color(), lamp: new THREE.Color(), groups: [] };
+const PAINT = { light: new THREE.Color(1, 1, 1), shade: new THREE.Color(), lit: new THREE.Color(), lamp: new THREE.Color(), flower: new THREE.Color(), fshade: new THREE.Color(), flit: new THREE.Color(), groups: [] };
 
 /* ---------- trees: four kinds, painted in values (dark to light) and coloured by the hour ---------- */
 function paintTreeAtlas() {
@@ -15,7 +15,7 @@ function paintTreeAtlas() {
     cl.sort((a, b) => b[1] - a[1]);                                  // lower clusters first, so the lit tops overlap them
     for (const [px, py, pr] of cl) {
       const lightK = clamp(.5 - (py - cy) / (ry * 2) - (px - cx) / (rx * 4), 0, 1), base = 70 + 130 * lightK;
-      x.fillStyle = g(base); x.beginPath(); x.arc(ox + px, py, pr, 0, TAU); x.fill();
+      x.fillStyle = g(base); x.beginPath(); x.arc(ox + px, py, pr, 0, TAU); x.fill(); cl.last = [px, py, pr];
       // leaves: small dabs, darker under each cluster and lighter on its crown, breaking the rim into a leafy edge
       for (let k = 0; k < 46; k++) {
         const a = r() * TAU, d = pr * (.35 + r() * .78), lx = px + Math.cos(a) * d, ly = py + Math.sin(a) * d;
@@ -24,16 +24,18 @@ function paintTreeAtlas() {
       }
     }
   };
+  // blossom: drawn in the flower channel (blue without red), coloured at draw time by the hour's second colour
+  const bloom = (r, ox, cx, cy, rx, ry, n) => { x.fillStyle = 'rgb(30,0,255)'; for (let i = 0; i < n; i++) { const a = r() * TAU, d = Math.sqrt(r()); x.beginPath(); x.arc(ox + cx + Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d - 8, 2.2 + r() * 2.2, 0, TAU); x.fill(); } };
   const trunk = (ox, bx, by, tx, ty, w0, w1, v = 62) => {
     x.fillStyle = g(v); x.beginPath(); x.moveTo(ox + bx - w0, by); x.quadraticCurveTo(ox + (bx + tx) / 2 - w0 * .4, (by + ty) / 2, ox + tx - w1, ty);
     x.lineTo(ox + tx + w1, ty); x.quadraticCurveTo(ox + (bx + tx) / 2 + w0 * .5, (by + ty) / 2, ox + bx + w0, by); x.closePath(); x.fill();
   };
   // 0 — mango: a full round crown
-  { const r = rng(11), ox = 0; trunk(ox, 192, H - 2, 188, 250, 20, 9); trunk(ox, 190, 330, 130, 230, 7, 4); trunk(ox, 192, 320, 250, 225, 7, 4); crown(r, ox, 192, 180, 138, 128, 34, 34, 58); }
+  { const r = rng(11), ox = 0; trunk(ox, 192, H - 2, 188, 250, 20, 9); trunk(ox, 190, 330, 130, 230, 7, 4); trunk(ox, 192, 320, 250, 225, 7, 4); crown(r, ox, 192, 180, 138, 128, 34, 34, 58); bloom(r, ox, 192, 170, 130, 118, 70); }
   // 1 — banyan: a wide low canopy on several stems with hanging roots
   { const r = rng(23), ox = W; trunk(ox, 192, H - 2, 190, 280, 26, 12); trunk(ox, 110, H - 2, 120, 290, 8, 5); trunk(ox, 280, H - 2, 268, 285, 9, 5);
     x.strokeStyle = g(58); x.lineWidth = 2.5; for (let i = 0; i < 9; i++) { const px = 60 + r() * 264; x.beginPath(); x.moveTo(ox + px, 250); x.lineTo(ox + px + (r() - .5) * 8, 330 + r() * 150); x.stroke(); }
-    crown(r, ox, 192, 205, 172, 96, 38, 30, 52); }
+    crown(r, ox, 192, 205, 172, 96, 38, 30, 52); bloom(r, ox, 192, 196, 165, 86, 46); }
   // 2 — ashoka: the tall narrow tree of the miniatures
   { const r = rng(37), ox = W * 2; trunk(ox, 192, H - 2, 192, 380, 9, 6); crown(r, ox, 192, 236, 50, 196, 30, 22, 36); }
   // 3 — palm: a leaning ringed stem and a fan of fronds
@@ -86,9 +88,9 @@ function paintFigureAtlas() {
 }
 
 /* ---------- a camera-facing card material: frame picked per instance, coloured by two palette colours ---------- */
-function cardMaterial(tex, frames, { crowd = false } = {}) {
+function cardMaterial(tex, frames, { crowd = false, shade = PAINT.shade, lit = PAINT.lit } = {}) {
   const m = new THREE.MeshBasicMaterial({ color: '#ffffff', alphaTest: .5, side: THREE.DoubleSide });
-  const U = { tCard: { value: tex }, uFr: { value: frames }, uShade: { value: PAINT.shade }, uLit: { value: PAINT.lit }, uLight: { value: PAINT.light }, uLamp: { value: PAINT.lamp },
+  const U = { tCard: { value: tex }, uFr: { value: frames }, uShade: { value: shade }, uLit: { value: lit }, uFlower: { value: PAINT.flower }, uLight: { value: PAINT.light }, uLamp: { value: PAINT.lamp },
     uTime: { value: 0 }, uBeat: { value: 0 }, uGrow: { value: 1 } };
   m.userData.U = U;
   m.onBeforeCompile = (sh) => {
@@ -101,14 +103,17 @@ function cardMaterial(tex, frames, { crowd = false } = {}) {
         vec3 rgt = vec3(tc.z, 0., -tc.x);
         float bob = ${crowd ? '1.0 + 0.035 * sin(uBeat * 6.2831853 + aPh * 6.2831853)' : '1.0'};
         float sway = ${crowd ? '0.05 * sin(uBeat * 3.1415927 + aPh * 9.0) * position.y' : '0.012 * sin(uTime * 0.7 + aPh * 6.2831853) * position.y * position.y'};
-        vec3 wp = ctrW.xyz + rgt * ((position.x + sway) * sx) + vec3(0., position.y * sy * bob * uGrow, 0.);
+        float steep = smoothstep(.6, .92, abs(normalize(toC).y));
+        vec3 camR = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), camU = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+        vec3 rgt2 = normalize(mix(rgt, camR, steep)), up2 = normalize(mix(vec3(0., 1., 0.), camU, steep));
+        vec3 wp = ctrW.xyz + rgt2 * ((position.x + sway) * sx) + up2 * (position.y * sy * bob * uGrow) + vec3(0., steep * 0.9, 0.);   // laid toward a camera overhead, lifted clear of the ground it would otherwise lie in
         vUvC = vec2((uv.x + aF) / uFr, uv.y); vPh = aPh;
         vec4 mvPosition = viewMatrix * vec4(wp, 1.);
         gl_Position = projectionMatrix * mvPosition;`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tCard; uniform vec3 uShade, uLit, uLight, uLamp; varying vec2 vUvC; varying float vPh;')
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tCard; uniform vec3 uShade, uLit, uLight, uLamp, uFlower; varying vec2 vUvC; varying float vPh;')
       .replace('#include <map_fragment>', crowd
         ? 'vec4 cT = texture2D(tCard, vUvC); diffuseColor *= vec4(mix(uShade, uLit, cT.r) * uLight, max(cT.r, cT.b) > 0.2 ? 1.0 : 0.0);'
-        : 'vec4 cT = texture2D(tCard, vUvC); diffuseColor *= vec4(mix(uShade, uLit, smoothstep(0.2, 0.85, cT.r)) * uLight, cT.a);')
+        : 'vec4 cT = texture2D(tCard, vUvC); diffuseColor *= vec4(mix(mix(uShade, uLit, smoothstep(0.2, 0.85, cT.r)), uFlower, step(0.5, cT.b - cT.r)) * uLight, cT.a);')
       .replace('#include <color_fragment>', crowd ? '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, uLamp, step(0.5, cT.b));' : '#include <color_fragment>');
   };
   if (m.fog) { m.userData.hf = 1; chainHook(m, 'hf', (sh) => Object.assign(sh.uniforms, HFOG)); }
@@ -186,20 +191,41 @@ function buildPainted(scene, Q, FO) {
     const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.renderOrder = 4; scene.add(pts); return { pts, U };
   };
   out.lanterns = mkPoints(90, false); out.kites = mkPoints(46, true);
-  /* tall festival flags round the plaza court, in the hour's two colours */
-  { const NF = 28, poleG = new THREE.CylinderGeometry(.05, .07, 7, 6).translate(0, 3.5, 0), flagG = new THREE.PlaneGeometry(1.15, 3.6).translate(.62, 5.1, 0);
-    const poles = new THREE.InstancedMesh(poleG, new THREE.MeshBasicMaterial({ color: '#2a2018' }), NF);
-    out.flagMats = [new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })];
+  /* ground plants: grass clumps, flowering bushes, aloes and shrubs, painted, in place of the 3D grass */
+  { const mat = cardMaterial(paintPlantAtlas(), 4), G = [], Pp = GEO.P;
+    const ok = (x, z) => Math.hypot(x - Pp.x, z - Pp.z) > 35.5 && Math.hypot(x, z) > 47 && !(x > -114 && x < -48 && Math.abs(z) < 8) && Math.hypot(x - GEO.R.x, z - GEO.R.z) > 15 && Math.abs(x) < 228 && Math.abs(z) < 228 && !inLens(x, z);
+    const ring = (cx, cz, r0, r1, n) => { for (let i = 0, t = 0; i < n && t < n * 6; t++) { const a = r() * TAU, d = lerp(r0, r1, Math.sqrt(r())), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d; if (!ok(x, z)) continue; const f = r() < .45 ? 0 : r() < .5 ? 1 : r() < .5 ? 3 : 2, h = (f === 0 ? .55 : f === 2 ? .8 : 1.15) * (.7 + r() * .8); G.push([x, groundY(x, z) - .05, z, h * 1.25, h, null, f]); i++; } };
+    ring(Pp.x, Pp.z, 36, 80, 950); ring(0, 0, 47, 96, 800); ring(-82, 0, 9, 34, 260); ring(GEO.R.x, GEO.R.z, 16, 44, 300);
+    out.plants = cardMesh(scene, mat, G, (i) => G[i][6]); out.plantMat = mat; }
+  /* landmarks on the middle hills: a gopuram, a domed pavilion, a fort wall. Far enough to be shapes, painted so they are not blank */
+  { const mat = cardMaterial(paintLandmarkAtlas(), 3, { shade: PAINT.fshade, lit: PAINT.flit }), Lm = [];
+    for (let i = 0; i < 15; i++) { const a = (i + .3 + r() * .4) / 15 * TAU; if (Math.cos(a) > .7) continue; const d = 172 + r() * 46, x = Math.cos(a) * d, z = Math.sin(a) * d * .97;
+      if (Math.abs(x) > 226 || Math.abs(z) > 226 || Math.hypot(x - GEO.P.x, z - GEO.P.z) < 60) continue; const f = i % 3, h = f === 0 ? 24 + r() * 10 : f === 1 ? 13 + r() * 5 : 11 + r() * 4; Lm.push([x, groundY(x, z) - 1, z, h * (f === 2 ? 2.2 : .75), h, null, f]); }
+    out.marks = cardMesh(scene, mat, Lm, (i) => Lm[i][6]); }
+  /* festival banners round the plaza court: painted cloth, swallow-tailed, hung from a crossbar and moving in the air */
+  { const NF = 20, poleG = mergeGeometries([new THREE.CylinderGeometry(.045, .07, 7.4, 6).translate(0, 3.7, 0), new THREE.CylinderGeometry(.03, .03, 1.5, 5).rotateZ(Math.PI / 2).translate(.62, 7.05, 0), new THREE.SphereGeometry(.13, 8, 6).translate(0, 7.5, 0)]);
+    const poles = new THREE.InstancedMesh(poleG, new THREE.MeshBasicMaterial({ color: '#3a2a1c' }), NF);
+    const tex = paintBannerTex(), flagG = new THREE.PlaneGeometry(1.2, 4.4, 1, 14).translate(.62, 4.85, 0);
+    const ph = new Float32Array(NF / 2); for (let i = 0; i < NF / 2; i++) ph[i] = r() * 6.28; flagG.setAttribute('aPh', new THREE.InstancedBufferAttribute(ph, 1));
+    out.flagU = { uTime: { value: 0 } };
+    out.flagMats = [0, 1].map(() => { const m = new THREE.MeshBasicMaterial({ map: tex, alphaTest: .5, side: THREE.DoubleSide });
+      m.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, out.flagU); sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aPh; uniform float uTime;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n{ float hang = clamp((7.05 - position.y) / 4.4, 0.0, 1.0); transformed.z += sin(uTime * 1.6 + position.y * 1.5 + aPh) * .22 * hang; transformed.x += sin(uTime * 1.1 + position.y * .9 + aPh * 1.7) * .07 * hang; }'); };
+      return m; });
     const flags = out.flagMats.map(m => new THREE.InstancedMesh(flagG, m, NF / 2));
-    for (let i = 0; i < NF; i++) { const a = (i + .5) / NF * TAU, x = GEO.P.x + Math.cos(a) * 35.2, z = GEO.P.z + Math.sin(a) * 35.2;
-      _p.set(x, groundY(x, z) - .1, z); _q.setFromAxisAngle(V3(0, 1, 0), -a + Math.PI / 2 + (r() - .5) * .5); _s.set(1, .9 + r() * .25, 1); setIM(poles, i, _p, _q, _s); setIM(flags[i % 2], i >> 1, _p, _q, _s); }
-    _s.set(1, 1, 1); scene.add(poles, flags[0], flags[1]); }
+    for (let i = 0; i < NF; i++) { const a = (i + .5) / NF * TAU, x = GEO.P.x + Math.cos(a) * 35.4, z = GEO.P.z + Math.sin(a) * 35.4;
+      _p.set(x, groundY(x, z) - .1, z); _q.setFromAxisAngle(V3(0, 1, 0), -a + Math.PI / 2 + (r() - .5) * .4); _s.set(1, .92 + r() * .2, 1); setIM(poles, i, _p, _q, _s); setIM(flags[i % 2], i >> 1, _p, _q, _s); }
+    _s.set(1, 1, 1); flags.forEach(f => { f.frustumCulled = false; }); scene.add(poles, flags[0], flags[1]); }
   return out;
 }
 const _pa1 = new THREE.Color();
 function updatePainted(PA, SK, look, w, rt, px) {
   // the cards take the hour: shade and light from the palette's near-range and stone-in-light, lifted by the sky's fill
-  PAINT.shade.copy(look.near).multiplyScalar(.55); PAINT.lit.copy(look.near).lerp(look.hilite, .45);
+  // by day the trees keep more of their own colour and a wider range of light to dark; by night they stay near silhouettes
+  const dayK = clamp(w[4] * .6 + w[5] + w[6] + w[7] * .8, 0, 1);
+  PAINT.shade.copy(look.near).multiplyScalar(lerp(.55, .42, dayK)); PAINT.lit.copy(look.near).lerp(look.hilite, lerp(.45, .3, dayK)).multiplyScalar(lerp(1, 1.12, dayK));
+  PAINT.flower.copy(look.accent2).lerp(look.accent, .35).multiplyScalar(lerp(.55, 1.15, dayK));
+  PAINT.fshade.copy(look.far).lerp(look.near, .35).multiplyScalar(.8); PAINT.flit.copy(look.far).lerp(look.hilite, .4);
   PAINT.light.copy(SK.hemi.color).multiplyScalar(SK.hemi.intensity * .5 + .4).add(_pa1.copy(SK.key.color).multiplyScalar(SK.key.intensity * .16 * Math.max(S.keyDir.y, .15)));
   const mx = Math.max(PAINT.light.r, PAINT.light.g, PAINT.light.b); if (mx > 1.3) PAINT.light.multiplyScalar(1.3 / mx);
   PAINT.lamp.copy(look.accent).lerp(look.hilite, .4).multiplyScalar(2.2);
@@ -209,8 +235,89 @@ function updatePainted(PA, SK, look, w, rt, px) {
     const k = smooth(.06, .5, W8[C.name]); C.im.visible = k > .01;
     const U = C.mat.userData.U; U.uGrow.value = k; U.uBeat.value = S.beatPos; U.uTime.value = rt;
   }
-  const night = w[0] * .6 + w[1] + w[2] * .7 + w[3] * .35, day = w[5] + w[6] + w[7] * .7 + w[4] * .5;
+  const night = w[0] * .6 + w[1] + w[2] * .7 + w[3] * .35 + w[7] * .3, day = w[5] + w[6] + w[7] * .7 + w[4] * .5;
   const L = PA.lanterns.U; L.uTime.value = rt; L.uI.value = night; L.uPx.value = px; L.uCol.value.copy(look.accent); L.uCol2.value.copy(look.hilite); PA.lanterns.pts.visible = night > .02;
   const K = PA.kites.U; K.uTime.value = rt; K.uI.value = clamp(day, 0, 1); K.uPx.value = px; K.uCol.value.copy(look.accent); K.uCol2.value.copy(look.accent2); PA.kites.pts.visible = day > .02;
-  PA.flagMats[0].color.copy(look.accent).multiply(PAINT.light); PA.flagMats[1].color.copy(look.accent2).multiply(PAINT.light);
+  PA.flagMats[0].color.copy(look.accent).multiply(PAINT.light); PA.flagMats[1].color.copy(look.accent2).multiply(PAINT.light); PA.flagU.uTime.value = rt;
+  PA.plantMat.userData.U.uTime.value = rt;
+}
+
+/* ---------- ground plants: grass clump, flowering bush, aloe, shrub ---------- */
+function paintPlantAtlas() {
+  const W = 256, c = document.createElement('canvas'); c.width = W * 4; c.height = W;
+  const x = c.getContext('2d'), g = (v) => { v = Math.round(clamp(v, 0, 255)); return `rgb(${v},${v},${v})`; }, r = rng(71);
+  // 0 grass clump: a fan of blades
+  for (let i = 0; i < 46; i++) { const a = (r() - .5) * 1.5, L = 110 + r() * 130, bx = 128 + (r() - .5) * 70; x.strokeStyle = g(90 + r() * 130); x.lineWidth = 3 + r() * 3; x.lineCap = 'round'; x.beginPath(); x.moveTo(bx, 254); x.quadraticCurveTo(bx + Math.sin(a) * L * .3, 254 - L * .6, bx + Math.sin(a) * L * .9, 254 - L * Math.cos(a)); x.stroke(); }
+  // 1 flowering bush
+  { const ox = W; for (let i = 0; i < 26; i++) { const px = 128 + (r() - .5) * 170, py = 170 + (r() - .5) * 120, pr = 26 + r() * 22; x.fillStyle = g(80 + 110 * clamp(.6 - (py - 170) / 160, 0, 1)); x.beginPath(); x.arc(ox + px, Math.min(py, 236), pr, 0, TAU); x.fill(); }
+    x.fillStyle = 'rgb(30,0,255)'; for (let i = 0; i < 44; i++) { x.beginPath(); x.arc(ox + 128 + (r() - .5) * 190, 150 + (r() - .5) * 130, 5 + r() * 4, 0, TAU); x.fill(); } }
+  // 2 aloe: a rosette of pointed leaves
+  { const ox = W * 2; for (let i = 0; i < 15; i++) { const a = -Math.PI * (.08 + .84 * i / 14), L = 120 + r() * 90, ex = 128 + Math.cos(a) * L * .8, ey = 250 + Math.sin(a) * L; x.fillStyle = g(100 + 110 * clamp(-Math.sin(a) - Math.cos(a) * .3, 0, 1)); x.beginPath(); x.moveTo(ox + 112, 252); x.quadraticCurveTo(ox + (128 + ex) / 2 - 16, (250 + ey) / 2, ox + ex, ey); x.quadraticCurveTo(ox + (128 + ex) / 2 + 16, (250 + ey) / 2, ox + 144, 252); x.fill(); } }
+  // 3 shrub on thin stems
+  { const ox = W * 3; x.strokeStyle = g(60); x.lineWidth = 4; for (let i = 0; i < 5; i++) { x.beginPath(); x.moveTo(ox + 128, 254); x.lineTo(ox + 60 + i * 34, 130 + r() * 30); x.stroke(); }
+    for (let i = 0; i < 30; i++) { const px = 128 + (r() - .5) * 190, py = 110 + (r() - .5) * 120, pr = 20 + r() * 20; x.fillStyle = g(85 + 120 * clamp(.6 - (py - 110) / 150, 0, 1)); x.beginPath(); x.arc(ox + px, py, pr, 0, TAU); x.fill(); } }
+  const t = toTex(c); t.colorSpace = THREE.NoColorSpace; return t;
+}
+/* ---------- landmarks for the middle distance ---------- */
+function paintLandmarkAtlas() {
+  const W = 384, H = 512, c = document.createElement('canvas'); c.width = W * 3; c.height = H;
+  const x = c.getContext('2d'), g = (v) => { v = Math.round(clamp(v, 0, 255)); return `rgb(${v},${v},${v})`; };
+  const rect = (ox, x0, y0, w, h, v) => { x.fillStyle = g(v); x.fillRect(ox + x0, y0, w, h); };
+  // 0 gopuram: a stepped gate tower, each tier a lit face, a shadowed return and a row of niches
+  { const ox = 0; let y = H - 4, w = 250; rect(ox, 192 - 140, y - 40, 280, 40, 120);
+    y -= 40; for (let k = 0; k < 9; k++) { const h = 50 - k * 2.5; rect(ox, 192 - w / 2, y - h, w * .62, h, 196 - k * 4); rect(ox, 192 - w / 2 + w * .62, y - h, w * .38, h, 104); rect(ox, 192 - w / 2 - 6, y - 6, w + 12, 6, 226);
+      for (let n = 0; n < Math.max(2, 7 - k); n++) rect(ox, 192 - w / 2 + 10 + n * (w - 20) / Math.max(2, 7 - k), y - h + 8, (w - 20) / Math.max(2, 7 - k) * .5, h - 16, 70);
+      y -= h; w *= .86; }
+    x.fillStyle = g(210); x.beginPath(); x.ellipse(ox + 192, y - 12, w * .55, 22, 0, 0, TAU); x.fill(); for (let n = -2; n <= 2; n++) rect(ox, 192 + n * 14 - 2, y - 46, 4, 26, 230); }
+  // 1 chhatri: a domed pavilion on columns
+  { const ox = W; rect(ox, 60, H - 60, 264, 56, 150); rect(ox, 44, H - 70, 296, 12, 220); for (let n = 0; n < 5; n++) { rect(ox, 78 + n * 54, H - 250, 14, 180, n < 3 ? 210 : 120); }
+    rect(ox, 56, H - 268, 272, 20, 226); x.fillStyle = g(190); x.beginPath(); x.ellipse(ox + 192, H - 268, 118, 150, 0, Math.PI, TAU); x.fill(); x.fillStyle = g(110); x.beginPath(); x.ellipse(ox + 236, H - 268, 74, 138, 0, Math.PI * 1.5, TAU); x.lineTo(ox + 236, H - 268); x.fill();
+    rect(ox, 188, H - 462, 8, 46, 236); x.fillStyle = g(236); x.beginPath(); x.arc(ox + 192, H - 470, 10, 0, TAU); x.fill(); }
+  // 2 fort wall with bastions and battlements
+  { const ox = W * 2; rect(ox, 0, H - 150, W, 150, 168); rect(ox, 0, H - 150, W, 12, 214); for (let n = 0; n < 16; n++) rect(ox, n * 24 + 2, H - 172, 14, 22, 190);
+    for (const bx of [50, 250]) { rect(ox, bx, H - 250, 84, 250, 196); rect(ox, bx + 56, H - 250, 28, 250, 112); for (let n = 0; n < 4; n++) rect(ox, bx + n * 22, H - 272, 14, 22, 214); rect(ox, bx + 30, H - 190, 12, 40, 60); }
+    x.fillStyle = g(60); x.beginPath(); x.moveTo(ox + 170, H); x.lineTo(ox + 170, H - 70); x.quadraticCurveTo(ox + 192, H - 104, ox + 214, H - 70); x.lineTo(ox + 214, H); x.fill(); }
+  const t = toTex(c); t.colorSpace = THREE.NoColorSpace; return t;
+}
+/* ---------- a festival banner: bordered cloth with a wheel, a swallow tail and a fringe (white: the material's colour dyes it) ---------- */
+function paintBannerTex() {
+  const W = 256, H = 940, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(10, 0, W - 20, H - 40);
+  x.globalCompositeOperation = 'destination-out'; x.beginPath(); x.moveTo(10, H - 40); x.lineTo(W / 2, H - 190); x.lineTo(W - 10, H - 40); x.closePath(); x.fill(); x.globalCompositeOperation = 'source-over';
+  x.fillStyle = '#8a8a8a'; x.fillRect(10, 0, 22, H - 60); x.fillRect(W - 32, 0, 22, H - 60); x.fillRect(10, 0, W - 20, 30);
+  x.fillStyle = '#d9d9d9'; for (let k = 0; k < 30; k++) { x.beginPath(); x.arc(21, 46 + k * 28, 6, 0, TAU); x.fill(); x.beginPath(); x.arc(W - 21, 46 + k * 28, 6, 0, TAU); x.fill(); }
+  // the wheel
+  x.strokeStyle = '#777777'; x.lineWidth = 12; x.beginPath(); x.arc(W / 2, 230, 66, 0, TAU); x.stroke(); x.lineWidth = 6; for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; x.beginPath(); x.moveTo(W / 2 + Math.cos(a) * 16, 230 + Math.sin(a) * 16); x.lineTo(W / 2 + Math.cos(a) * 62, 230 + Math.sin(a) * 62); x.stroke(); }
+  x.fillStyle = '#777777'; x.beginPath(); x.arc(W / 2, 230, 16, 0, TAU); x.fill();
+  // bands and a row of triangles
+  for (const y of [360, 388, 640, 668]) { x.fillStyle = '#9a9a9a'; x.fillRect(32, y, W - 64, 12); }
+  x.fillStyle = '#8a8a8a'; for (let k = 0; k < 6; k++) { x.beginPath(); x.moveTo(40 + k * 30, 620); x.lineTo(55 + k * 30, 420); x.lineTo(70 + k * 30, 620); x.fill(); }
+  const t = toTex(c, { aniso: 8 }); return t;
+}
+/* ---------- the court round the plaza wheel: a rangoli in festival pigments, drawn over dressed stone (a plan view, 66 m across) ---------- */
+function paintCourt(S) {
+  const c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d'), k = S / 66, C0 = S / 2, r = rng(303);
+  const PIG = { red: '#c8381f', tur: '#e3a81c', ind: '#2c3f7a', pink: '#d6457e', wht: '#f6efe0', grn: '#3f7a4a' };
+  x.fillStyle = '#d6c6a2'; x.fillRect(0, 0, S, S);
+  // stone: ring joints and radial joints, faint
+  x.strokeStyle = 'rgba(90,70,50,.28)'; x.lineWidth = Math.max(1, S / 1400);
+  for (let rr = 18; rr <= 33; rr += 1.5) { x.beginPath(); x.arc(C0, C0, rr * k, 0, TAU); x.stroke(); }
+  for (let i = 0; i < 96; i++) { const a = i / 96 * TAU; x.beginPath(); x.moveTo(C0 + Math.cos(a) * 17 * k, C0 + Math.sin(a) * 17 * k); x.lineTo(C0 + Math.cos(a) * 33 * k, C0 + Math.sin(a) * 33 * k); x.stroke(); }
+  for (let i = 0; i < S * S / 900; i++) { x.fillStyle = `rgba(${r() < .5 ? '60,45,30' : '255,245,225'},${.03 + r() * .05})`; x.fillRect(r() * S, r() * S, 2 + r() * 5, 2 + r() * 5); }
+  const band = (r0, r1, col) => { x.strokeStyle = col; x.lineWidth = (r1 - r0) * k; x.beginPath(); x.arc(C0, C0, (r0 + r1) / 2 * k, 0, TAU); x.stroke(); };
+  const petals = (n, r0, r1, wid, cols, edge, off = 0) => { for (let i = 0; i < n; i++) { const a = (i + off) / n * TAU, c0 = Math.cos(a), s0 = Math.sin(a), hw = wid * k, pr = (r0 + r1) / 2 * k;
+    x.fillStyle = cols[i % cols.length]; x.strokeStyle = edge; x.lineWidth = Math.max(1.5, S / 700);
+    x.beginPath(); x.moveTo(C0 + c0 * r0 * k, C0 + s0 * r0 * k); x.quadraticCurveTo(C0 + c0 * pr - s0 * hw, C0 + s0 * pr + c0 * hw, C0 + c0 * r1 * k, C0 + s0 * r1 * k); x.quadraticCurveTo(C0 + c0 * pr + s0 * hw, C0 + s0 * pr - c0 * hw, C0 + c0 * r0 * k, C0 + s0 * r0 * k); x.fill(); x.stroke(); } };
+  const dots = (n, rr, rad, col, off = 0) => { x.fillStyle = col; for (let i = 0; i < n; i++) { const a = (i + off) / n * TAU; x.beginPath(); x.arc(C0 + Math.cos(a) * rr * k, C0 + Math.sin(a) * rr * k, rad * k, 0, TAU); x.fill(); } };
+  x.globalAlpha = .9;
+  band(17.5, 18.2, PIG.red); dots(96, 18.7, .14, PIG.wht);
+  petals(48, 19.1, 21.9, .78, [PIG.wht, PIG.tur], PIG.red); dots(48, 20.6, .16, PIG.red, 0);
+  band(22.2, 22.6, PIG.ind); dots(72, 22.4, .1, PIG.wht, .5);
+  petals(24, 23.0, 26.8, 1.9, [PIG.pink, PIG.wht], PIG.ind, .5); petals(24, 23.4, 25.6, .8, [PIG.tur], PIG.red, .5); dots(24, 26.2, .22, PIG.grn, 0);
+  band(27.2, 27.7, PIG.tur); dots(120, 27.45, .08, PIG.red);
+  // a border of triangles, as on a temple plinth
+  for (let i = 0; i < 72; i++) { const a0 = i / 72 * TAU, a1 = (i + 1) / 72 * TAU, am = (a0 + a1) / 2; x.fillStyle = i % 2 ? PIG.ind : PIG.red; x.beginPath(); x.moveTo(C0 + Math.cos(a0) * 28.2 * k, C0 + Math.sin(a0) * 28.2 * k); x.lineTo(C0 + Math.cos(am) * 30.6 * k, C0 + Math.sin(am) * 30.6 * k); x.lineTo(C0 + Math.cos(a1) * 28.2 * k, C0 + Math.sin(a1) * 28.2 * k); x.fill(); }
+  band(31.0, 31.3, PIG.wht); dots(60, 32.0, .26, PIG.red); dots(60, 32.0, .12, PIG.tur); band(32.6, 32.85, PIG.ind);
+  x.globalAlpha = 1;
+  return c;
 }

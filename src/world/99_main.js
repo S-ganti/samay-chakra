@@ -279,12 +279,12 @@ async function boot() {
     else { S.beatPos += dt * S.bpm / 60; if (S.beatAud >= 0) { let e = S.beatAud - S.beatPos; e -= Math.round(e / 4) * 4; S.beatPos += e * Math.min(1, dt * 3); } }
     // camera, sky, lights
     updateCamera(CAM, W, dt, rt, t);
-    if (GR) { GR.update(CAM.cam, rt); GR.mesh.material.emissive.copy(look.ground).multiplyScalar(.45); GR.mesh.visible = h > 6.4 && h < 17.6; }   // grass is a daylight detail: by lamp and moon its blades read as dark needles
+    if (GR) { GR.update(CAM.cam, rt); GR.mesh.material.emissive.copy(look.ground).multiplyScalar(.45); GR.mesh.visible = false; }   // grass is a daylight detail: by lamp and moon its blades read as dark needles
     updateSky(SK, ST, t, rt, look, w, CAM.cam);
     updateNature(NA, SK, CAM.cam, dt, rt, h, look);
     if (SCAN.ready) scanFrame(SK, look);
     updatePainted(PA, SK, look, w, rt, vh * IPR);
-    { const gk = .75 * (w[5] + w[6] + w[7]) + .3 * w[4], gm = Math.max(look.ground.r, look.ground.g, look.ground.b, 1e-3); _tmpC.copy(look.ground).multiplyScalar(1 / gm); _tmpC.r = lerp(1, _tmpC.r, gk); _tmpC.g = lerp(1, _tmpC.g, gk); _tmpC.b = lerp(1, _tmpC.b, gk); TR.mesh.material.color.copy(_tmpC); if (CT.court && CT.court.color) CT.court.color.copy(_tmpC); }
+    { const gk = .75 * (w[5] + w[6] + w[7]) + .3 * w[4], gm = Math.max(look.ground.r, look.ground.g, look.ground.b, 1e-3); _tmpC.copy(look.ground).multiplyScalar(1 / gm); _tmpC.r = lerp(1, _tmpC.r, gk); _tmpC.g = lerp(1, _tmpC.g, gk); _tmpC.b = lerp(1, _tmpC.b, gk); TR.mesh.material.color.copy(_tmpC); GROUND.F.uFlatK.value = .7 * clamp(w[5] + w[6] + w[7] + w[4] * .5, 0, 1); if (CT.court && CT.court.color) CT.court.color.setRGB(lerp(1, _tmpC.r, .35), lerp(1, _tmpC.g, .35), lerp(1, _tmpC.b, .35)); }
     { const RU = TR.mountains.material.userData.U; RU.uNear.value.copy(look.near); RU.uFar.value.copy(look.far); RU.uKeyDir.value.copy(S.keyDir); RU.uHaze.value.copy(look.skyHor); }
     if (S.physW > .001) LI.updateLUT(S.sunDir, look.mie);
     LI.env.update(false); LI.updateProbe(SK.U, false); LI.probe.intensity = look.envI;

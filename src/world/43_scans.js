@@ -65,6 +65,7 @@ function scanInstances(scene, asset, id, pts, { cast = false, receive = true, ti
 function scanExcl(x, z, pad = 0) {
   const dC = Math.hypot(x, z), dR = Math.hypot(x - GEO.R.x, z - GEO.R.z);
   if (dC < 44 + pad || dR < 20 + pad) return true;
+  if (Math.hypot(x - GEO.P.x, z - GEO.P.z) < 125) return true;   // no scanned boulders in the plaza's painted surroundings
   if (x > GEO.R.x + 10 && dR < 110 && Math.abs(z - GEO.R.z) < 50) return true;
   if (Math.hypot(x - TEMPLE.x, z - TEMPLE.z) < 40 + pad) return true;
   if (x < -38 && x > -114 && Math.abs(z) < 16 + pad) return true;

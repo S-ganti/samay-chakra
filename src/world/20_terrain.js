@@ -129,12 +129,13 @@ function groundLayers(m) {
   for (let i = 0; i < 4; i++) { load('tG' + i, i, 'Diffuse'); load('tN' + i, i, 'nor_gl'); }
   const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); blank.needsUpdate = true;
   for (const k in GROUND.U) if (k !== 'uGT') GROUND.U[k].value = blank;
+  GROUND.F = { uFlatK: { value: 0 } };
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, GROUND.U);
+    Object.assign(sh.uniforms, GROUND.U, GROUND.F);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec4 aW; attribute float aK; varying vec4 vW; varying float vK; varying vec3 vWP;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = aW; vK = aK; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uGT; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
+      uniform float uGT, uFlatK; uniform sampler2D tG0, tG1, tG2, tG3, tN0, tN1, tN2, tN3; varying vec4 vW; varying float vK; varying vec3 vWP;
       // two scales, the second turned 37 degrees so the two grids never line up into stripes
       vec3 gSamp(sampler2D t, vec2 p) { vec2 q = vec2(p.x * .7986 - p.y * .6018, p.x * .6018 + p.y * .7986); return mix(texture2D(t, p / 3.2).rgb, texture2D(t, q / 13.7 + .37).rgb, .45); }
       float gH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -146,6 +147,7 @@ function groundLayers(m) {
         // broad patches of lighter and darker, drier and greener ground (tens of metres across): no texture repeats at that scale
         float gm = gN(p / 17.0) * .6 + gN(p / 53.0 + 3.0) * .4;
         alb *= mix(vec3(.74, .76, .7), vec3(1.2, 1.15, 1.02), gm);
+        alb = mix(alb, vec3(dot(alb, vec3(.34, .4, .26))) * vec3(1.9, 1.75, 1.45), uFlatK) * diffuse;   // a wash in the hour's ground colour, the photograph kept only as value
         diffuseColor.rgb = mix(alb * 0.95, diffuseColor.rgb, vK);
       }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -238,8 +240,8 @@ function buildTerrain(scene) {
   const mMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   const rangeU = { uNear: { value: col('#3d2f4f') }, uFar: { value: col('#7a5a7d') }, uKeyDir: { value: V3(0, 1, 0) }, uHaze: { value: col('#f2a65a') } };
   mMat.onBeforeCompile = (sh) => { Object.assign(sh.uniforms, rangeU);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aD; varying float vD; varying float vRY; varying vec3 vRN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvD = aD; vRY = position.y; vRN = normalize(mat3(modelMatrix) * normal);');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uNear, uFar, uKeyDir, uHaze; varying float vD; varying float vRY; varying vec3 vRN;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float st = min(floor(vD * 3.4), 2.0) / 2.0; float form = .88 + .2 * clamp(dot(normalize(vRN), uKeyDir), -.3, 1.0); diffuseColor.rgb = mix(mix(uNear, uFar, st) * form, uHaze, (1.0 - smoothstep(4.0, 95.0, vRY)) * (.22 + .3 * st)); }');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aD; varying float vD; varying float vRY; varying vec2 vRX; varying vec3 vRN;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvD = aD; vRY = position.y; vRX = position.xz; vRN = normalize(mat3(modelMatrix) * normal);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uNear, uFar, uKeyDir, uHaze; varying float vD; varying float vRY; varying vec2 vRX; varying vec3 vRN;\nfloat rH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); } float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(rH(i), rH(i+vec2(1,0)), f.x), mix(rH(i+vec2(0,1)), rH(i+vec2(1,1)), f.x), f.y); }').replace('#include <color_fragment>', '#include <color_fragment>\n{ float st = min(floor(vD * 3.4), 2.0) / 2.0; float form = .88 + .2 * clamp(dot(normalize(vRN), uKeyDir), -.3, 1.0); vec3 rc = mix(uNear, uFar, st) * form; float wob = rN(vRX / 60.0) * 18.0; float sb = fract((vRY + wob) / 26.0); rc *= mix(.9, 1.07, smoothstep(.0, .1, sb) * (1.0 - smoothstep(.55, .65, sb))); float wood = smoothstep(.45, .7, rN(vRX / 22.0) * .6 + rN(vRX / 7.0) * .4) * (1.0 - smoothstep(25.0, 85.0, vRY)); rc = mix(rc, uNear * .82, wood * .55 * (1.0 - st * .6)); diffuseColor.rgb = mix(rc, uHaze, (1.0 - smoothstep(4.0, 95.0, vRY)) * (.22 + .3 * st)); }');
   };
   mMat.userData.U = rangeU;
   const mm = new THREE.Mesh(mg, mMat);
