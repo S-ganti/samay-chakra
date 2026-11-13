@@ -301,7 +301,7 @@ async function boot() {
     LINFO.portalI = portalI; LINFO.portalCol.copy(G.portalU.uCol.value);
     LINFO.celPos.copy(ST.celestial.group.position); LINFO.celVis = ST.celestial.group.visible ? ST.celestial.celMat.opacity * clamp(ST.celestial.corU.uI.value, 0, 1) : 0;
     // arches rise at dawn
-    const rise = smooth(5.2, 6.35, h) * (1 - smooth(9.3, 10.4, h));
+    const rise = smooth(5.2, 6.35, h) * (1 - smooth(11.5, 12.1, h));   // the arches stand through Dispersal and go down as the sun reaches the zenith
     const AR = ST.arches.group; AR.visible = rise > .002; AR.position.y = HP - 36 * (1 - easeIO(rise));
     ST.M.marble.emissiveIntensity = ST.M.marbleBlock.emissiveIntensity = look.archGlow * .1 + S.flash * .5;
     ST.M.gold.emissiveIntensity = look.archGlow * .45 + S.flash;

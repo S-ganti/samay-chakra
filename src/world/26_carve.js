@@ -713,12 +713,14 @@ function stoneDetail(m, kind) {
       float sN(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); float a = fract(sin(dot(i, vec2(12.9898, 78.233))) * 43758.5453), b = fract(sin(dot(i + vec2(1, 0), vec2(12.9898, 78.233))) * 43758.5453), c = fract(sin(dot(i + vec2(0, 1), vec2(12.9898, 78.233))) * 43758.5453), d = fract(sin(dot(i + vec2(1, 1), vec2(12.9898, 78.233))) * 43758.5453); return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { float rimK = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 3.0); totalEmissiveRadiance += uRim * rimK * diffuseColor.rgb; }`)
-      .replace('#include <map_fragment>', `#include <map_fragment>
+      .replace('#include <map_fragment>', `#ifdef USE_MAP
+        diffuseColor *= texture2D( map, vMapUv, -0.75 );   // a sharper mip for the carved colour: relief stays crisp across the forecourt
+      #endif
       float sOn = uOn * uStoneOn;
       if (sOn > 0.5) {
         vec3 sd = tri(tD, 1.0).rgb, sd2 = tri(tD, .23).rgb;
         // a third, fine octave of the stone scan for the close shots: pores and tool marks at a few centimetres, fading out by 45 m
-        float nearK = 1.0 - smoothstep(8.0, 45.0, length(vViewPosition));
+        float nearK = 1.0 - smoothstep(18.0, 120.0, length(vViewPosition));
         vec3 sd3 = tri(tD, 4.3).rgb;
         vec3 grain = (sd * .65 + sd2 * .35) / max(uMean, vec3(.02));
         grain *= mix(vec3(1.0), clamp(sd3 / max(uMean, vec3(.02)), 0.5, 1.6), .5 * nearK);
@@ -739,7 +741,7 @@ function stoneDetail(m, kind) {
         vec3 b = sBW(), p = vSW * uSScale, n = normalize(vSN);
         vec3 tx = texture2D(tN, p.zy).xyz * 2. - 1., ty = texture2D(tN, p.xz).xyz * 2. - 1., tz = texture2D(tN, p.xy).xyz * 2. - 1.;
         vec3 wn = normalize(vec3(0., tx.y, tx.x) * b.x + vec3(ty.x, 0., ty.y) * b.y + vec3(tz.x, tz.y, 0.) * b.z);
-        float nearN = 1.0 - smoothstep(8.0, 45.0, length(vViewPosition));
+        float nearN = 1.0 - smoothstep(18.0, 120.0, length(vViewPosition));
         vec3 p4 = p * 4.3; vec3 fx = texture2D(tN, p4.zy).xyz * 2. - 1., fy = texture2D(tN, p4.xz).xyz * 2. - 1., fz = texture2D(tN, p4.xy).xyz * 2. - 1.;
         vec3 wf = normalize(vec3(0., fx.y, fx.x) * b.x + vec3(fy.x, 0., fy.y) * b.y + vec3(fz.x, fz.y, 0.) * b.z);
         normal = normalize(normal + (mat3(viewMatrix) * wn) * .55 + (mat3(viewMatrix) * wf) * .5 * nearN);

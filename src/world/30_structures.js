@@ -264,7 +264,17 @@ function buildStructures(scene, Q) {
     _s.set(1.6 + hash(i + 7) * .8, 3.2 + hash(i + 11) * 2.8, .9); setIM(stones, i, _p, _q, _s);
     stoneTops.push([x, _p.y + _s.y * .98, z]);
   }
-  stones.castShadow = stones.receiveShadow = true; scene.add(stones);
+  stones.castShadow = stones.receiveShadow = true; scene.add(stones); stones.visible = false;
+  // each standing stone is a carved pillar: stepped base, a shaft cut with the wheel's spoke carving, a banded capital and an abacus
+  { const gA = [], gS = [], gB = [], m4 = new THREE.Matrix4(), pp = V3(), qq = new THREE.Quaternion(), ss = V3(), shaftMat = carvedMaterial(K.spoke, { repeat: [3, 1] });
+    for (let i = 0; i < 13; i++) { stones.getMatrixAt(i, m4); m4.decompose(pp, qq, ss); const h = ss.y, rad = .44 + .06 * hash(i + 5), T = new THREE.Matrix4().compose(pp, qq, V3(1, 1, 1));
+      const add = (list, g) => { g.applyMatrix4(T); list.push(g); };
+      add(gA, boxUV(new THREE.BoxGeometry(1.5, .45, 1.5), 1.5, .45).translate(0, .22, 0)); add(gA, boxUV(new THREE.BoxGeometry(1.18, .32, 1.18), 1.18, .32).translate(0, .6, 0));
+      add(gS, new THREE.CylinderGeometry(rad * .9, rad, h - 1.75, 28, 1, true).translate(0, .76 + (h - 1.75) / 2, 0));
+      add(gB, torusFriezeUV(new THREE.TorusGeometry(rad * 1.02, .11, 10, 40), 4).rotateX(Math.PI / 2).translate(0, .86, 0)); add(gB, torusFriezeUV(new THREE.TorusGeometry(rad * .98, .1, 10, 40), 4).rotateX(Math.PI / 2).translate(0, h - 1.08, 0));
+      add(gB, new THREE.CylinderGeometry(rad * 1.55, rad * .95, .5, 28).translate(0, h - .74, 0));
+      add(gA, boxUV(new THREE.BoxGeometry(1.5, .3, 1.5), 1.5, .3).translate(0, h - .34, 0)); add(gA, boxUV(new THREE.BoxGeometry(1.24, .2, 1.24), 1.24, .2).translate(0, h - .1, 0)); }
+    for (const [list, mat] of [[gA, C.ashlar], [gS, shaftMat], [gB, C.band5]]) { const m = new THREE.Mesh(mergeGeometries(list.map(g => g.index ? g.toNonIndexed() : g)), mat); m.castShadow = m.receiveShadow = true; scene.add(m); } }
   const ruinIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), C.granite, 26); const rr = rng(77);
   for (let i = 0; i < 26; i++) {
     const a = rr() * TAU, d = 5 + rr() * 8, x = GEO.R.x - 3 + Math.cos(a) * d, z = GEO.R.z - 2 + Math.sin(a) * d * .8;
@@ -275,9 +285,9 @@ function buildStructures(scene, Q) {
   ruinWall.position.set(GEO.R.x - 9, RH + 1.3, GEO.R.z + 1); ruinWall.rotation.y = .5; ruinWall.castShadow = true;   // (cut: a blank slab beside the carved stones)
   // broken upright wheel
   const bw = new THREE.Group(); bw.position.set(GEO.R.x + 7.5, RH + 3.3, GEO.R.z - 3); bw.rotation.y = -.9; bw.scale.setScalar(.38); scene.add(bw);
-  const bwPanels = new THREE.InstancedMesh(panelG, C.granite, NP - 7); let bj = 0;
+  const bwPanels = new THREE.InstancedMesh(panelG, [C.panel, C.band, C.ashlar], NP - 7); bwPanels.castShadow = true; let bj = 0;   // the fallen wheel is the portal wheel's twin: the same carved panels and spokes
   for (let k = 0; k < NP; k++) { if ([3, 4, 9, 15, 16, 17, 21].includes(k)) continue; const th = k / NP * TAU; _m4.makeRotationZ(th).multiply(new THREE.Matrix4().makeTranslation(rMid, 0, 0)); bwPanels.setMatrixAt(bj++, _m4); }
-  bw.add(bwPanels); { const sp = spokes.clone(); sp.traverse(o => { if (o.isMesh) o.material = C.granite; }); bw.add(sp); }
+  bw.add(bwPanels); { const sp = spokes.clone(); bw.add(sp); }
   // synth table + knobs
   const sy = groundY(GEO.SYNTH.x, GEO.SYNTH.z);
   const stbl = new THREE.Mesh(new THREE.BoxGeometry(1.9, .72, .85), M.wood); stbl.position.set(GEO.SYNTH.x, sy + .36, GEO.SYNTH.z); stbl.castShadow = true; scene.add(stbl);

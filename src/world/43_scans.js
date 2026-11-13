@@ -68,7 +68,7 @@ function scanExcl(x, z, pad = 0) {
   if (Math.hypot(x - GEO.P.x, z - GEO.P.z) < 125) return true;   // no scanned boulders in the plaza's painted surroundings
   if (x > GEO.R.x + 10 && dR < 110 && Math.abs(z - GEO.R.z) < 50) return true;
   if (Math.hypot(x - TEMPLE.x, z - TEMPLE.z) < 40 + pad) return true;
-  if (x < -38 && x > -114 && Math.abs(z) < 16 + pad) return true;
+  if (x < -34 && x > -118 && Math.abs(z) < 30 + pad) return true;   // steps, forecourt and gate: no boulders in the opening shot
   if (z > 80 && Math.abs(x - GEO.P.x) < 120 && z < 186) return true;
   if (Math.min(distToRoute(x, z, ROUTES.hill), distToRoute(x, z, ROUTES.ridge), distToRoute(x, z, ROUTES.road)) < 4.5 + pad) return true;
   return false;
@@ -119,7 +119,9 @@ async function loadScans(scene, Q, renderer, FO, ST) {
   const r = rng(4242), inLens = shotClearance();
   const GRANITE = ['#d8cabb', '#b9a898'], MOSSY = ['#ffffff', '#d8d0bc'];
   const pick = (arr) => arr[Math.floor(r() * arr.length)];
-  const add = (kind, id, pts, o) => { const a = A[kind][id] || A.lod[id]; if (a && pts.length) scanInstances(scene, a, id, pts, o); };
+  // whatever rule placed it, no scanned rock stands in the opening view: the forecourt, the steps and the slopes either side of the portal wheel
+  const openView = (p) => p[0] > -125 && p[0] < -30 && Math.abs(p[2]) < 42;
+  const add = (kind, id, pts, o) => { const a = A[kind][id] || A.lod[id]; pts = pts.filter(p => !openView(p)); if (a && pts.length) scanInstances(scene, a, id, pts, o); };
 
   // 1 — tors: granite domes with boulders perched on them, on the far hills and the skyline
   const domes = ['namaqualand_boulder_03', 'namaqualand_boulder_02', 'namaqualand_boulder_06'];
@@ -374,7 +376,7 @@ async function loadHeritage(scene, ST) {
     heritagePlace(scene, A.shikhara, list);
   }
   // Eclipse / Brahma Muhurta: the stone circle becomes a ring of carved temple pillars, each as tall as the stone it replaces
-  if (A.pillar && ST.ridge && ST.ridge.stones) {
+  if (0 && A.pillar && ST.ridge && ST.ridge.stones) {
     const st = ST.ridge.stones, m4 = new THREE.Matrix4(), pp = V3(), qq = new THREE.Quaternion(), ss = V3(), list = [];
     for (let i = 0; i < st.count; i++) { st.getMatrixAt(i, m4); m4.decompose(pp, qq, ss); const yaw = new THREE.Euler().setFromQuaternion(qq, 'YXZ').y; list.push([pp.x, pp.y + .1, pp.z, ss.y * 1.05, yaw]); }
     st.visible = false; heritagePlace(scene, A.pillar, list);

@@ -39,11 +39,11 @@ const SHOTS = [
     (rt) => { const a = rt * .025; return { p: [Math.cos(a) * 48, HP + 44, Math.sin(a) * 48], l: [0, HP + 10, 0], fov: 48, name: 'Crown' }; },
     (rt) => ({ p: [RR.x + 16, RH + 4.5, RR.z + 3], l: [RR.x + 120, RH + 12, RR.z], fov: 56, name: 'Diamond' }),
   ],
-  [ // 6 Dispersal — chai on the pavement, autos, the pillar with the ring
-    skyShot(PP_.x, 11, PP_.z, 30, 'Halo'),
-    (rt) => ({ p: [15, 15, 57], l: [2, 3, 88], fov: 48, name: 'Down to the wheel' }),
-    (rt) => ({ p: [PP_.x - 26 + Math.sin(rt * .02), 5.5, PP_.z - 24], l: [PP_.x, 5.2, PP_.z], fov: 35, name: 'Pillar' }),
-    (rt) => ({ p: [PP_.x + 15, 1.3, PP_.z + 12 + .5 * Math.sin(rt * .03)], l: [PP_.x, 2.4, PP_.z], fov: 30, name: 'Across the carving', dof: 1.6 }),
+  [ // 6 Dispersal — morning under the great arches: the night's dancers thin out across the floor, kites go up
+    skyShot(0, HP + 15, 0, 48, 'Halo over the arches', 66, 1.6),
+    (rt) => { const a = rt * .02 + 2.2; return { p: [Math.cos(a) * 60, HP + 19, Math.sin(a) * 60], l: [0, HP + 12, 0], fov: 46, name: 'Morning arches' }; },
+    (rt) => ({ p: [-8 + Math.sin(rt * .03), HP + 1.7, 20], l: [4, HP + 15, -6], fov: 70, name: 'Under the arches' }),
+    (rt) => ({ p: [-41, HP + 2.6, 7 + .8 * Math.sin(rt * .03)], l: [0, HP + 13, 0], fov: 62, name: 'From the gate' }),
   ],
   [ // 7 Zero Shadow — straight down on the great wheel
     skyShot(PP_.x, 11, PP_.z, 22, 'Zenith ring', 72, 1.2),
@@ -52,7 +52,7 @@ const SHOTS = [
     (rt) => ({ p: [PP_.x - 42, 27, PP_.z - 40], l: [PP_.x, 0, PP_.z], fov: 44, name: 'Rooftop' }),
   ],
   [ // 8 Return — carriers climbing with the pieces; the ring rebuilt
-    skyShot(-47, HP + 6.4, 0, 62, 'Sun wheel', 26, 2.4),
+    skyShot(-47, HP + 9, 0, 84, 'Sun wheel', 40, 3.4),
     (rt) => ({ p: [-82, FORE_H + 5, 15], l: [-47, HP + 6.8, 0], fov: 46, name: 'Rebuilding' }),
     // late light: from the gate, west down the steps into the low sun, the crowd and the leaves backlit
     (rt, h) => (h !== undefined && h < 16.7) ? null : ({ p: [-52.5, HP + 1.45, 3.6 + .5 * Math.sin(rt * .04)], l: [-98, FORE_H + 6, -5], fov: 48, name: 'Into the sun', dof: 1, fd: 30 }),

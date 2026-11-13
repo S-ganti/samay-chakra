@@ -230,7 +230,7 @@ function updatePainted(PA, SK, look, w, rt, px) {
   const mx = Math.max(PAINT.light.r, PAINT.light.g, PAINT.light.b); if (mx > 1.3) PAINT.light.multiplyScalar(1.3 / mx);
   PAINT.lamp.copy(look.accent).lerp(look.hilite, .4).multiplyScalar(2.2);
   PA.treeMat.userData.U.uTime.value = rt;
-  const W8 = { steps: w[0] + w[7] + w[1] * .3, floor: w[1] + w[4] + w[0] * .5 + w[2] * .25, ridge: w[2] + w[3] * .6, plaza: w[5] + w[6] + w[7] * .25 };
+  const W8 = { steps: w[0] + w[7] + w[1] * .3, floor: w[1] + w[4] + w[5] + w[0] * .5 + w[2] * .25, ridge: w[2] + w[3] * .6, plaza: w[6] + w[5] * .3 + w[7] * .25 };
   for (const C of PA.crowds) {
     const k = smooth(.06, .5, W8[C.name]); C.im.visible = k > .01;
     const U = C.mat.userData.U; U.uGrow.value = k; U.uBeat.value = S.beatPos; U.uTime.value = rt;
